@@ -248,6 +248,7 @@
   const INV_DATE_SHIPPED = 'fldNPAxYpiX2voBTW';
   const INV_QUOTA = 'fldYuBYEi82bNzyB7';
   const INV_ASSIGNEE = 'fldhul0vE8f1uQlrT';
+  const INV_SOUVENIR_TOTAL = 'fldd2HSPwFB7tzyVT';
   const INV_LAYOUT_FINALIZED = 'fldGfqub3TKd2JySk';
 
   const SOU_TABLE = 'tblXtn5j4tMaL9Tax';
@@ -532,7 +533,7 @@
       try {
         const invEq = s => `{Status}="${s}"`;
         const souEq = s => `{Status}="${s}"`;
-        const invF = (filter) => otFetchRecords(apiKey, INV_TABLE, INV_STATUS, INV_TOTAL, INV_DATE_SHIPPED, filter, [INV_QUOTA, INV_ASSIGNEE]);
+        const invF = (filter) => otFetchRecords(apiKey, INV_TABLE, INV_STATUS, INV_TOTAL, INV_DATE_SHIPPED, filter, [INV_QUOTA, INV_ASSIGNEE, INV_SOUVENIR_TOTAL]);
         const souF = (filter) => otFetchRecords(apiKey, SOU_TABLE, SOU_STATUS, SOU_TOTAL, SOU_DATE_SHIPPED, filter);
 
         const invStatusOr = (...names) => `OR(${names.map(n => `{Status}="${n}"`).join(',')})`;
@@ -561,11 +562,16 @@
         const invOrderDone = otSumTotals(invOrderDoneEligible, INV_TOTAL);
 
         // ── Souvenir side ────────────────────────────────────────────────────
+        // If the linked Invitation is in the printing/assembly queue (Quota
+        // checked or has an assignee), its linked souvenir's total counts in
+        // that same bucket here too — a bundled souvenir should track its
+        // parent invitation's production stage, not just its own Status field
+        // (which may not have been updated to match yet).
         const souOrderDoneEligible = souOrderDoneCandidates.filter(r =>
           r.fields?.[SOU_STATUS] === 'For posting' ? otIsInCurrentWeek(r.fields?.[SOU_DATE_SHIPPED]) : true
         );
-        const souPrintingTotal = otSumTotals(souPrinting, SOU_TOTAL);
-        const souAssembleTotal = otSumTotals(souAssignedAssembly, SOU_TOTAL);
+        const souPrintingTotal = otSumTotals(souPrinting, SOU_TOTAL) + otSumTotals(printingRecords, INV_SOUVENIR_TOTAL);
+        const souAssembleTotal = otSumTotals(souAssignedAssembly, SOU_TOTAL) + otSumTotals(assignedAssemblyRecords, INV_SOUVENIR_TOTAL);
         const souOrderDone = otSumTotals(souOrderDoneEligible, SOU_TOTAL);
 
         renderSnapshot(

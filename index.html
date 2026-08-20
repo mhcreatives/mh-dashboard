@@ -1,0 +1,2138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MH Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    min-height: 100vh;
+    background: #0a0a0a;
+    color: #f0f0f0;
+    font-family: 'DM Sans', sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 60px 20px;
+  }
+
+  .wrap { width: 100%; max-width: 1240px; }
+
+  #cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 14px;
+  }
+
+  @media (max-width: 1080px) {
+    #cards { grid-template-columns: 1fr 1fr; }
+  }
+
+  @media (max-width: 720px) {
+    #cards { grid-template-columns: 1fr; }
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+
+  .logo-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, #ff6b35, #f7c59f);
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0;
+  }
+
+  .header-text h1 { font-size: 18px; font-weight: 600; color: #fff; letter-spacing: -0.3px; }
+  .header-text p { font-size: 10px; color: #555; font-family: 'DM Mono', monospace; letter-spacing: 1px; text-transform: uppercase; margin-top: 2px; }
+
+  .tool-card {
+    background: #141414;
+    border: 1px solid #1e1e1e;
+    border-radius: 12px;
+    padding: 20px 22px;
+  }
+
+  .tool-hd {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+
+  .tool-name { font-size: 15px; font-weight: 600; color: #fff; }
+  .tool-desc { font-size: 11px; color: #555; line-height: 1.6; margin-bottom: 14px; }
+
+  .tool-actions { display: flex; gap: 10px; }
+
+  .icon-btn {
+    background: transparent;
+    border: none;
+    color: #444;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    cursor: pointer;
+    letter-spacing: 0.3px;
+    transition: color 0.2s;
+    padding: 0;
+  }
+  .icon-btn:hover { color: #ff6b35; }
+
+  .status-line {
+    margin-top: 10px;
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    color: #555;
+    min-height: 14px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .status-dot { width: 5px; height: 5px; border-radius: 50%; background: #333; flex-shrink: 0; }
+  .status-dot.success { background: #4ade80; }
+  .status-dot.error { background: #f87171; }
+  .status-line.success { color: #4ade80; }
+  .status-line.error { color: #f87171; }
+
+  .frame-wrap {
+    margin-top: 14px;
+    border: 1px solid #1e1e1e;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #0f0f0f;
+    display: none;
+  }
+  .frame-wrap.visible { display: block; }
+
+  .tool-frame {
+    width: 100%;
+    border: none;
+    display: block;
+  }
+
+  .config-toggle {
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    color: #444;
+    cursor: pointer;
+    margin-top: 12px;
+    text-align: center;
+    letter-spacing: 0.5px;
+  }
+  .config-toggle:hover { color: #777; }
+
+  .config-panel {
+    display: none;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid #1e1e1e;
+  }
+  .config-panel.open { display: block; }
+
+  .config-hint { font-size: 10px; color: #444; line-height: 1.6; margin-bottom: 10px; }
+  .config-hint b { color: #ff6b35; }
+
+  .id-row { display: flex; gap: 8px; }
+
+  input {
+    flex: 1;
+    padding: 8px 11px;
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 6px;
+    color: #f0f0f0;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input:focus { border-color: #ff6b35; }
+  input::placeholder { color: #333; }
+
+  .save-btn {
+    padding: 8px 14px;
+    background: #1e1e1e;
+    border: 1px solid #2a2a2a;
+    border-radius: 6px;
+    color: #ccc;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .save-btn:hover { border-color: #ff6b35; color: #ff6b35; }
+
+  /* Order Tracker (native) */
+  .ot-tabs { display: flex; gap: 4px; background: #1a1a1a; border-radius: 8px; padding: 3px; margin: 12px 0; }
+  .ot-tab-btn {
+    flex: 1; padding: 6px 0; background: transparent; border: none; border-radius: 6px;
+    font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 600; color: #666; cursor: pointer; transition: all 0.15s;
+  }
+  .ot-tab-btn.active { background: #ff6b35; color: #fff; }
+
+  .ot-stats { display: flex; flex-direction: column; gap: 6px; }
+
+  .ot-col-hd { display: flex; justify-content: flex-end; gap: 10px; padding: 0 12px 2px; }
+  .ot-col-hd span { width: 52px; text-align: right; font-size: 8px; font-family: 'DM Mono', monospace; color: #555; letter-spacing: 0.5px; text-transform: uppercase; }
+
+  .ot-row {
+    background: #1a1a1a; border-radius: 8px; padding: 9px 12px;
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  }
+  .ot-row.highlight { background: linear-gradient(135deg, #ff6b35, #e85d25); }
+  .ot-label { font-size: 11px; font-weight: 600; color: #ccc; }
+  .ot-sub { font-size: 9px; color: #555; margin-top: 2px; font-family: 'DM Mono', monospace; }
+  .ot-row.highlight .ot-label, .ot-row.highlight .ot-sub { color: rgba(255,255,255,0.85); }
+  .ot-divider { height: 1px; background: #222; margin: 2px 0; }
+
+  .ot-values { display: flex; gap: 10px; flex-shrink: 0; }
+  .ot-value { width: 52px; font-size: 13px; font-weight: 700; color: #fff; text-align: right; }
+
+  .ot-monthly { display: none; flex-direction: column; gap: 5px; max-height: 380px; overflow-y: auto; }
+  .ot-monthly.visible { display: flex; }
+  .ot-stats.hidden { display: none; }
+  .month-row { background: #1a1a1a; border-radius: 7px; padding: 8px 12px; display: flex; align-items: center; gap: 8px; }
+  .month-row.current { background: #2a1a10; border: 1px solid #ff6b3555; }
+  .month-name { font-size: 10px; font-weight: 600; color: #888; width: 50px; flex-shrink: 0; font-family: 'DM Mono', monospace; }
+  .month-row.current .month-name { color: #ff6b35; }
+  .month-bar-track { flex: 1; height: 5px; background: #222; border-radius: 3px; overflow: hidden; }
+  .month-bar-fill { height: 100%; background: #ff6b35; border-radius: 3px; min-width: 2px; }
+  .month-values { display: flex; gap: 10px; flex-shrink: 0; }
+  .month-value { font-size: 10px; font-weight: 700; color: #fff; text-align: right; width: 52px; }
+
+  .ot-updated { font-size: 9px; color: #444; font-family: 'DM Mono', monospace; text-align: center; margin-top: 10px; }
+
+  .proof-summary { font-size: 10px; color: #555; font-family: 'DM Mono', monospace; margin: 4px 0 10px; }
+  .proof-results { display: flex; flex-direction: column; gap: 8px; max-height: 420px; overflow-y: auto; }
+  .proof-item { background: #1a1a1a; border-radius: 8px; padding: 10px 12px; border: 1px solid #2a1414; }
+  .proof-name { font-size: 11px; font-weight: 600; color: #fff; }
+  .proof-name span { color: #555; font-weight: 400; }
+  .proof-diff { font-size: 10px; color: #f87171; margin-top: 4px; font-family: 'DM Mono', monospace; }
+  .proof-link { font-size: 9px; color: #ff6b35; text-decoration: none; margin-top: 6px; display: inline-block; }
+  .proof-link:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <div class="logo-icon">🚀</div>
+    <div class="header-text">
+      <h1>MH Dashboard</h1>
+      <p>Extension launcher</p>
+    </div>
+  </div>
+
+  <div id="cards"></div>
+
+</div>
+
+<script>
+  const cardsRoot = document.getElementById('cards');
+
+  const PROOF_EXT_ID_STORAGE = 'mh_ext_id_proof';
+
+  // ─── Order Tracker (native — ported directly, no extension needed) ─────────
+  // Invitation totals + Souvenir totals shown side by side per bucket.
+
+  const OT_BASE_ID = 'appo9wxYM4FruiIBA';
+
+  const INV_TABLE = 'tblYa1m1b8ru4vOh9';
+  const INV_STATUS = 'fldCmhug64G5pUcFA';
+  const INV_TOTAL = 'fldYLks2dxPjb43X2';
+  const INV_DATE_SHIPPED = 'fldNPAxYpiX2voBTW';
+  const INV_QUOTA = 'fldYuBYEi82bNzyB7';
+  const INV_ASSIGNEE = 'fldhul0vE8f1uQlrT';
+  const INV_LAYOUT_FINALIZED = 'fldGfqub3TKd2JySk';
+
+  const SOU_TABLE = 'tblXtn5j4tMaL9Tax';
+  const SOU_STATUS = 'fldhozzU0CbMQTnnq';
+  const SOU_TOTAL = 'fldd6sDmRz4I6g8Vt';
+  const SOU_DATE_SHIPPED = 'fldqUDCjBPp5Rii9r';
+  const SOU_INV_LINK = 'fld01NmCcAHEdlhMD';
+
+  const OT_KEY_STORAGE = 'mh_order_tracker_api_key';
+
+  function otGetWeekBounds(offset = 0) {
+    const now = new Date();
+    const day = now.getDay();
+    const offsetToMonday = day === 0 ? -6 : 1 - day;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + offsetToMonday + offset * 7);
+    monday.setHours(0, 0, 0, 0);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+    return { monday, sunday };
+  }
+  function otIsInWeekBounds(dateStr, bounds) {
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    if (isNaN(d)) return false;
+    return d >= bounds.monday && d <= bounds.sunday;
+  }
+  function otIsInCurrentWeek(dateStr) { return otIsInWeekBounds(dateStr, otGetWeekBounds(0)); }
+  function otFormatWeekLabel() {
+    const { monday, sunday } = otGetWeekBounds();
+    const fmt = d => d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' });
+    return `Week of ${fmt(monday)} – ${fmt(sunday)}`;
+  }
+  function otFormatPeso(val) {
+    const num = typeof val === 'number' ? val : parseFloat(val) || 0;
+    return '₱' + num.toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  }
+
+  async function otFetchRecords(apiKey, tableId, statusField, totalField, dateField, filterFormula, extraFields) {
+    const records = [];
+    let offset = null;
+    do {
+      const fieldParams = [statusField, totalField, dateField, ...(extraFields || [])]
+        .map(f => `fields%5B%5D=${f}`).join('&');
+      const filterPart = filterFormula ? `&filterByFormula=${encodeURIComponent(filterFormula)}` : '';
+      let url = `https://api.airtable.com/v0/${OT_BASE_ID}/${tableId}?pageSize=100&returnFieldsByFieldId=true&${fieldParams}${filterPart}`;
+      if (offset) url += `&offset=${encodeURIComponent(offset)}`;
+      const resp = await fetch(url, { headers: { Authorization: `Bearer ${apiKey}` } });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err?.error?.message || `HTTP ${resp.status}`);
+      }
+      const data = await resp.json();
+      records.push(...(data.records || []));
+      offset = data.offset || null;
+    } while (offset);
+    return records;
+  }
+
+  async function otPatchRecords(apiKey, tableId, updates) {
+    for (let i = 0; i < updates.length; i += 10) {
+      const batch = updates.slice(i, i + 10);
+      const resp = await fetch(`https://api.airtable.com/v0/${OT_BASE_ID}/${tableId}`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ records: batch }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err?.error?.message || `HTTP ${resp.status}`);
+      }
+    }
+  }
+
+  function otSumTotals(records, totalField) {
+    return records.reduce((sum, r) => {
+      const val = r.fields?.[totalField];
+      return sum + (typeof val === 'number' ? val : parseFloat(val) || 0);
+    }, 0);
+  }
+
+  function otBuildMonthRange(oldestDate) {
+    const months = [];
+    const now = new Date();
+    const start = new Date(oldestDate.getFullYear(), oldestDate.getMonth(), 1);
+    let cur = new Date(now.getFullYear(), now.getMonth(), 1);
+    while (cur >= start) {
+      months.push({
+        key: `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}`,
+        label: cur.toLocaleDateString('en-PH', { month: 'short', year: 'numeric' }),
+        isCurrent: cur.getFullYear() === now.getFullYear() && cur.getMonth() === now.getMonth()
+      });
+      cur.setMonth(cur.getMonth() - 1);
+    }
+    return months;
+  }
+
+  // Fetches ALL records (no status filter) from both tables and returns, per month,
+  // Invitation + Souvenir totals side by side — plus previous/current-week totals.
+  // Souvenir has no "For posting" status, so its "shipped" figures use Date Shipped
+  // falling in the week/month, regardless of status (best available proxy).
+  async function otFetchCombinedTimeline(apiKey) {
+    const [invRecords, souRecords] = await Promise.all([
+      otFetchRecords(apiKey, INV_TABLE, INV_STATUS, INV_TOTAL, INV_DATE_SHIPPED, null, [INV_LAYOUT_FINALIZED]),
+      otFetchRecords(apiKey, SOU_TABLE, SOU_STATUS, SOU_TOTAL, SOU_DATE_SHIPPED, null),
+    ]);
+
+    let oldest = new Date();
+    const scanOldest = (records, dateField) => {
+      for (const r of records) {
+        const d = new Date(r.fields?.[dateField]);
+        if (!isNaN(d) && d < oldest) oldest = d;
+      }
+    };
+    scanOldest(invRecords, INV_DATE_SHIPPED);
+    scanOldest(souRecords, SOU_DATE_SHIPPED);
+    scanOldest(invRecords, INV_LAYOUT_FINALIZED);
+
+    const months = otBuildMonthRange(oldest);
+    const totalsInv = {}, totalsSou = {}, totalsLayout = {};
+    months.forEach(m => { totalsInv[m.key] = 0; totalsSou[m.key] = 0; totalsLayout[m.key] = 0; });
+
+    const prevBounds = otGetWeekBounds(-1);
+    const curBounds = otGetWeekBounds(0);
+    let prevWeekInv = 0, prevWeekSou = 0, curWeekSou = 0;
+
+    const accumulate = (records, dateField, totalField, totalsMap, onPrevWeek, onCurWeek) => {
+      for (const r of records) {
+        const dateStr = r.fields?.[dateField];
+        const d = new Date(dateStr);
+        if (isNaN(d)) continue;
+        const val = r.fields?.[totalField];
+        const amount = typeof val === 'number' ? val : parseFloat(val) || 0;
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        if (key in totalsMap) totalsMap[key] += amount;
+        if (otIsInWeekBounds(dateStr, prevBounds) && onPrevWeek) onPrevWeek(amount);
+        if (otIsInWeekBounds(dateStr, curBounds) && onCurWeek) onCurWeek(amount);
+      }
+    };
+    accumulate(invRecords, INV_DATE_SHIPPED, INV_TOTAL, totalsInv, a => prevWeekInv += a, null);
+    accumulate(souRecords, SOU_DATE_SHIPPED, SOU_TOTAL, totalsSou, a => prevWeekSou += a, a => curWeekSou += a);
+
+    // Layout: Invitation records with Status = Done, summed on Own Total, grouped by Layout finalized date
+    const doneInvRecords = invRecords.filter(r => r.fields?.[INV_STATUS] === 'Done');
+    accumulate(doneInvRecords, INV_LAYOUT_FINALIZED, INV_TOTAL, totalsLayout, null, null);
+
+    return {
+      months: months.map(m => ({ ...m, totalInv: totalsInv[m.key], totalSou: totalsSou[m.key], totalLayout: totalsLayout[m.key] })),
+      prevWeekInv, prevWeekSou, curWeekSou,
+    };
+  }
+
+  function buildOrderTrackerCard() {
+    const card = document.createElement('div');
+    card.className = 'tool-card';
+    card.innerHTML = `
+      <div class="tool-hd">
+        <div class="tool-name">📊 Order Tracker</div>
+        <div class="tool-actions">
+          <button class="icon-btn" data-act="cleanupSouvenir" title="Sync Souvenir Date shipped + Status from linked Invitation records marked For posting">🧹 sync souvenir</button>
+          <button class="icon-btn" data-act="refresh">↻ refresh</button>
+        </div>
+      </div>
+      <div class="tool-desc" data-el="weekLabel">Weekly and monthly order value from Airtable.</div>
+
+      <div class="status-line" data-el="status"></div>
+
+      <div data-el="body" style="display:none">
+        <div class="ot-tabs">
+          <button class="ot-tab-btn active" data-act="tabWeekly">Weekly</button>
+          <button class="ot-tab-btn" data-act="tabMonthly">Monthly</button>
+        </div>
+
+        <div class="ot-stats" data-el="weeklyPanel">
+          <div class="ot-col-hd"><span>Invitation</span><span>Souvenir</span><span>Total</span></div>
+
+          <div class="ot-row">
+            <div><div class="ot-label">Printing</div><div class="ot-sub">Quota checked, not assigned</div></div>
+            <div class="ot-values"><div class="ot-value" data-el="v-printing-inv">—</div><div class="ot-value" data-el="v-printing-sou">—</div><div class="ot-value" data-el="v-printing-tot">—</div></div>
+          </div>
+          <div class="ot-row">
+            <div><div class="ot-label">Assigned for Assembly</div><div class="ot-sub">Multiple print statuses</div></div>
+            <div class="ot-values"><div class="ot-value" data-el="v-assemble-inv">—</div><div class="ot-value" data-el="v-assemble-sou">—</div><div class="ot-value" data-el="v-assemble-tot">—</div></div>
+          </div>
+          <div class="ot-divider"></div>
+          <div class="ot-row highlight">
+            <div><div class="ot-label">Order Done</div><div class="ot-sub">Assigned + Shipped</div></div>
+            <div class="ot-values"><div class="ot-value" data-el="v-orderdone-inv">—</div><div class="ot-value" data-el="v-orderdone-sou">—</div><div class="ot-value" data-el="v-orderdone-tot">—</div></div>
+          </div>
+          <div class="ot-divider"></div>
+          <div class="ot-row">
+            <div><div class="ot-label">Previous Week</div><div class="ot-sub" data-el="prevWeekLabel">—</div></div>
+            <div class="ot-values"><div class="ot-value" data-el="v-prevweek-inv">—</div><div class="ot-value" data-el="v-prevweek-sou">—</div><div class="ot-value" data-el="v-prevweek-tot">—</div></div>
+          </div>
+        </div>
+
+        <div class="ot-monthly" data-el="monthlyPanel"></div>
+
+        <div class="ot-updated" data-el="lastUpdated">—</div>
+      </div>
+
+      <div class="config-toggle" data-act="toggleConfig">⚙ set airtable api key</div>
+      <div class="config-panel" data-el="configPanel">
+        <div class="config-hint">
+          Paste your Airtable API key (same one used in your extensions). Stored locally in this browser only.
+        </div>
+        <div class="id-row">
+          <input type="password" data-el="keyInput" placeholder="pat..." autocomplete="off" spellcheck="false" />
+          <button class="save-btn" data-act="saveKey">Save</button>
+        </div>
+      </div>
+    `;
+
+    const el = sel => card.querySelector(`[data-el="${sel}"]`);
+    const statusEl     = el('status');
+    const bodyEl       = el('body');
+    const weekLabelEl  = el('weekLabel');
+    const weeklyPanel  = el('weeklyPanel');
+    const monthlyPanel = el('monthlyPanel');
+    const lastUpdated  = el('lastUpdated');
+    const configPanel  = el('configPanel');
+    const keyInput     = el('keyInput');
+    const prevWeekLabel = el('prevWeekLabel');
+
+    function setStatus(text, cls) {
+      statusEl.className = `status-line ${cls || ''}`;
+      statusEl.innerHTML = text ? `<span class="status-dot ${cls || ''}"></span>${text}` : '';
+    }
+
+    function getKey() { return localStorage.getItem(OT_KEY_STORAGE) || ''; }
+
+    function renderMonthly(months) {
+      if (!months || months.length === 0) {
+        monthlyPanel.innerHTML = '<div style="padding:20px;text-align:center;color:#555;font-size:11px;">No data</div>';
+        return;
+      }
+      const maxTotal = Math.max(...months.map(m => m.totalInv + m.totalSou + m.totalLayout), 1);
+      const header = `<div class="ot-col-hd"><span>Invitation</span><span>Souvenir</span><span>Layout</span><span>Total</span></div>`;
+      const rows = months.map(m => {
+        const combined = m.totalInv + m.totalSou + m.totalLayout;
+        const pct = Math.round((combined / maxTotal) * 100);
+        return `
+          <div class="month-row${m.isCurrent ? ' current' : ''}">
+            <div class="month-name">${m.label}</div>
+            <div class="month-bar-track"><div class="month-bar-fill" style="width:${pct}%"></div></div>
+            <div class="month-values">
+              <div class="month-value">${otFormatPeso(m.totalInv)}</div>
+              <div class="month-value">${otFormatPeso(m.totalSou)}</div>
+              <div class="month-value">${otFormatPeso(m.totalLayout)}</div>
+              <div class="month-value">${otFormatPeso(combined)}</div>
+            </div>
+          </div>`;
+      }).join('');
+      monthlyPanel.innerHTML = header + rows;
+    }
+
+    function renderSnapshot(inv, sou) {
+      const set = (id, side, val) => { el(`v-${id}-${side}`).textContent = otFormatPeso(val); };
+      ['printing', 'assemble', 'orderdone', 'prevweek'].forEach(key => {
+        const invVal = inv[key] ?? 0;
+        const souVal = sou[key] ?? 0;
+        set(key, 'inv', invVal);
+        set(key, 'sou', souVal);
+        set(key, 'tot', invVal + souVal);
+      });
+      lastUpdated.textContent = 'Updated ' + new Date().toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    async function loadData() {
+      const apiKey = getKey();
+      if (!apiKey) {
+        setStatus('Set Airtable API key first ↓', 'error');
+        configPanel.classList.add('open');
+        bodyEl.style.display = 'none';
+        return;
+      }
+
+      bodyEl.style.display = '';
+      setStatus('Loading...', '');
+
+      try {
+        const invEq = s => `{Status}="${s}"`;
+        const souEq = s => `{Status}="${s}"`;
+        const invF = (filter) => otFetchRecords(apiKey, INV_TABLE, INV_STATUS, INV_TOTAL, INV_DATE_SHIPPED, filter, [INV_QUOTA, INV_ASSIGNEE]);
+        const souF = (filter) => otFetchRecords(apiKey, SOU_TABLE, SOU_STATUS, SOU_TOTAL, SOU_DATE_SHIPPED, filter);
+
+        const invStatusOr = (...names) => `OR(${names.map(n => `{Status}="${n}"`).join(',')})`;
+        const souStatusOr = (...names) => `OR(${names.map(n => `{Status}="${n}"`).join(',')})`;
+
+        const [
+          printingRecords, assignedAssemblyRecords, invOrderDoneCandidates,
+          souPrinting, souAssignedAssembly, souOrderDoneCandidates,
+          timeline
+        ] = await Promise.all([
+          invF(`AND({Quota}=1,{Assignee for assembly}="",${invStatusOr('To print','Sample print','Printing','Liner to print','Vellum to print','Seal to print','Tag to print','Envelope to print','Wax seal to do','To assemble')})`),
+          invF(`AND({Assignee for assembly}!="",${invStatusOr('To print','Sample print','Printing','Liner to print','Vellum to print','Seal to print','Tag to print','Envelope to print','Wax seal to do','To assemble')})`),
+          invF(invStatusOr('Photo', 'For packaging', 'To Ship', 'For posting')),
+          souF(souEq('Printing')),
+          souF(souEq('To assemble')),
+          souF(souStatusOr('Photo', 'For packaging', 'To Ship', 'For posting')),
+          otFetchCombinedTimeline(apiKey),
+        ]);
+
+        // ── Invitation side ──────────────────────────────────────────────────
+        const invOrderDoneEligible = invOrderDoneCandidates.filter(r =>
+          r.fields?.[INV_STATUS] === 'For posting' ? otIsInCurrentWeek(r.fields?.[INV_DATE_SHIPPED]) : true
+        );
+        const invPrinting = otSumTotals(printingRecords, INV_TOTAL);
+        const invAssemble = otSumTotals(assignedAssemblyRecords, INV_TOTAL);
+        const invOrderDone = otSumTotals(invOrderDoneEligible, INV_TOTAL);
+
+        // ── Souvenir side ────────────────────────────────────────────────────
+        const souOrderDoneEligible = souOrderDoneCandidates.filter(r =>
+          r.fields?.[SOU_STATUS] === 'For posting' ? otIsInCurrentWeek(r.fields?.[SOU_DATE_SHIPPED]) : true
+        );
+        const souPrintingTotal = otSumTotals(souPrinting, SOU_TOTAL);
+        const souAssembleTotal = otSumTotals(souAssignedAssembly, SOU_TOTAL);
+        const souOrderDone = otSumTotals(souOrderDoneEligible, SOU_TOTAL);
+
+        renderSnapshot(
+          { printing: invPrinting, assemble: invAssemble,
+            orderdone: invOrderDone,
+            prevweek: timeline.prevWeekInv },
+          { printing: souPrintingTotal, assemble: souAssembleTotal,
+            orderdone: souOrderDone,
+            prevweek: timeline.prevWeekSou }
+        );
+        renderMonthly(timeline.months);
+        setStatus('Loaded ✓', 'success');
+      } catch (err) {
+        setStatus(`Error: ${err.message}`, 'error');
+      }
+    }
+
+    async function cleanupSouvenirRecords() {
+      const apiKey = getKey();
+      if (!apiKey) {
+        setStatus('Set Airtable API key first ↓', 'error');
+        configPanel.classList.add('open');
+        return;
+      }
+
+      setStatus('Scanning souvenir records...', '');
+
+      try {
+        const forPostingInv = await otFetchRecords(apiKey, INV_TABLE, INV_STATUS, INV_TOTAL, INV_DATE_SHIPPED, `{Status}="For posting"`);
+        const invDateMap = {};
+        forPostingInv.forEach(r => { invDateMap[r.id] = r.fields?.[INV_DATE_SHIPPED]; });
+
+        const souRecords = await otFetchRecords(apiKey, SOU_TABLE, SOU_STATUS, SOU_TOTAL, SOU_DATE_SHIPPED, null, [SOU_INV_LINK]);
+
+        const updates = [];
+        souRecords.forEach(r => {
+          const links = r.fields?.[SOU_INV_LINK];
+          if (!Array.isArray(links) || links.length === 0) return;
+          const matchedInvId = links.find(id => id in invDateMap);
+          if (!matchedInvId) return;
+          const shippedDate = invDateMap[matchedInvId];
+          if (!shippedDate) return;
+          const alreadySynced = r.fields?.[SOU_DATE_SHIPPED] === shippedDate && r.fields?.[SOU_STATUS] === 'Done';
+          if (alreadySynced) return;
+          updates.push({ id: r.id, fields: { 'Date shipped': shippedDate, 'Status': 'Done' } });
+        });
+
+        if (updates.length === 0) {
+          setStatus('No souvenir records needed syncing ✓', 'success');
+          return;
+        }
+
+        setStatus(`Updating ${updates.length} souvenir record(s)...`, '');
+        await otPatchRecords(apiKey, SOU_TABLE, updates);
+        setStatus(`Synced ${updates.length} souvenir record(s) ✓`, 'success');
+        loadData();
+      } catch (err) {
+        setStatus(`Error: ${err.message}`, 'error');
+      }
+    }
+
+    card.addEventListener('click', (e) => {
+      const act = e.target.dataset.act;
+      if (!act) return;
+
+      if (act === 'refresh') {
+        loadData();
+      } else if (act === 'cleanupSouvenir') {
+        const ok = confirm('This will scan all Souvenir records linked to an Invitation marked "For posting", and set their Date shipped + Status to "Done" to match. This writes changes directly to Airtable. Continue?');
+        if (ok) cleanupSouvenirRecords();
+      } else if (act === 'tabWeekly') {
+        card.querySelector('[data-act="tabWeekly"]').classList.add('active');
+        card.querySelector('[data-act="tabMonthly"]').classList.remove('active');
+        weeklyPanel.classList.remove('hidden');
+        monthlyPanel.classList.remove('visible');
+      } else if (act === 'tabMonthly') {
+        card.querySelector('[data-act="tabMonthly"]').classList.add('active');
+        card.querySelector('[data-act="tabWeekly"]').classList.remove('active');
+        weeklyPanel.classList.add('hidden');
+        monthlyPanel.classList.add('visible');
+      } else if (act === 'toggleConfig') {
+        configPanel.classList.toggle('open');
+      } else if (act === 'saveKey') {
+        const val = keyInput.value.trim();
+        if (!val) return;
+        localStorage.setItem(OT_KEY_STORAGE, val);
+        loadData();
+      }
+    });
+
+    keyInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') card.querySelector('[data-act="saveKey"]').click();
+    });
+
+    weekLabelEl.textContent = otFormatWeekLabel();
+    const prevBounds = otGetWeekBounds(-1);
+    const fmt = d => d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' });
+    prevWeekLabel.textContent = `${fmt(prevBounds.monday)} – ${fmt(prevBounds.sunday)}`;
+
+    const savedKey = getKey();
+    if (savedKey) { keyInput.value = savedKey; loadData(); }
+    else { setStatus('Set Airtable API key first ↓', 'error'); configPanel.classList.add('open'); }
+
+    return card;
+  }
+
+  // ─── Proof Checker ───────────────────────────────────────────────────────
+  // Photo-status records with a Proof attached: cross-check the Breakdown
+  // text's "Downpayment" / "Balance before ship out" (+ shipping fee) lines
+  // against the DP and Balance fields.
+
+  const PROOF_BREAKDOWN = 'fldD5usNmFvz8uc0z';
+  const PROOF_DP = 'fldgzVcKogUmfHsv7';
+  const PROOF_BALANCE = 'fldLucOfQhPc30t2W';
+  const PROOF_FB_NAME = 'fld01zQJ86lA2f1F9';
+  const PROOF_CLIENT_NUM = 'fld3csxglBQdezHDA';
+  const PROOF_ATTACHMENT = 'fldHTnYGaKUoEkLYI';
+  const META_LINK = 'fldkZTIUuy4mJt9id';
+
+  // Extracts "Label: ₱X" and, if a "+ ₱Y ... shipping fee" line follows it
+  // (same line, or a few lines down, skipping notes like "FREE 1 set"),
+  // adds that Y into X — a shipping fee attached to a line means it's
+  // included in that line's amount. Stops at a blank line or the next
+  // distinct field label to avoid bleeding into an unrelated line.
+  function extractAmountWithShipping(text, label) {
+    const startRe = new RegExp(`${label}:\\s*₱?\\s*([\\d,]+(?:\\.\\d+)?)`, 'i');
+    const m = text.match(startRe);
+    if (!m) return null;
+    let amount = parseFloat(m[1].replace(/,/g, ''));
+    const shipRe = /\+\s*₱?\s*([\d,]+(?:\.\d+)?)\s*shipping fee/i;
+    const stopRe = /^(Downpayment|Balance before ship out|Total)\s*:/i;
+    const lines = text.slice(m.index + m[0].length).split(/\r?\n/);
+    for (let i = 0; i < lines.length && i < 6; i++) {
+      const line = lines[i].trim();
+      if (line === '') { if (i > 0) break; else continue; }
+      const shipMatch = line.match(shipRe);
+      if (shipMatch) { amount += parseFloat(shipMatch[1].replace(/,/g, '')); break; }
+      if (stopRe.test(line)) break;
+    }
+    return amount;
+  }
+
+  // Strips invisible bidi/formatting control chars (LRM, RLM, LRE/RLE/PDF, ZWSP, BOM)
+  // that copy-pasted text (e.g. from Messenger) can carry — these break line-start
+  // regex anchors like ^Balance before ship out: without being visible.
+  function otStripBidiMarks(text) {
+    return text.replace(/[​‌‍‎‏‪‫‬‭‮﻿]/g, '');
+  }
+
+  function parseBreakdownFigures(text) {
+    if (!text) return null;
+    const clean = otStripBidiMarks(text);
+    const dp = extractAmountWithShipping(clean, 'Downpayment');
+    const balance = extractAmountWithShipping(clean, 'Balance before ship out');
+    if (dp === null || balance === null) return null;
+    return { dp, balance };
+  }
+
+  // ─── Extension bridge ───────────────────────────────────────────────────
+  // Connects to the MH Creatives Proof Sender extension's background worker
+  // (chrome.runtime.connect over externally_connectable) to trigger the same
+  // browser-automation flow the extension's own popup runs (open Messenger,
+  // attach files, type, send) — the dashboard page itself has no permission
+  // to do any of that directly, only the extension does. Requires the
+  // dashboard to be served over http(s), not opened as a file:// page.
+  //
+  // portName: 'sendProofs' or 'sendTracking' (must match background.js).
+  // credentials: { airtableKey, pageToken }.
+  // callbacks: { onLog(msg, type), onProgress(current, total), onDone(sent, failed), onError(message) }.
+  // Returns a function you can call to stop the run.
+  function otConnectToExtension(portName, credentials, callbacks) {
+    if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.connect) {
+      callbacks.onError('chrome.runtime is not available — this page must be opened in Chrome with the extension installed, served over http(s) (not file://).');
+      return () => {};
+    }
+    const extensionId = localStorage.getItem(PROOF_EXT_ID_STORAGE) || '';
+    if (!extensionId) {
+      callbacks.onError('Set the Proof Sender extension ID first (⚙ below)');
+      return () => {};
+    }
+
+    let port;
+    try {
+      port = chrome.runtime.connect(extensionId, { name: portName });
+    } catch (err) {
+      callbacks.onError(`Could not connect to extension: ${err.message}`);
+      return () => {};
+    }
+
+    port.onMessage.addListener((msg) => {
+      if (msg.kind === 'log') callbacks.onLog(msg.msg, msg.type);
+      else if (msg.kind === 'progress') callbacks.onProgress(msg.current, msg.total);
+      else if (msg.kind === 'done') callbacks.onDone(msg.sent, msg.failed);
+      else if (msg.kind === 'error') callbacks.onError(msg.message);
+    });
+    port.onDisconnect.addListener(() => {
+      if (chrome.runtime.lastError) {
+        callbacks.onError(`Disconnected: ${chrome.runtime.lastError.message}. Check the extension ID is correct and the extension is enabled.`);
+      }
+    });
+
+    port.postMessage({ action: 'start', ...credentials });
+    return () => { try { port.postMessage({ action: 'stop' }); } catch {} };
+  }
+
+  function buildProofCard() {
+    const card = document.createElement('div');
+    card.className = 'tool-card';
+    card.innerHTML = `
+      <div class="tool-hd">
+        <div class="tool-name">🧾 Proof</div>
+        <div class="tool-actions">
+          <button class="icon-btn" data-act="scan">▶ Scan</button>
+        </div>
+      </div>
+      <div class="tool-desc">Photo-status orders with a Proof attached — checks Breakdown text against DP / Balance fields.</div>
+      <div class="status-line" data-el="status"></div>
+      <div class="proof-summary" data-el="summary"></div>
+      <div class="proof-results" data-el="results"></div>
+
+      <div class="ot-divider" style="margin:14px 0;"></div>
+      <div class="tool-hd" style="margin-bottom:4px;">
+        <div class="tool-name" style="font-size:12px;">✉ Send Proofs</div>
+        <div class="tool-actions">
+          <button class="icon-btn" data-act="sendProofsStart">▶ Start</button>
+          <button class="icon-btn" data-act="sendProofsStop" style="display:none; color:#f87171;">■ Stop</button>
+        </div>
+      </div>
+      <div class="tool-desc" style="margin-top:2px;">Runs the same automation as the Proof Sender extension — opens each Photo-status client's conversation, attaches their Proof files, sends the balance + payment details, then moves them to For packaging.</div>
+      <div class="status-line" data-el="sendStatus"></div>
+      <div class="proof-summary" data-el="sendProgress"></div>
+      <div class="proof-results" data-el="sendLog" style="max-height:220px;"></div>
+
+      <div class="config-toggle" data-act="toggleExtConfig">⚙ set proof sender extension id</div>
+      <div class="config-panel" data-el="extConfigPanel">
+        <div class="config-hint">
+          Go to <b>chrome://extensions</b>, enable <b>Developer mode</b>, find <b>MH Creatives Proof Sender</b>, and copy its ID here. Requires this dashboard to be open at an <b>http(s)://</b> address (not a local file).
+        </div>
+        <div class="id-row">
+          <input type="text" data-el="extIdInput" placeholder="32-character extension id" autocomplete="off" spellcheck="false" />
+          <button class="save-btn" data-act="saveExtId">Save</button>
+        </div>
+      </div>
+    `;
+
+    const el = sel => card.querySelector(`[data-el="${sel}"]`);
+    const statusEl = el('status');
+    const summaryEl = el('summary');
+    const resultsEl = el('results');
+    const sendStatusEl = el('sendStatus');
+    const sendProgressEl = el('sendProgress');
+    const sendLogEl = el('sendLog');
+    const extConfigPanel = el('extConfigPanel');
+    const extIdInput = el('extIdInput');
+    const btnStart = card.querySelector('[data-act="sendProofsStart"]');
+    const btnStop = card.querySelector('[data-act="sendProofsStop"]');
+
+    let stopSending = null;
+
+    function setSendStatus(text, cls) {
+      sendStatusEl.className = `status-line ${cls || ''}`;
+      sendStatusEl.innerHTML = text ? `<span class="status-dot ${cls || ''}"></span>${text}` : '';
+    }
+
+    function appendSendLog(msg, type) {
+      const line = document.createElement('div');
+      line.className = 'proof-diff';
+      if (type === 'success') line.style.color = '#4ade80';
+      else if (type === 'error') line.style.color = '#f87171';
+      else if (type === 'highlight') { line.style.color = '#fff'; line.style.fontWeight = '600'; }
+      line.textContent = msg;
+      sendLogEl.appendChild(line);
+      sendLogEl.scrollTop = sendLogEl.scrollHeight;
+    }
+
+    function startSendProofs() {
+      const apiKey = localStorage.getItem(OT_KEY_STORAGE) || '';
+      const pageToken = localStorage.getItem(FB_PAGE_TOKEN_STORAGE) || '';
+      if (!apiKey) { setSendStatus('Set Airtable API key in Order Tracker first ↓', 'error'); return; }
+      if (!pageToken) { setSendStatus('Set Facebook Page token in the Balance card first', 'error'); return; }
+
+      sendLogEl.innerHTML = '';
+      sendProgressEl.textContent = '';
+      setSendStatus('Starting...', '');
+      btnStart.style.display = 'none';
+      btnStop.style.display = '';
+
+      stopSending = otConnectToExtension('sendProofs', { airtableKey: apiKey, pageToken }, {
+        onLog: (msg, type) => appendSendLog(msg, type),
+        onProgress: (current, total) => { sendProgressEl.textContent = `${current} / ${total} record(s)`; },
+        onDone: (sent, failed) => {
+          setSendStatus(`Done — ${sent} sent, ${failed} failed`, sent > 0 ? 'success' : 'error');
+          btnStart.style.display = '';
+          btnStop.style.display = 'none';
+        },
+        onError: (message) => {
+          setSendStatus(`Error: ${message}`, 'error');
+          btnStart.style.display = '';
+          btnStop.style.display = 'none';
+        },
+      });
+    }
+
+    function setStatus(text, cls) {
+      statusEl.className = `status-line ${cls || ''}`;
+      statusEl.innerHTML = text ? `<span class="status-dot ${cls || ''}"></span>${text}` : '';
+    }
+
+    function renderResults(mismatches) {
+      if (mismatches.length === 0) {
+        resultsEl.innerHTML = '';
+        return;
+      }
+      resultsEl.innerHTML = mismatches.map(m => `
+        <div class="proof-item">
+          <div class="proof-name">${m.name}${m.clientNum ? ` <span>#${m.clientNum}</span>` : ''}</div>
+          ${m.unparsed ? `<div class="proof-diff">Could not find Downpayment / Balance before ship out lines in Breakdown</div>` : ''}
+          ${!m.unparsed && !m.dpOk ? `<div class="proof-diff">DP: breakdown ${otFormatPeso(m.dpExpected)} ≠ field ${otFormatPeso(m.dpActual)}</div>` : ''}
+          ${!m.unparsed && !m.balOk ? `<div class="proof-diff">Balance: breakdown ${otFormatPeso(m.balExpected)} ≠ field ${otFormatPeso(m.balActual)}</div>` : ''}
+          <a class="proof-link" href="https://airtable.com/${OT_BASE_ID}/${INV_TABLE}/${m.id}" target="_blank" rel="noopener">Open record ↗</a>
+        </div>
+      `).join('');
+    }
+
+    async function scan() {
+      const apiKey = localStorage.getItem(OT_KEY_STORAGE) || '';
+      if (!apiKey) {
+        setStatus('Set Airtable API key in Order Tracker first ↓', 'error');
+        return;
+      }
+
+      setStatus('Scanning...', '');
+      summaryEl.textContent = '';
+      resultsEl.innerHTML = '';
+
+      try {
+        const allRecords = await otFetchRecords(
+          apiKey, INV_TABLE, INV_STATUS, PROOF_DP, PROOF_BALANCE,
+          `{Status}="Photo"`,
+          [PROOF_BREAKDOWN, PROOF_FB_NAME, PROOF_CLIENT_NUM, PROOF_ATTACHMENT]
+        );
+        const records = allRecords.filter(r => Array.isArray(r.fields?.[PROOF_ATTACHMENT]) && r.fields[PROOF_ATTACHMENT].length > 0);
+
+        const mismatches = [];
+        let ok = 0, skipped = 0;
+        records.forEach(r => {
+          const name = r.fields?.[PROOF_FB_NAME] || 'Unnamed';
+          const clientNum = r.fields?.[PROOF_CLIENT_NUM];
+          const parsed = parseBreakdownFigures(r.fields?.[PROOF_BREAKDOWN]);
+          if (!parsed) {
+            skipped++;
+            mismatches.push({ id: r.id, name, clientNum, unparsed: true });
+            return;
+          }
+          const dpActual = r.fields?.[PROOF_DP] ?? 0;
+          const balActual = r.fields?.[PROOF_BALANCE] ?? 0;
+          const dpOk = Math.abs(parsed.dp - dpActual) < 1;
+          const balOk = Math.abs(parsed.balance - balActual) < 1;
+          if (dpOk && balOk) { ok++; return; }
+          mismatches.push({
+            id: r.id,
+            name, clientNum,
+            dpExpected: parsed.dp, dpActual, dpOk,
+            balExpected: parsed.balance, balActual, balOk,
+          });
+        });
+
+        summaryEl.textContent = `${records.length} scanned · ${mismatches.length} mismatch(es) · ${ok} ok · ${skipped} unparsed`;
+        setStatus(mismatches.length ? `${mismatches.length} mismatch(es) found` : 'All matched ✓', mismatches.length ? 'error' : 'success');
+        renderResults(mismatches);
+      } catch (err) {
+        setStatus(`Error: ${err.message}`, 'error');
+      }
+    }
+
+    card.addEventListener('click', (e) => {
+      const act = e.target.dataset.act;
+      if (act === 'scan') {
+        scan();
+      } else if (act === 'sendProofsStart') {
+        startSendProofs();
+      } else if (act === 'sendProofsStop') {
+        if (stopSending) stopSending();
+        setSendStatus('Stopping after current record...', '');
+      } else if (act === 'toggleExtConfig') {
+        extConfigPanel.classList.toggle('open');
+      } else if (act === 'saveExtId') {
+        const val = extIdInput.value.trim();
+        if (!val) return;
+        localStorage.setItem(PROOF_EXT_ID_STORAGE, val);
+        setSendStatus('Extension ID saved ✓', 'success');
+      }
+    });
+
+    const savedExtId = localStorage.getItem(PROOF_EXT_ID_STORAGE) || '';
+    if (savedExtId) extIdInput.value = savedExtId;
+
+    return card;
+  }
+
+  // ─── Shipping Checker ────────────────────────────────────────────────────
+  // "For packaging" status records: flags ones whose Shipping details field
+  // is empty, or has no recognizable phone number in it.
+
+  const SHIP_DETAILS = 'fldDw79dyY2KviSRj';
+  const SHIP_PSID = 'fldYDT7ducKjtNf0i';
+  const FB_PAGE_ID_STORAGE = 'mh_fb_page_id';
+  const FB_PAGE_TOKEN_STORAGE = 'mh_fb_page_token';
+  const SHIPPING_FORM_TEMPLATE =
+`Recipient Name:
+Active Number:
+
+Address
+Unit/House No./Bldg.:
+Street:
+Barangay:
+City/Municipality:
+Province:
+Postal/zip code:`;
+
+  function otHasPhoneNumber(text) {
+    if (!text) return false;
+    const digits = text.replace(/\D/g, '');
+    return /09\d{9}/.test(digits) || /639\d{9}/.test(digits);
+  }
+
+  // Matches actual "Label:" lines from the shipping form template, not loose
+  // keywords — a message full of unrelated prose that happens to mention
+  // "address" or a city name should NOT be mistaken for a filled-out reply.
+  const SHIPPING_LABEL_PATTERNS = [
+    /recipient\s*name\s*:/i,
+    /active\s*number\s*:/i,
+    /unit\s*\/?\s*house\s*(no\.?|number)?\s*\/?\s*bldg\.?\s*:/i,
+    /street\s*:/i,
+    /barangay\s*:/i,
+    /city\s*\/?\s*municipality\s*:/i,
+    /province\s*:/i,
+    /postal\s*\/?\s*zip\s*code\s*:/i,
+  ];
+
+  function otLooksLikeFilledShippingForm(text) {
+    if (!text) return false;
+    return SHIPPING_LABEL_PATTERNS.filter(re => re.test(text)).length >= 3;
+  }
+
+  // Fetches a URL and parses JSON, automatically retrying on Facebook's
+  // transient "(#2) Service temporarily unavailable" error (and a couple
+  // other known-transient codes) with backoff, since this is a real server-
+  // side hiccup rather than something a retry-free call should give up on.
+  async function otFetchJsonWithRetry(url, options, maxRetries) {
+    const retries = maxRetries ?? 3;
+    let lastErr;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const resp = await fetch(url, options);
+        const data = await resp.json();
+        const code = data?.error?.code;
+        const isTransient = code === 2 || code === 1 || code === 4 || code === 17;
+        if (data.error && isTransient && attempt < retries) {
+          await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
+          continue;
+        }
+        if (data.error) throw new Error(data.error.message || 'Graph API error');
+        return data;
+      } catch (err) {
+        lastErr = err;
+        if (attempt < retries && /temporarily unavailable|network/i.test(err.message || '')) {
+          await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
+          continue;
+        }
+        throw err;
+      }
+    }
+    throw lastErr;
+  }
+
+  // Fetches the entire message history for the conversation with this PSID,
+  // following pagination (paging.next) until exhausted. Capped at 40 pages
+  // (~4000 messages at 100/page) as a safety net against runaway loops.
+  // Never trusts the API's return order — sorts by actual created_time
+  // (newest first) explicitly before returning.
+  // Returns { messages, participantName } — participantName lets the caller
+  // sanity-check that the PSID on file actually points at the right person's
+  // conversation, since a wrong/stale PSID silently returns a real but
+  // unrelated conversation with no error (confirmed to happen in practice).
+  async function otFetchConversationMessages(pageId, token, psid) {
+    const url = `https://graph.facebook.com/v19.0/${pageId}/conversations?platform=messenger&user_id=${encodeURIComponent(psid)}&fields=participants,messages.limit(100){message,from,created_time,attachments{mime_type,name,image_data,file_url,payload}}&access_token=${encodeURIComponent(token)}`;
+    const data = await otFetchJsonWithRetry(url);
+    const convo = data.data?.[0];
+    if (!convo || !convo.messages) return { messages: [], participantName: null };
+
+    const participantName = (convo.participants?.data || []).find(p => p.id !== pageId)?.name || null;
+
+    let allMessages = convo.messages.data || [];
+    let nextUrl = convo.messages.paging?.next || null;
+    let pages = 0;
+    while (nextUrl && pages < 40) {
+      const pageData = await otFetchJsonWithRetry(nextUrl);
+      allMessages = allMessages.concat(pageData.data || []);
+      nextUrl = pageData.paging?.next || null;
+      pages++;
+    }
+    const messages = allMessages.sort((a, b) => new Date(b.created_time) - new Date(a.created_time));
+    return { messages, participantName };
+  }
+
+  // Scans the entire conversation for: (a) whether the client already replied
+  // with a filled-out shipping form, (b) whether we already sent the request
+  // template. Falls back to checking a window of recent user messages
+  // concatenated together, in case the client split their reply across
+  // multiple message bubbles instead of sending it as one message.
+  async function otCheckConversationState(pageId, token, psid) {
+    const { messages } = await otFetchConversationMessages(pageId, token, psid);
+    const pageSent = messages.some(m => m.from?.id === pageId && (m.message || '').includes('Recipient Name:'));
+
+    const singleMatch = messages.find(m => m.from?.id !== pageId && otLooksLikeFilledShippingForm(m.message));
+    if (singleMatch) return { pageSent, userReply: singleMatch.message };
+
+    const userMsgs = messages.filter(m => m.from?.id !== pageId && m.message);
+    const combined = userMsgs.slice(0, 8).map(m => m.message).reverse().join('\n');
+    if (otLooksLikeFilledShippingForm(combined)) return { pageSent, userReply: combined };
+
+    return { pageSent, userReply: null };
+  }
+
+  async function otSendMessengerMessage(pageId, token, psid, text) {
+    const url = `https://graph.facebook.com/v19.0/${pageId}/messages?access_token=${encodeURIComponent(token)}`;
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        recipient: { id: psid },
+        messaging_type: 'RESPONSE',
+        message: { text },
+      }),
+    });
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error.message || 'Graph API error');
+    return data;
+  }
+
+  function otHasReceiptAttachment(messages, pageId) {
+    return messages.some(m => m.from?.id !== pageId && Array.isArray(m.attachments?.data) && m.attachments.data.length > 0);
+  }
+
+  // The balance-request message's fixed wording, with the variable ₱ amount
+  // excluded — e.g. "Hello po, here's the final output. Kindly settle the
+  // balance total of ₱550, para mapaship na po. Salamat!😊" — matching on all
+  // of these static fragments (not just one short phrase) is a much more
+  // precise anchor than a generic substring, without depending on the
+  // specific amount (which can vary in formatting or be hard to match exactly).
+  // Only attachments the client sent AFTER this message count as a real
+  // receipt — anything sent earlier (proof photos, vow cards, other chat
+  // images) is unrelated and shouldn't be mistaken for payment proof.
+  const BALANCE_REQUEST_ANCHOR_PARTS = [
+    'kindly settle the balance total of',
+    'para mapaship na po',
+  ];
+
+  // Normalizes curly/smart quotes to straight ones — messages may contain
+  // ’ (U+2019) instead of a plain apostrophe, which would silently break an
+  // exact substring match against a hardcoded straight-quote string.
+  function otNormalizeQuotes(text) {
+    return text.replace(/[‘’]/g, "'").replace(/[“”]/g, '"');
+  }
+
+  // Loose name comparison — true if the two names share at least one
+  // meaningful word (case-insensitive, ignoring short/common words). Nicknames
+  // vs. legal names are common (e.g. "Shane Lacson" vs. "Chrystel Shane Tria
+  // Lubrico"), so this only needs to rule out names that are genuinely
+  // unrelated, not flag every formatting difference.
+  function otNamesLooselyMatch(nameA, nameB) {
+    const tokenize = s => (s || '').toLowerCase().split(/\s+/).filter(w => w.length > 2);
+    const tokensA = new Set(tokenize(nameA));
+    const tokensB = tokenize(nameB);
+    return tokensB.some(w => tokensA.has(w));
+  }
+
+  // How long after the balance-request message we're still willing to treat
+  // a client attachment as a plausible receipt reply. Anything sent later
+  // than this is more likely an unrelated photo from a later conversation.
+  // Kept tight deliberately — every candidate in this window costs a Gemini
+  // call to verify, so a wide window on a long-running conversation just
+  // burns tokens checking things that were never going to be the receipt.
+  const RECEIPT_WINDOW_HOURS = 24;
+
+  // Cap how many candidate attachments get sent to Gemini per record — stop
+  // after this many even if the window has more, since a genuine receipt
+  // reply is almost always among the first few things sent.
+  const MAX_RECEIPT_CANDIDATES_TO_CHECK = 3;
+
+  // Finds the most recent attachment sent by the client (not the page) AFTER
+  // the balance-request message, and resolves an actual image URL from
+  // whichever shape the API returned it in — plain photos usually come back
+  // under image_data.url, while rich "card" shares (like GCash's payment
+  // confirmation) may use payload.url/image_url instead.
+  // Expects `messages` to already be sorted newest-first by created_time
+  // (otFetchConversationMessages guarantees this), so everything before the
+  // anchor's index is chronologically after it.
+  // Returns every candidate image attachment the client sent after the
+  // balance-request message (most recent first) — NOT just the first one —
+  // since the client may send other unrelated photos (product samples,
+  // packaging, etc.) after that point too. The caller is responsible for
+  // checking which candidate (if any) is actually a receipt.
+  // `balance`, if provided, is the record's current pending amount. Requiring
+  // the anchor message to also mention this amount avoids latching onto a
+  // stale/unrelated "settle the balance" request from a previously-resolved
+  // amount (confirmed to happen in practice — a client's only such message
+  // asked for ₱50 weeks ago, unrelated to their current ₱550 balance).
+  //
+  // Identity is matched against `psid` (the client), not `pageId` — a
+  // message sent by a staff member while "assigned" to the conversation can
+  // be attributed to that staff member's own ID rather than the page's,
+  // so testing "is this the client" (=== psid) is more reliable than testing
+  // "is this NOT the page" (!== pageId), which would wrongly treat a staff
+  // member's message as if it came from the client.
+  function otFindReceiptCandidates(messages, psid, balance) {
+    const amountDigits = typeof balance === 'number' && balance > 0 ? String(Math.round(balance)) : null;
+    const anchorIndex = messages.findIndex(m => {
+      if (m.from?.id === psid) return false;
+      const text = otNormalizeQuotes(otStripBidiMarks((m.message || '').toLowerCase()));
+      if (!BALANCE_REQUEST_ANCHOR_PARTS.every(part => text.includes(part))) return false;
+      if (amountDigits) {
+        const numberTokens = (text.match(/\d[\d,]*/g) || []).map(t => t.replace(/,/g, ''));
+        if (!numberTokens.includes(amountDigits)) return false;
+      }
+      return true;
+    });
+    const anchorFound = anchorIndex >= 0;
+    // Without the anchor, there's no reliable way to tell a receipt apart
+    // from any other photo the client sent (product samples, proofs, etc.)
+    // — don't guess; report that the anchor wasn't found instead. Surface any
+    // non-client message that partially matches (mentions "balance" or
+    // "mapaship") so a near-miss (wording drift, hidden characters, etc.) is
+    // visible instead of a bare "not found" with zero diagnostic info.
+    if (!anchorFound) {
+      const nearMisses = messages
+        .filter(m => m.from?.id !== psid)
+        .map(m => otNormalizeQuotes(otStripBidiMarks((m.message || '').toLowerCase())))
+        .filter(text => text.includes('balance') || text.includes('mapaship'))
+        .map(text => ({
+          text,
+          matchesPart1: text.includes(BALANCE_REQUEST_ANCHOR_PARTS[0]),
+          matchesPart2: text.includes(BALANCE_REQUEST_ANCHOR_PARTS[1]),
+        }));
+      return { candidates: [], anchorFound: false, debug: { nearMisses } };
+    }
+    const anchorTime = new Date(messages[anchorIndex].created_time);
+    const cutoffTime = new Date(anchorTime.getTime() + RECEIPT_WINDOW_HOURS * 60 * 60 * 1000);
+    // Only messages after the anchor AND within the time window — stop there,
+    // don't keep scanning forward into unrelated later conversation.
+    const windowMessages = messages.slice(0, anchorIndex).filter(m => new Date(m.created_time) <= cutoffTime);
+    const clientMessages = windowMessages.filter(m => m.from?.id === psid);
+    const clientAttachments = clientMessages.flatMap(m => m.attachments?.data || []);
+
+    const candidates = [];
+    for (const m of clientMessages) {
+      const atts = m.attachments?.data || [];
+      for (const att of atts) {
+        const imageUrl = att.image_data?.url || att.image_data?.preview_url
+          || att.payload?.url || att.payload?.image_url || att.file_url || null;
+        if (imageUrl) candidates.push({ attachment: att, imageUrl, created_time: m.created_time });
+      }
+    }
+    // Always attach anchor/candidate timing info so it's possible to verify
+    // empirically (via window.mhDebugBalance) that nothing before the anchor
+    // is slipping into the results, instead of just trusting the slice logic.
+    const debug = {
+      anchorMessage: messages[anchorIndex].message,
+      anchorTime: messages[anchorIndex].created_time,
+      cutoffTime: cutoffTime.toISOString(),
+      candidateMessageCount: windowMessages.length,
+      clientMessageCount: clientMessages.length,
+      clientAttachmentCount: clientAttachments.length,
+      candidateTimes: candidates.map(c => c.created_time),
+      rawAttachments: candidates.length === 0 ? clientAttachments : undefined,
+    };
+    return { candidates, anchorFound, debug };
+  }
+
+  const GEMINI_KEY_STORAGE = 'mh_gemini_api_key';
+  const GEMINI_MODEL = 'gemini-3.6-flash';
+
+  async function otImageUrlToBase64(url) {
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`Could not fetch image (HTTP ${resp.status})`);
+    const blob = await resp.blob();
+    const mimeType = blob.type || 'image/jpeg';
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(String(reader.result).split(',')[1] || '');
+      reader.onerror = () => reject(new Error('Failed to read image data'));
+      reader.readAsDataURL(blob);
+    });
+    return { base64, mimeType };
+  }
+
+  // Sends the receipt image to Gemini and asks it to extract the paid amount,
+  // the payment method/receipt type, who it was sent to, and a reference
+  // number if visible.
+  // Keyword → type map used to deterministically override Gemini's "type"
+  // guess by scanning its own raw text transcription — more reliable than
+  // trusting the model's judgment call on ambiguous card branding alone.
+  const RECEIPT_TYPE_KEYWORDS = [
+    { type: 'GCash', patterns: ['transfer completed', 'ref no.', 'total amount sent', 'gcash', 'g-xchange'] },
+    { type: 'Maya', patterns: ['maya', 'paymaya'] },
+    { type: 'BPI', patterns: ['bpi', 'bank of the philippine islands'] },
+    { type: 'BDO', patterns: ['bdo', 'banco de oro'] },
+    { type: 'InstaPay', patterns: ['instapay'] },
+  ];
+
+  function otInferReceiptType(rawText) {
+    if (!rawText) return null;
+    const lower = rawText.toLowerCase();
+    for (const { type, patterns } of RECEIPT_TYPE_KEYWORDS) {
+      if (patterns.some(p => lower.includes(p))) return type;
+    }
+    return null;
+  }
+
+  async function otAnalyzeReceiptWithGemini(geminiKey, imageUrl) {
+    const { base64, mimeType } = await otImageUrlToBase64(imageUrl);
+    const prompt = `You are examining a photo that a client sent in a business chat, to determine if it's a payment receipt / payment confirmation screenshot (e.g. GCash, Maya/PayMaya, bank transfer, InstaPay, or similar) — as opposed to something unrelated, like a product photo, a packaging photo, a screenshot of an order form, or anything else that isn't proof of payment.
+
+First, transcribe every piece of text visible on the image, line by line, into "rawText" — do this thoroughly and completely before filling in the other fields, since they should be derived FROM this transcription.
+
+Then extract:
+- isReceipt: true only if this image is genuinely a payment receipt/confirmation (a completed transaction showing an amount paid, a reference number, "transfer completed"/"payment sent" type wording, or similar). false for anything else, including product photos, packaging, order forms, or general chat images — even if they contain some numbers or text.
+- amount: the total amount paid/transferred (use "Total Amount"/"Total Amount Sent" if both a base amount and a total with fees are shown), as a plain number (no currency symbol, no commas). null if isReceipt is false.
+- type: what kind of receipt/payment method it is (e.g. "GCash", "Maya", "BPI", "BDO", "InstaPay", "Bank Transfer"). Only use "Unknown" if isReceipt is true but there is truly no textual or visual cue at all in your transcription.
+- recipientName: the name shown in the "To" / recipient section, if visible, else null
+- recipientDestination: the platform/provider the money was sent to, read from the "To" section (e.g. "GCash", "G-Xchange, Inc.", "BPI"), if visible, else null
+- refNo: the reference/transaction number if visible (e.g. after "Ref No."), else null
+- timestamp: the date/time shown on the receipt, converted to 12-hour format with AM/PM (e.g. "Aug 20, 2026 01:12 PM"), else null`;
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(geminiKey)}`;
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { text: prompt },
+            { inline_data: { mime_type: mimeType, data: base64 } },
+          ],
+        }],
+        generationConfig: {
+          response_mime_type: 'application/json',
+          response_schema: {
+            type: 'OBJECT',
+            properties: {
+              rawText: { type: 'STRING' },
+              isReceipt: { type: 'BOOLEAN' },
+              amount: { type: 'NUMBER', nullable: true },
+              type: { type: 'STRING' },
+              recipientName: { type: 'STRING', nullable: true },
+              recipientDestination: { type: 'STRING', nullable: true },
+              refNo: { type: 'STRING', nullable: true },
+              timestamp: { type: 'STRING', nullable: true },
+            },
+            required: ['rawText', 'isReceipt', 'type'],
+            propertyOrdering: ['rawText', 'isReceipt', 'amount', 'type', 'recipientName', 'recipientDestination', 'refNo', 'timestamp'],
+          },
+        },
+      }),
+    });
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error.message || 'Gemini API error');
+    const textOut = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!textOut) throw new Error('No response from Gemini');
+    const result = JSON.parse(textOut);
+
+    if (!result.type || result.type.toLowerCase() === 'unknown') {
+      const inferred = otInferReceiptType(result.rawText);
+      if (inferred) result.type = inferred;
+    }
+    return result;
+  }
+
+  function buildShippingCard() {
+    const card = document.createElement('div');
+    card.className = 'tool-card';
+    card.innerHTML = `
+      <div class="tool-hd">
+        <div class="tool-name">📦 Shipping</div>
+        <div class="tool-actions">
+          <button class="icon-btn" data-act="scan">▶ Scan</button>
+        </div>
+      </div>
+      <div class="tool-desc">"For packaging" orders — flags missing Shipping details or no phone number found.</div>
+      <div class="status-line" data-el="status"></div>
+      <div class="proof-summary" data-el="summary"></div>
+      <div class="proof-results" data-el="results"></div>
+
+      <div class="config-toggle" data-act="toggleConfig">⚙ set facebook page credentials</div>
+      <div class="config-panel" data-el="configPanel">
+        <div class="config-hint">
+          Facebook <b>Page ID</b> and <b>Page access token</b> (from your Meta App). Used to check/send the shipping details request via Messenger. Stored locally in this browser only.
+        </div>
+        <div class="id-row">
+          <input type="text" data-el="pageIdInput" placeholder="Page ID" autocomplete="off" spellcheck="false" />
+        </div>
+        <div class="id-row" style="margin-top:8px;">
+          <input type="password" data-el="pageTokenInput" placeholder="Page access token" autocomplete="off" spellcheck="false" />
+          <button class="save-btn" data-act="saveFbCreds">Save</button>
+        </div>
+      </div>
+
+      <div class="ot-divider" style="margin:14px 0;"></div>
+      <div class="tool-hd" style="margin-bottom:4px;">
+        <div class="tool-name" style="font-size:12px;">📦 Send Tracking Numbers</div>
+        <div class="tool-actions">
+          <button class="icon-btn" data-act="sendTrackStart">▶ Start</button>
+          <button class="icon-btn" data-act="sendTrackStop" style="display:none; color:#f87171;">■ Stop</button>
+        </div>
+      </div>
+      <div class="tool-desc" style="margin-top:2px;">Same as the extension: for every record with a Tracking number set (and not yet For posting/Done), sends the tracking message via Messenger and moves the order to For posting.</div>
+      <div class="status-line" data-el="trackStatus"></div>
+      <div class="proof-summary" data-el="trackProgress"></div>
+      <div class="proof-results" data-el="trackLog" style="max-height:220px;"></div>
+
+      <div class="config-toggle" data-act="toggleExtConfig">⚙ set proof sender extension id</div>
+      <div class="config-panel" data-el="extConfigPanel">
+        <div class="config-hint">
+          Same extension ID as the Proof card's Send Proofs tool. Requires this dashboard to be open at an <b>http(s)://</b> address (not a local file).
+        </div>
+        <div class="id-row">
+          <input type="text" data-el="extIdInput" placeholder="32-character extension id" autocomplete="off" spellcheck="false" />
+          <button class="save-btn" data-act="saveExtId">Save</button>
+        </div>
+      </div>
+    `;
+
+    const el = sel => card.querySelector(`[data-el="${sel}"]`);
+    const statusEl = el('status');
+    const summaryEl = el('summary');
+    const resultsEl = el('results');
+    const configPanel = el('configPanel');
+    const pageIdInput = el('pageIdInput');
+    const pageTokenInput = el('pageTokenInput');
+    const trackStatusEl = el('trackStatus');
+    const trackProgressEl = el('trackProgress');
+    const trackLogEl = el('trackLog');
+    const extConfigPanel = el('extConfigPanel');
+    const extIdInput = el('extIdInput');
+    const btnTrackStart = card.querySelector('[data-act="sendTrackStart"]');
+    const btnTrackStop = card.querySelector('[data-act="sendTrackStop"]');
+
+    let stopTracking = null;
+
+    function setTrackStatus(text, cls) {
+      trackStatusEl.className = `status-line ${cls || ''}`;
+      trackStatusEl.innerHTML = text ? `<span class="status-dot ${cls || ''}"></span>${text}` : '';
+    }
+
+    function appendTrackLog(msg, type) {
+      const line = document.createElement('div');
+      line.className = 'proof-diff';
+      if (type === 'success') line.style.color = '#4ade80';
+      else if (type === 'error') line.style.color = '#f87171';
+      else if (type === 'highlight') { line.style.color = '#fff'; line.style.fontWeight = '600'; }
+      line.textContent = msg;
+      trackLogEl.appendChild(line);
+      trackLogEl.scrollTop = trackLogEl.scrollHeight;
+    }
+
+    function startSendTracking() {
+      const apiKey = localStorage.getItem(OT_KEY_STORAGE) || '';
+      if (!apiKey) { setTrackStatus('Set Airtable API key in Order Tracker first ↓', 'error'); return; }
+
+      trackLogEl.innerHTML = '';
+      trackProgressEl.textContent = '';
+      setTrackStatus('Starting...', '');
+      btnTrackStart.style.display = 'none';
+      btnTrackStop.style.display = '';
+
+      stopTracking = otConnectToExtension('sendTracking', { airtableKey: apiKey }, {
+        onLog: (msg, type) => appendTrackLog(msg, type),
+        onProgress: (current, total) => { trackProgressEl.textContent = `${current} / ${total} order(s)`; },
+        onDone: (sent, failed) => {
+          setTrackStatus(`Done — ${sent} sent, ${failed} failed`, sent > 0 ? 'success' : 'error');
+          btnTrackStart.style.display = '';
+          btnTrackStop.style.display = 'none';
+        },
+        onError: (message) => {
+          setTrackStatus(`Error: ${message}`, 'error');
+          btnTrackStart.style.display = '';
+          btnTrackStop.style.display = 'none';
+        },
+      });
+    }
+
+    let lastFlagged = [];
+
+    function setStatus(text, cls) {
+      statusEl.className = `status-line ${cls || ''}`;
+      statusEl.innerHTML = text ? `<span class="status-dot ${cls || ''}"></span>${text}` : '';
+    }
+
+    function renderResults(flagged) {
+      if (flagged.length === 0) {
+        resultsEl.innerHTML = '';
+        return;
+      }
+      resultsEl.innerHTML = flagged.map(f => {
+        let actionHtml = '';
+        if (f.reason === 'Shipping details is empty') {
+          if (!f.psid) {
+            actionHtml = `<div class="proof-diff">No PSID on record — cannot check conversation</div>`;
+          } else if (!f.checked) {
+            actionHtml = `<button class="icon-btn" data-act="checkConvo" data-id="${f.id}" style="margin-top:6px;">🔍 Check conversation</button>`;
+          } else if (f.userReply) {
+            actionHtml = `
+              <div class="proof-diff" style="color:#4ade80;">Client already replied with shipping details:</div>
+              <div style="white-space:pre-wrap; font-size:10px; color:#ccc; background:#111; border-radius:6px; padding:8px; margin-top:4px; font-family:'DM Mono',monospace;">${f.userReply.replace(/</g, '&lt;')}</div>
+              ${f.filled
+                ? `<div class="proof-diff" style="color:#4ade80;">Shipping details field updated ✓</div>`
+                : `<button class="icon-btn" data-act="fillFromReply" data-id="${f.id}" style="margin-top:6px;">✅ Approve update to Airtable</button>`}
+            `;
+          } else if (f.pageSent) {
+            actionHtml = `<div class="proof-diff">Form already sent — no reply yet</div>`;
+          } else {
+            actionHtml = `<button class="icon-btn" data-act="sendForm" data-id="${f.id}" style="margin-top:6px;">✉ Send form</button>`;
+          }
+        }
+        return `
+          <div class="proof-item">
+            <div class="proof-name">${f.name}${f.clientNum ? ` <span>#${f.clientNum}</span>` : ''}</div>
+            <div class="proof-diff">${f.reason}</div>
+            ${actionHtml}
+            <a class="proof-link" href="https://airtable.com/${OT_BASE_ID}/${INV_TABLE}/${f.id}" target="_blank" rel="noopener">Open record ↗</a>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function scan() {
+      const apiKey = localStorage.getItem(OT_KEY_STORAGE) || '';
+      if (!apiKey) {
+        setStatus('Set Airtable API key in Order Tracker first ↓', 'error');
+        return;
+      }
+
+      setStatus('Scanning...', '');
+      summaryEl.textContent = '';
+      resultsEl.innerHTML = '';
+
+      try {
+        const records = await otFetchRecords(
+          apiKey, INV_TABLE, INV_STATUS, SHIP_DETAILS, SHIP_DETAILS,
+          `{Status}="For packaging"`,
+          [PROOF_FB_NAME, PROOF_CLIENT_NUM, SHIP_PSID]
+        );
+
+        const flagged = [];
+        let ok = 0;
+        records.forEach(r => {
+          const name = r.fields?.[PROOF_FB_NAME] || 'Unnamed';
+          const clientNum = r.fields?.[PROOF_CLIENT_NUM];
+          const psid = r.fields?.[SHIP_PSID];
+          const details = r.fields?.[SHIP_DETAILS];
+          if (!details || !details.trim()) {
+            flagged.push({ id: r.id, name, clientNum, psid, reason: 'Shipping details is empty' });
+            return;
+          }
+          if (!otHasPhoneNumber(details)) {
+            flagged.push({ id: r.id, name, clientNum, psid, reason: 'No phone number found in Shipping details' });
+            return;
+          }
+          ok++;
+        });
+
+        lastFlagged = flagged;
+        summaryEl.textContent = `${records.length} scanned · ${flagged.length} flagged · ${ok} ok`;
+        setStatus(flagged.length ? `${flagged.length} flagged` : 'All good ✓', flagged.length ? 'error' : 'success');
+        renderResults(flagged);
+      } catch (err) {
+        setStatus(`Error: ${err.message}`, 'error');
+      }
+    }
+
+    function getFbCreds() {
+      return {
+        pageId: localStorage.getItem(FB_PAGE_ID_STORAGE) || '',
+        pageToken: localStorage.getItem(FB_PAGE_TOKEN_STORAGE) || '',
+      };
+    }
+
+    async function checkConversation(item) {
+      const { pageId, pageToken } = getFbCreds();
+      if (!pageId || !pageToken) {
+        setStatus('Set Facebook Page credentials first ↓', 'error');
+        configPanel.classList.add('open');
+        return;
+      }
+      if (!item.psid) {
+        setStatus('This record has no PSID — cannot check', 'error');
+        return;
+      }
+      setStatus(`Checking conversation for ${item.name}...`, '');
+      try {
+        const state = await otCheckConversationState(pageId, pageToken, item.psid);
+        item.checked = true;
+        item.pageSent = state.pageSent;
+        item.userReply = state.userReply;
+        setStatus(
+          item.userReply ? `Found a filled-out reply from ${item.name} — review and approve below`
+          : item.pageSent ? `Form already sent to ${item.name} — no reply yet`
+          : `No prior form/reply found for ${item.name}`,
+          item.userReply ? 'success' : ''
+        );
+        renderResults(lastFlagged);
+      } catch (err) {
+        setStatus(`Error: ${err.message}`, 'error');
+      }
+    }
+
+    async function sendShippingForm(item) {
+      const { pageId, pageToken } = getFbCreds();
+      if (!pageId || !pageToken) {
+        setStatus('Set Facebook Page credentials first ↓', 'error');
+        configPanel.classList.add('open');
+        return;
+      }
+      const ok = confirm(`Send the shipping details request to ${item.name} via Messenger?`);
+      if (!ok) return;
+
+      setStatus(`Sending form to ${item.name}...`, '');
+      try {
+        await otSendMessengerMessage(pageId, pageToken, item.psid, SHIPPING_FORM_TEMPLATE);
+        item.pageSent = true;
+        setStatus(`Form sent to ${item.name} ✓`, 'success');
+        renderResults(lastFlagged);
+      } catch (err) {
+        setStatus(`Error: ${err.message}`, 'error');
+      }
+    }
+
+    async function fillFromReply(item) {
+      const apiKey = localStorage.getItem(OT_KEY_STORAGE) || '';
+      if (!apiKey) {
+        setStatus('Set Airtable API key in Order Tracker first ↓', 'error');
+        return;
+      }
+      if (!item.userReply) return;
+
+      setStatus(`Updating Shipping details for ${item.name}...`, '');
+      try {
+        await otPatchRecords(apiKey, INV_TABLE, [{ id: item.id, fields: { 'Shipping details': item.userReply } }]);
+        item.filled = true;
+        setStatus(`Shipping details updated for ${item.name} ✓`, 'success');
+        renderResults(lastFlagged);
+      } catch (err) {
+        setStatus(`Error: ${err.message}`, 'error');
+      }
+    }
+
+    card.addEventListener('click', (e) => {
+      const act = e.target.dataset.act;
+      if (act === 'scan') {
+        scan();
+      } else if (act === 'toggleConfig') {
+        configPanel.classList.toggle('open');
+      } else if (act === 'saveFbCreds') {
+        const pageId = pageIdInput.value.trim();
+        const pageToken = pageTokenInput.value.trim();
+        if (!pageId || !pageToken) return;
+        localStorage.setItem(FB_PAGE_ID_STORAGE, pageId);
+        localStorage.setItem(FB_PAGE_TOKEN_STORAGE, pageToken);
+        setStatus('Facebook Page credentials saved ✓', 'success');
+      } else if (act === 'checkConvo') {
+        const item = lastFlagged.find(f => f.id === e.target.dataset.id);
+        if (item) checkConversation(item);
+      } else if (act === 'sendForm') {
+        const item = lastFlagged.find(f => f.id === e.target.dataset.id);
+        if (item) sendShippingForm(item);
+      } else if (act === 'fillFromReply') {
+        const item = lastFlagged.find(f => f.id === e.target.dataset.id);
+        if (item) fillFromReply(item);
+      } else if (act === 'sendTrackStart') {
+        startSendTracking();
+      } else if (act === 'sendTrackStop') {
+        if (stopTracking) stopTracking();
+        setTrackStatus('Stopping after current record...', '');
+      } else if (act === 'toggleExtConfig') {
+        extConfigPanel.classList.toggle('open');
+      } else if (act === 'saveExtId') {
+        const val = extIdInput.value.trim();
+        if (!val) return;
+        localStorage.setItem(PROOF_EXT_ID_STORAGE, val);
+        setTrackStatus('Extension ID saved ✓', 'success');
+      }
+    });
+
+    const savedExtId = localStorage.getItem(PROOF_EXT_ID_STORAGE) || '';
+    if (savedExtId) extIdInput.value = savedExtId;
+
+    const savedPageId = localStorage.getItem(FB_PAGE_ID_STORAGE) || '';
+    const savedPageToken = localStorage.getItem(FB_PAGE_TOKEN_STORAGE) || '';
+    if (savedPageId) pageIdInput.value = savedPageId;
+    if (savedPageToken) pageTokenInput.value = savedPageToken;
+
+    return card;
+  }
+
+  // ─── Balance Checker ─────────────────────────────────────────────────────
+  // "For packaging" status records with Balance paid unchecked: shows the
+  // pending balance, auto-checks the conversation for a receipt attachment,
+  // and lets you confirm payment received — which sends a confirmation
+  // message and checks the Balance paid field.
+
+  const BAL_PAID_FIELD = 'fld5HsidilUatx1om';
+  const ADDITIONAL_ORDER_FIELD = 'fldCd5SsYHRSu0xBf';
+  const PAYMENT_RECEIVED_MESSAGE = 'Payment received po 😊 Sched na po namin ito for shipping, magsend nalang po kami ng tracking number. Thank you po!';
+
+  function buildBalanceCard() {
+    const card = document.createElement('div');
+    card.className = 'tool-card';
+    card.innerHTML = `
+      <div class="tool-hd">
+        <div class="tool-name">💰 Balance</div>
+        <div class="tool-actions">
+          <button class="icon-btn" data-act="scan">▶ Scan</button>
+        </div>
+      </div>
+      <div class="tool-desc">"For packaging" orders with Balance not yet paid — checks for a receipt in Messenger.</div>
+      <div class="status-line" data-el="status"></div>
+      <div class="proof-summary" data-el="summary"></div>
+      <div class="proof-results" data-el="results"></div>
+
+      <div class="config-toggle" data-act="toggleConfig">⚙ set facebook page credentials</div>
+      <div class="config-panel" data-el="configPanel">
+        <div class="config-hint">
+          Facebook <b>Page ID</b> and <b>Page access token</b> — same credentials as the Shipping card. Stored locally in this browser only.
+        </div>
+        <div class="id-row">
+          <input type="text" data-el="pageIdInput" placeholder="Page ID" autocomplete="off" spellcheck="false" />
+        </div>
+        <div class="id-row" style="margin-top:8px;">
+          <input type="password" data-el="pageTokenInput" placeholder="Page access token" autocomplete="off" spellcheck="false" />
+          <button class="save-btn" data-act="saveFbCreds">Save</button>
+        </div>
+        <div class="config-hint" style="margin-top:12px;">
+          <b>Gemini API key</b> (optional) — lets it read the receipt image and extract the amount + payment type.
+        </div>
+        <div class="id-row">
+          <input type="password" data-el="geminiKeyInput" placeholder="Gemini API key" autocomplete="off" spellcheck="false" />
+          <button class="save-btn" data-act="saveGeminiKey">Save</button>
+        </div>
+      </div>
+
+      <div class="ot-divider" style="margin:14px 0;"></div>
+      <div class="tool-name" style="font-size:12px;">🔎 PSID Finder</div>
+      <div class="tool-desc" style="margin-top:2px;">Searches your Page's conversations by client name, verifies the match, and lets you save the resolved PSID to the record.</div>
+      <div class="status-line" data-el="psidStatus"></div>
+      <div class="id-row" style="margin-top:8px;">
+        <input type="text" data-el="psidSearchInput" placeholder="Client name or number" autocomplete="off" spellcheck="false" />
+        <button class="save-btn" data-act="psidResolve">Find PSID</button>
+      </div>
+      <div class="proof-results" data-el="psidResults"></div>
+    `;
+
+    const el = sel => card.querySelector(`[data-el="${sel}"]`);
+    const statusEl = el('status');
+    const summaryEl = el('summary');
+    const resultsEl = el('results');
+    const configPanel = el('configPanel');
+    const pageIdInput = el('pageIdInput');
+    const pageTokenInput = el('pageTokenInput');
+    const geminiKeyInput = el('geminiKeyInput');
+    const psidStatusEl = el('psidStatus');
+    const psidSearchInput = el('psidSearchInput');
+    const psidResultsEl = el('psidResults');
+
+    let lastFlagged = [];
+    let lastPsidResult = null;
+
+    function setPsidStatus(text, cls) {
+      psidStatusEl.className = `status-line ${cls || ''}`;
+      psidStatusEl.innerHTML = text ? `<span class="status-dot ${cls || ''}"></span>${text}` : '';
+    }
+
+    async function resolvePsid() {
+      const apiKey = localStorage.getItem(OT_KEY_STORAGE) || '';
+      const { pageId, pageToken } = getFbCreds();
+      if (!apiKey) { setPsidStatus('Set Airtable API key in Order Tracker first', 'error'); return; }
+      if (!pageId || !pageToken) { setPsidStatus('Set Facebook Page credentials above first', 'error'); configPanel.classList.add('open'); return; }
+
+      const search = psidSearchInput.value.trim();
+      if (!search) { setPsidStatus('Enter a client name or number', 'error'); return; }
+
+      psidResultsEl.innerHTML = '';
+      setPsidStatus('Looking up record...', '');
+      try {
+        const isNumber = /^\d+$/.test(search);
+        const filter = isNumber ? `{Client Number}=${search}` : `SEARCH(LOWER("${search.replace(/"/g, '\\"')}"),LOWER({FB Name}))`;
+        const records = await otFetchRecords(apiKey, INV_TABLE, INV_STATUS, PROOF_FB_NAME, PROOF_CLIENT_NUM, filter, [SHIP_PSID]);
+        if (records.length === 0) { setPsidStatus(`No record found matching "${search}"`, 'error'); return; }
+        if (records.length > 1) { setPsidStatus(`${records.length} records matched "${search}" — be more specific`, 'error'); return; }
+        const record = records[0];
+        const recordName = record.fields?.[PROOF_FB_NAME] || 'Unnamed';
+        const currentPsid = record.fields?.[SHIP_PSID] || null;
+
+        setPsidStatus(`Searching conversations for "${recordName}"... this may take a moment`, '');
+        const { participant, checked } = await otFindConversationByParticipantName(pageId, pageToken, recordName);
+
+        if (!participant) {
+          setPsidStatus(`Checked ${checked} conversation(s) — no match found for "${recordName}"`, 'error');
+          return;
+        }
+
+        const candidateId = participant.id;
+        const participantName = participant.name;
+        lastPsidResult = { recordId: record.id, recordName, candidateId, participantName, currentPsid };
+
+        psidResultsEl.innerHTML = `
+          <div class="proof-item">
+            <div class="proof-name">Record: ${recordName}</div>
+            <div class="proof-diff">Matched conversation participant: <b>${participantName}</b> (checked ${checked} conversation(s))</div>
+            ${currentPsid ? `<div class="proof-diff">Current PSID on record: ${currentPsid}${currentPsid === candidateId ? ' (same as resolved)' : ''}</div>` : `<div class="proof-diff">No PSID currently on record</div>`}
+            <div class="proof-diff">Resolved PSID: ${candidateId}</div>
+            <button class="icon-btn" data-act="psidSave" style="margin-top:6px;">✓ Save this PSID to the record</button>
+          </div>
+        `;
+        setPsidStatus('Resolved — review before saving', 'success');
+      } catch (err) {
+        setPsidStatus(`Error: ${err.message}`, 'error');
+      }
+    }
+
+    async function savePsid() {
+      if (!lastPsidResult) return;
+      const apiKey = localStorage.getItem(OT_KEY_STORAGE) || '';
+      setPsidStatus(`Saving PSID for ${lastPsidResult.recordName}...`, '');
+      try {
+        await otPatchRecords(apiKey, INV_TABLE, [{ id: lastPsidResult.recordId, fields: { 'PSID': lastPsidResult.candidateId } }]);
+        setPsidStatus(`PSID saved for ${lastPsidResult.recordName} ✓`, 'success');
+      } catch (err) {
+        setPsidStatus(`Error: ${err.message}`, 'error');
+      }
+    }
+
+    function setStatus(text, cls) {
+      statusEl.className = `status-line ${cls || ''}`;
+      statusEl.innerHTML = text ? `<span class="status-dot ${cls || ''}"></span>${text}` : '';
+    }
+
+    function getFbCreds() {
+      return {
+        pageId: localStorage.getItem(FB_PAGE_ID_STORAGE) || '',
+        pageToken: localStorage.getItem(FB_PAGE_TOKEN_STORAGE) || '',
+      };
+    }
+
+    function renderResults(flagged) {
+      if (flagged.length === 0) {
+        resultsEl.innerHTML = '';
+        return;
+      }
+      // Records with a confirmed receipt first, so the ones ready for you to
+      // action (click Payment Received) don't get buried below everyone else.
+      const sorted = flagged.slice().sort((a, b) => {
+        const aHasReceipt = a.analysis?.isReceipt === true ? 1 : 0;
+        const bHasReceipt = b.analysis?.isReceipt === true ? 1 : 0;
+        return bHasReceipt - aHasReceipt;
+      });
+      resultsEl.innerHTML = sorted.map(f => {
+        if (f.autoPaid || f.autoPaidError) {
+          return `
+          <div class="proof-item">
+            <div class="proof-name">${f.name}${f.clientNum ? ` <span>#${f.clientNum}</span>` : ''}</div>
+            ${f.autoPaid
+              ? `<div class="proof-diff" style="color:#4ade80;">Balance was ₱0 — automatically marked as paid ✓</div>`
+              : `<div class="proof-diff">Balance is ₱0 but auto-update failed: ${f.autoPaidError}</div>`}
+            <div style="display:flex; gap:12px; margin-top:6px;">
+              ${f.metaLink ? `<a class="proof-link" href="${f.metaLink}" target="_blank" rel="noopener">Open conversation ↗</a>` : ''}
+              <a class="proof-link" href="https://airtable.com/${OT_BASE_ID}/${INV_TABLE}/${f.id}" target="_blank" rel="noopener">Open record ↗</a>
+            </div>
+          </div>
+          `;
+        }
+        let analysisHtml = '';
+        if (f.analysis && f.analysis.isReceipt === false) {
+          analysisHtml = `
+            <div class="proof-diff">Not a receipt — checked attachment(s) don't look like proof of payment</div>
+            ${f.receiptImageUrl ? `<img src="${f.receiptImageUrl}" alt="Attachment" style="max-width:100%; border-radius:8px; margin-top:6px; display:block; opacity:0.7;" />` : ''}`;
+        } else if (f.analysis) {
+          const mismatch = typeof f.analysis.amount === 'number' && Math.abs(f.analysis.amount - f.balance) >= 1;
+          const dest = f.analysis.recipientDestination || f.analysis.recipientName
+            ? ` · Sent to ${[f.analysis.recipientDestination, f.analysis.recipientName].filter(Boolean).join(' — ')}`
+            : '';
+          const ts = f.analysis.timestamp ? ` · ${f.analysis.timestamp}` : '';
+          const isUnknownType = !f.analysis.type || f.analysis.type.toLowerCase() === 'unknown';
+          analysisHtml = `
+            <div class="proof-diff" style="color:${mismatch ? '#f87171' : '#4ade80'};">
+              ${f.analysis.type || 'Receipt'}${f.analysis.amount != null ? `: ${otFormatPeso(f.analysis.amount)}` : ''}${f.analysis.refNo ? ` · Ref# ${f.analysis.refNo}` : ''}${dest}${ts}
+              ${mismatch ? ` ⚠ doesn't match balance due (${otFormatPeso(f.balance)})` : ''}
+            </div>
+            ${isUnknownType && f.receiptImageUrl
+              ? `<img src="${f.receiptImageUrl}" alt="Receipt" style="max-width:100%; border-radius:8px; margin-top:6px; display:block;" />`
+              : ''}`;
+        } else if (f.analysisError) {
+          analysisHtml = `
+            <div class="proof-diff">Could not read receipt: ${f.analysisError}</div>
+            ${f.receiptImageUrl ? `<img src="${f.receiptImageUrl}" alt="Receipt" style="max-width:100%; border-radius:8px; margin-top:6px; display:block;" />` : ''}`;
+        }
+        let debugHtml = '';
+        if (f.debugInfo) {
+          const safeJson = v => (JSON.stringify(v, null, 2) || 'undefined').replace(/</g, '&lt;');
+          const body = f.debugInfo.nearMisses !== undefined
+            ? `Anchor not found. Page messages mentioning "balance"/"mapaship":\n${safeJson(f.debugInfo.nearMisses)}`
+            : `${f.debugInfo.candidateMessageCount} message(s) after anchor, ${f.debugInfo.clientMessageCount} from client, ${f.debugInfo.clientAttachmentCount} attachment(s) total:\nanchor: ${safeJson(f.debugInfo.anchorMessage)} @ ${f.debugInfo.anchorTime}\ncandidateTimes: ${safeJson(f.debugInfo.candidateTimes)}${f.debugInfo.rawAttachments !== undefined ? `\nrawAttachments: ${safeJson(f.debugInfo.rawAttachments)}` : ''}`;
+          debugHtml = `
+          <div style="white-space:pre-wrap; font-size:9px; color:#888; background:#111; border-radius:6px; padding:8px; margin-top:6px; font-family:'DM Mono',monospace; max-height:200px; overflow-y:auto;">DEBUG — ${body}</div>
+        `;
+        }
+        return `
+        <div class="proof-item">
+          <div class="proof-name">${f.name}${f.clientNum ? ` <span>#${f.clientNum}</span>` : ''}</div>
+          <div class="proof-diff">Balance pending: ${otFormatPeso(f.balance)}</div>
+          <div class="proof-diff" style="color:${f.hasReceipt ? '#4ade80' : '#f87171'};">${f.receiptStatus}</div>
+          ${analysisHtml}
+          ${debugHtml}
+          ${f.paid
+            ? `<div class="proof-diff" style="color:#4ade80;">Marked as paid ✓</div>`
+            : `<button class="icon-btn" data-act="markPaid" data-id="${f.id}" style="margin-top:6px;">✓ Payment Received</button>`}
+          <div style="display:flex; gap:12px; margin-top:6px;">
+            ${f.metaLink ? `<a class="proof-link" href="${f.metaLink}" target="_blank" rel="noopener">Open conversation ↗</a>` : ''}
+            <a class="proof-link" href="https://airtable.com/${OT_BASE_ID}/${INV_TABLE}/${f.id}" target="_blank" rel="noopener">Open record ↗</a>
+          </div>
+        </div>
+      `;
+      }).join('');
+    }
+
+    async function scan() {
+      const apiKey = localStorage.getItem(OT_KEY_STORAGE) || '';
+      if (!apiKey) {
+        setStatus('Set Airtable API key in Order Tracker first ↓', 'error');
+        return;
+      }
+
+      setStatus('Scanning...', '');
+      summaryEl.textContent = '';
+      resultsEl.innerHTML = '';
+
+      try {
+        const records = await otFetchRecords(
+          apiKey, INV_TABLE, INV_STATUS, PROOF_BALANCE, PROOF_BALANCE,
+          `AND({Status}="For packaging",NOT({Balance paid}))`,
+          [PROOF_FB_NAME, PROOF_CLIENT_NUM, SHIP_PSID, META_LINK, ADDITIONAL_ORDER_FIELD]
+        );
+
+        const { pageId, pageToken } = getFbCreds();
+        const geminiKey = localStorage.getItem(GEMINI_KEY_STORAGE) || '';
+        const canCheckReceipts = !!(pageId && pageToken);
+        if (!canCheckReceipts) {
+          setStatus('Scanned — set Facebook Page credentials ↓ to auto-check for receipts', '');
+        }
+
+        const flagged = [];
+        let autoPaidCount = 0;
+        for (const r of records) {
+          const name = r.fields?.[PROOF_FB_NAME] || 'Unnamed';
+          const clientNum = r.fields?.[PROOF_CLIENT_NUM];
+          const psid = r.fields?.[SHIP_PSID];
+          const metaLink = r.fields?.[META_LINK];
+          const balance = r.fields?.[PROOF_BALANCE] ?? 0;
+          const isAdditionalOrder = !!r.fields?.[ADDITIONAL_ORDER_FIELD];
+
+          // Balance already zero and not a sub-order rolled into a parent's
+          // balance — nothing to collect, so mark paid automatically instead
+          // of asking for a receipt check / manual confirmation.
+          if (balance === 0 && !isAdditionalOrder) {
+            try {
+              await otPatchRecords(apiKey, INV_TABLE, [{ id: r.id, fields: { 'Balance paid': true } }]);
+              autoPaidCount++;
+              flagged.push({ id: r.id, name, clientNum, metaLink, balance, autoPaid: true, paid: true });
+            } catch (err) {
+              flagged.push({ id: r.id, name, clientNum, metaLink, balance, autoPaidError: err.message });
+            }
+            continue;
+          }
+
+          let hasReceipt = false;
+          let receiptStatus = 'Set Facebook Page credentials to check for a receipt';
+          let analysis = null;
+          let analysisError = null;
+          let receiptImageUrl = null;
+          let debugInfo = null;
+          if (canCheckReceipts) {
+            if (!psid) {
+              receiptStatus = 'No PSID on record — cannot check conversation';
+            } else {
+              try {
+                if (records.length > 1) setStatus(`Checking conversation for ${name}...`, '');
+                const { messages, participantName } = await otFetchConversationMessages(pageId, pageToken, psid);
+
+                // A stale/incorrect PSID silently returns a real but unrelated
+                // conversation — no API error, just wrong data. Confirmed to
+                // happen in practice. Catch it by comparing the conversation's
+                // actual participant name against the record's stored name.
+                const namesLookUnrelated = participantName && name && name !== 'Unnamed'
+                  && !otNamesLooselyMatch(participantName, name);
+                if (namesLookUnrelated) {
+                  receiptStatus = `⚠ PSID may be wrong — conversation participant is "${participantName}", not "${name}"`;
+                  flagged.push({ id: r.id, name, clientNum, psid, metaLink, balance, hasReceipt: false, receiptStatus, analysis: null, analysisError: null, receiptImageUrl: null, debugInfo: null });
+                  continue;
+                }
+
+                const found = otFindReceiptCandidates(messages, psid, balance);
+                debugInfo = found.debug;
+
+                if (!found.anchorFound) {
+                  receiptStatus = 'Balance request message not found in recent history — check conversation manually';
+                } else if (found.candidates.length === 0) {
+                  receiptStatus = 'Balance request found, but no attachment sent by client since then';
+                } else if (!geminiKey) {
+                  // Can't tell which candidate (if any) is a genuine receipt
+                  // without vision analysis — surface the most recent one but
+                  // flag it as unverified rather than asserting it's the receipt.
+                  hasReceipt = true;
+                  receiptStatus = `📎 ${found.candidates.length} attachment(s) found after balance request — set Gemini API key to verify which is the receipt`;
+                  receiptImageUrl = found.candidates[0].imageUrl;
+                } else {
+                  let confirmed = null;
+                  let lastAnalysis = null;
+                  for (const candidate of found.candidates.slice(0, MAX_RECEIPT_CANDIDATES_TO_CHECK)) {
+                    if (records.length > 1) setStatus(`Reading attachment for ${name}...`, '');
+                    try {
+                      const result = await otAnalyzeReceiptWithGemini(geminiKey, candidate.imageUrl);
+                      lastAnalysis = result;
+                      if (result.isReceipt) { confirmed = { candidate, result }; break; }
+                    } catch (err) {
+                      analysisError = err.message;
+                    }
+                  }
+                  if (confirmed) {
+                    hasReceipt = true;
+                    receiptStatus = '📎 Receipt found (sent after balance request)';
+                    receiptImageUrl = confirmed.candidate.imageUrl;
+                    analysis = confirmed.result;
+                  } else {
+                    receiptStatus = `${found.candidates.length} attachment(s) found after balance request, but none look like a receipt (checked ${Math.min(found.candidates.length, MAX_RECEIPT_CANDIDATES_TO_CHECK)})`;
+                    receiptImageUrl = found.candidates[0].imageUrl;
+                    analysis = lastAnalysis;
+                  }
+                }
+              } catch (err) {
+                receiptStatus = `Could not check conversation: ${err.message}`;
+              }
+            }
+          }
+
+          flagged.push({ id: r.id, name, clientNum, psid, metaLink, balance, hasReceipt, receiptStatus, analysis, analysisError, receiptImageUrl, debugInfo });
+        }
+
+        lastFlagged = flagged;
+        window.mhDebugBalance = { flagged, pageId, pageToken };
+        summaryEl.textContent = `${records.length} scanned · ${autoPaidCount} auto-marked paid (₱0 balance) · ${flagged.filter(f => f.hasReceipt).length} with receipt found`;
+        setStatus(flagged.length ? `${flagged.length} unpaid balance(s)` : 'No unpaid balances ✓', flagged.length ? '' : 'success');
+        renderResults(flagged);
+      } catch (err) {
+        setStatus(`Error: ${err.message}`, 'error');
+      }
+    }
+
+    async function markPaid(item) {
+      const { pageId, pageToken } = getFbCreds();
+      if (!pageId || !pageToken) {
+        setStatus('Set Facebook Page credentials first ↓', 'error');
+        configPanel.classList.add('open');
+        return;
+      }
+      if (!item.psid) {
+        setStatus('This record has no PSID — cannot send confirmation', 'error');
+        return;
+      }
+      const apiKey = localStorage.getItem(OT_KEY_STORAGE) || '';
+      if (!apiKey) {
+        setStatus('Set Airtable API key in Order Tracker first ↓', 'error');
+        return;
+      }
+      setStatus(`Sending confirmation to ${item.name}...`, '');
+      try {
+        await otSendMessengerMessage(pageId, pageToken, item.psid, PAYMENT_RECEIVED_MESSAGE);
+        setStatus(`Updating Balance paid for ${item.name}...`, '');
+        await otPatchRecords(apiKey, INV_TABLE, [{ id: item.id, fields: { 'Balance paid': true } }]);
+        lastFlagged = lastFlagged.filter(f => f.id !== item.id);
+        setStatus(`${item.name} marked as paid ✓`, 'success');
+        renderResults(lastFlagged);
+      } catch (err) {
+        setStatus(`Error: ${err.message}`, 'error');
+      }
+    }
+
+    card.addEventListener('click', (e) => {
+      const act = e.target.dataset.act;
+      if (act === 'scan') {
+        scan();
+      } else if (act === 'toggleConfig') {
+        configPanel.classList.toggle('open');
+      } else if (act === 'saveFbCreds') {
+        const pageId = pageIdInput.value.trim();
+        const pageToken = pageTokenInput.value.trim();
+        if (!pageId || !pageToken) return;
+        localStorage.setItem(FB_PAGE_ID_STORAGE, pageId);
+        localStorage.setItem(FB_PAGE_TOKEN_STORAGE, pageToken);
+        setStatus('Facebook Page credentials saved ✓', 'success');
+      } else if (act === 'saveGeminiKey') {
+        const geminiKey = geminiKeyInput.value.trim();
+        if (!geminiKey) return;
+        localStorage.setItem(GEMINI_KEY_STORAGE, geminiKey);
+        setStatus('Gemini API key saved ✓', 'success');
+      } else if (act === 'markPaid') {
+        const item = lastFlagged.find(f => f.id === e.target.dataset.id);
+        if (item) markPaid(item);
+      } else if (act === 'psidResolve') {
+        resolvePsid();
+      } else if (act === 'psidSave') {
+        savePsid();
+      }
+    });
+
+    const savedPageId = localStorage.getItem(FB_PAGE_ID_STORAGE) || '';
+    const savedPageToken = localStorage.getItem(FB_PAGE_TOKEN_STORAGE) || '';
+    const savedGeminiKey = localStorage.getItem(GEMINI_KEY_STORAGE) || '';
+    if (savedPageId) pageIdInput.value = savedPageId;
+    if (savedPageToken) pageTokenInput.value = savedPageToken;
+    if (savedGeminiKey) geminiKeyInput.value = savedGeminiKey;
+
+    return card;
+  }
+
+  // ─── PSID Finder ─────────────────────────────────────────────────────────
+  // Resolves and VERIFIES a PSID by searching the Page's own conversation
+  // list for a participant whose name matches the client — the conversation
+  // URL's "selected_item_id" turned out NOT to be a usable PSID (confirmed:
+  // querying it directly returns a Graph API error), so this searches by
+  // name instead, which doesn't depend on any URL parameter at all.
+
+  // Searches the Page's conversations (paginated) for one whose non-page
+  // participant's name loosely matches `search`. Capped at 30 pages
+  // (~3000 conversations) as a safety net for very large inboxes.
+  async function otFindConversationByParticipantName(pageId, token, search) {
+    let url = `https://graph.facebook.com/v19.0/${pageId}/conversations?fields=participants&limit=100&access_token=${encodeURIComponent(token)}`;
+    let pages = 0;
+    let checked = 0;
+    while (url && pages < 30) {
+      const data = await otFetchJsonWithRetry(url);
+      for (const convo of data.data || []) {
+        const participant = (convo.participants?.data || []).find(p => p.id !== pageId);
+        checked++;
+        if (participant && otNamesLooselyMatch(participant.name, search)) {
+          return { participant, checked };
+        }
+      }
+      url = data.paging?.next || null;
+      pages++;
+    }
+    return { participant: null, checked };
+  }
+
+  cardsRoot.appendChild(buildOrderTrackerCard());
+  cardsRoot.appendChild(buildProofCard());
+  cardsRoot.appendChild(buildBalanceCard());
+  cardsRoot.appendChild(buildShippingCard());
+</script>
+</body>
+</html>

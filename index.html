@@ -2478,6 +2478,34 @@ Then extract:
     return otStripBidiMarks(name || '').replace(/\s+/g, ' ').trim().toLowerCase();
   }
 
+  // Standard Levenshtein edit distance — used as a typo-tolerant fallback
+  // when a Sales archive name doesn't exactly match any Airtable FB Name
+  // (e.g. "Jaby JA" vs "Jabby VA", "Shiela" vs "Sheila").
+  function otLevenshteinDistance(a, b) {
+    const m = a.length, n = b.length;
+    if (m === 0) return n;
+    if (n === 0) return m;
+    let prev = Array.from({ length: n + 1 }, (_, j) => j);
+    for (let i = 1; i <= m; i++) {
+      const row = [i];
+      for (let j = 1; j <= n; j++) {
+        row[j] = a[i - 1] === b[j - 1]
+          ? prev[j - 1]
+          : 1 + Math.min(prev[j - 1], prev[j], row[j - 1]);
+      }
+      prev = row;
+    }
+    return prev[n];
+  }
+
+  // Fuzzy-match tolerances for the Sales card's name-matching fallback: max
+  // edit distance for the name, and max days between the archive's Date
+  // Encoded and the candidate Airtable record's creation date. Both must be
+  // satisfied together, so two different clients with similar names on
+  // unrelated dates don't get mismatched.
+  const FUZZY_MAX_NAME_DIST = 3;
+  const FUZZY_MAX_DATE_DIFF_DAYS = 5;
+
   // The "Date Encoded" column mixes formats over time — "2026-06-27" for
   // older rows, "06/29/2026" (M/D/YYYY) for newer ones. Normalize both to
   // YYYY-MM-DD so grouping and chronological sorting both work correctly.
@@ -2649,16 +2677,43 @@ Then extract:
           const bucket = byDate.get(key);
           bucket.orders++;
           bucket.dpReceived += r.dp;
-          const clusters = clustersByName.get(otNormalizeNameForMatch(r.name));
-          if (clusters && clusters.length) {
+          const exactClusters = clustersByName.get(otNormalizeNameForMatch(r.name));
+          if (exactClusters && exactClusters.length) {
             const archiveTime = new Date(r.dateEncoded).getTime();
             let bestIdx = 0, bestDiff = Infinity;
-            clusters.forEach((c, idx) => {
+            exactClusters.forEach((c, idx) => {
               const diff = Math.abs(c.lastTime - archiveTime);
               if (diff < bestDiff) { bestDiff = diff; bestIdx = idx; }
             });
-            bucket.totalValue += clusters.splice(bestIdx, 1)[0].total;
-          } else unmatched++;
+            bucket.totalValue += exactClusters.splice(bestIdx, 1)[0].total;
+            return;
+          }
+          // No exact name match — fall back to fuzzy matching (small typos
+          // like "Jaby JA" vs "Jabby VA", "Shiela" vs "Sheila"), but only
+          // accept a candidate whose name is close AND whose order date is
+          // close, so two different clients with similar names on unrelated
+          // dates don't get mismatched.
+          const archiveTime = new Date(r.dateEncoded).getTime();
+          const archiveName = otNormalizeNameForMatch(r.name);
+          let best = null;
+          clustersByName.forEach((clusters, candidateName) => {
+            if (!clusters.length) return;
+            const nameDist = otLevenshteinDistance(archiveName, candidateName);
+            if (nameDist > FUZZY_MAX_NAME_DIST) return;
+            clusters.forEach((c, idx) => {
+              const dateDiffDays = Math.abs(c.lastTime - archiveTime) / 86400000;
+              if (dateDiffDays > FUZZY_MAX_DATE_DIFF_DAYS) return;
+              if (!best || nameDist < best.nameDist || (nameDist === best.nameDist && dateDiffDays < best.dateDiffDays)) {
+                best = { candidateName, idx, nameDist, dateDiffDays, total: c.total };
+              }
+            });
+          });
+          if (best) {
+            clustersByName.get(best.candidateName).splice(best.idx, 1);
+            bucket.totalValue += best.total;
+          } else {
+            unmatched++;
+          }
         });
 
         const rows = [...byDate.entries()]

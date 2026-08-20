@@ -2593,12 +2593,7 @@ Then extract:
           .map(row => ({ name: row[0] || '', dp: Number(row[1]) || 0, dateEncoded: otNormalizeDateEncoded(row[4]) }))
           .filter(r => r.name && r.dateEncoded);
 
-        const invRecordsRaw = await otFetchRecords(airtableKey, INV_TABLE, PROOF_FB_NAME, INV_GRAND_TOTAL, INV_GRAND_TOTAL, null, [ADDITIONAL_ORDER_FIELD]);
-        // "Additional order" child records exist only to feed the parent
-        // record's "Additional Orders Total" rollup — their own Total is
-        // intentionally 0. Leaving them in the pool risks a same-day tie
-        // stealing the nearest-date match slot from the real parent record.
-        const invRecords = invRecordsRaw.filter(rec => !rec.fields?.[ADDITIONAL_ORDER_FIELD]);
+        const invRecords = await otFetchRecords(airtableKey, INV_TABLE, PROOF_FB_NAME, INV_GRAND_TOTAL, INV_GRAND_TOTAL, null, []);
         // Standalone souvenir orders (no linked Invitation) have no Invitation
         // record at all, so they'd otherwise be invisible here — Invitation's
         // "Total" field already folds in souvenirs that ARE linked, so only
@@ -2606,27 +2601,29 @@ Then extract:
         const souRecords = await otFetchRecords(airtableKey, SOU_TABLE, SOU_FB_NAME, SOU_TOTAL, SOU_TOTAL, null, [SOU_INV_LINK]);
         const souStandalone = souRecords.filter(rec => !(rec.fields?.[SOU_INV_LINK] || []).length);
 
-        // Pool of per-record totals per name, matched by closest creation
-        // date rather than summed — summing all of a name's Airtable orders
-        // into one bucket and crediting that full sum to every archive row
-        // with that name would massively over-count repeat clients
-        // (confirmed: this was inflating dates with common/repeat names to
-        // unrealistic totals). Nearest-date matching (not simple oldest-first
-        // consumption) matters too: some repeat clients have an Airtable
-        // record from an old order never logged in this archive at all —
-        // oldest-first would wrongly pair that stray old record with an
-        // unrelated same-day archive entry (confirmed: a year-old ₱2,475
-        // order was getting matched instead of the real same-day ₱4,300 one).
-        const poolByName = new Map();
-        const addToPool = (nameRaw, totalRaw, createdTime) => {
+        // Sum totals per (name, creation date) instead of per single record.
+        // Summing (not picking one) means "additional order" child records
+        // (own Total = 0, since their value already feeds the parent's
+        // Total via rollup) are harmless to include — same-day parent+child
+        // just sums to the parent's real total either way. Matching on exact
+        // creation date (not nearest/any) means a repeat client's old,
+        // never-archived order sits in its own date bucket and is never
+        // touched by an unrelated archive row (confirmed case: a year-old
+        // ₱2,475 order was getting wrongly paired with an unrelated same-day
+        // ₱4,300 order before this was date-exact).
+        // PH-local date key: createdTime is UTC; shift +8h so the calendar
+        // date matches how "Date Encoded" would have been entered locally.
+        const toPhDateKey = iso => new Date(new Date(iso).getTime() + 8 * 3600 * 1000).toISOString().slice(0, 10);
+        const sumByNameDate = new Map();
+        const addToSum = (nameRaw, totalRaw, createdTime) => {
           const name = otNormalizeNameForMatch(nameRaw);
-          const total = Number(totalRaw) || 0;
-          if (!name) return;
-          if (!poolByName.has(name)) poolByName.set(name, []);
-          poolByName.get(name).push({ total, createdTime: createdTime ? new Date(createdTime).getTime() : 0 });
+          if (!name || !createdTime) return;
+          const key = `${name}|${toPhDateKey(createdTime)}`;
+          sumByNameDate.set(key, (sumByNameDate.get(key) || 0) + (Number(totalRaw) || 0));
         };
-        invRecords.forEach(rec => addToPool(rec.fields?.[PROOF_FB_NAME], rec.fields?.[INV_GRAND_TOTAL], rec.createdTime));
-        souStandalone.forEach(rec => addToPool(rec.fields?.[SOU_FB_NAME], rec.fields?.[SOU_TOTAL], rec.createdTime));
+        invRecords.forEach(rec => addToSum(rec.fields?.[PROOF_FB_NAME], rec.fields?.[INV_GRAND_TOTAL], rec.createdTime));
+        souStandalone.forEach(rec => addToSum(rec.fields?.[SOU_FB_NAME], rec.fields?.[SOU_TOTAL], rec.createdTime));
+        const consumedKeys = new Set();
 
         const byDate = new Map();
         let unmatched = 0;
@@ -2636,15 +2633,10 @@ Then extract:
           const bucket = byDate.get(key);
           bucket.orders++;
           bucket.dpReceived += r.dp;
-          const pool = poolByName.get(otNormalizeNameForMatch(r.name));
-          if (pool && pool.length) {
-            const archiveTime = new Date(r.dateEncoded).getTime();
-            let bestIdx = 0, bestDiff = Infinity;
-            pool.forEach((entry, idx) => {
-              const diff = Math.abs(entry.createdTime - archiveTime);
-              if (diff < bestDiff) { bestDiff = diff; bestIdx = idx; }
-            });
-            bucket.totalValue += pool.splice(bestIdx, 1)[0].total;
+          const matchKey = `${otNormalizeNameForMatch(r.name)}|${r.dateEncoded}`;
+          if (sumByNameDate.has(matchKey) && !consumedKeys.has(matchKey)) {
+            bucket.totalValue += sumByNameDate.get(matchKey);
+            consumedKeys.add(matchKey);
           } else unmatched++;
         });
 

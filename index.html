@@ -2818,7 +2818,150 @@ Then extract:
   cardsRoot.appendChild(buildBalanceCard());
   cardsRoot.appendChild(buildShippingCard());
 
+  // ─── Ads (Meta Graph API — ad account insights) ─────────────────────────
+  // Pulls spend/results straight from the Facebook Marketing API for a given
+  // ad account. Needs a user access token with ads_read permission (a
+  // long-lived token from the Graph API Explorer / a system user works).
+
+  const ADS_TOKEN_STORAGE = 'mh_ads_meta_access_token';
+  const ADS_ACCOUNT_STORAGE = 'mh_ads_meta_account_id';
+  const ADS_GRAPH_VERSION = 'v21.0';
+
+  const ADS_PRESETS = [
+    { key: 'today', label: 'Today' },
+    { key: 'yesterday', label: 'Yesterday' },
+    { key: 'this_week_mon_today', label: 'This week' },
+    { key: 'last_30d', label: 'Last 30 days' },
+  ];
+
+  async function adsFetchInsights(token, accountId, datePreset) {
+    const acct = accountId.trim().replace(/^act_/, '');
+    const fields = 'spend,impressions,clicks,cpc,ctr,reach,actions';
+    const url = `https://graph.facebook.com/${ADS_GRAPH_VERSION}/act_${encodeURIComponent(acct)}/insights?fields=${fields}&date_preset=${datePreset}&access_token=${encodeURIComponent(token)}`;
+    const resp = await fetch(url);
+    const json = await resp.json();
+    if (json.error) throw new Error(json.error.message || 'Graph API error');
+    return json.data && json.data[0] ? json.data[0] : null;
+  }
+
+  function adsCountResultActions(row) {
+    if (!row || !Array.isArray(row.actions)) return 0;
+    const wanted = ['onsite_conversion.messaging_conversation_started_7d', 'lead', 'purchase'];
+    const hit = row.actions.find(a => wanted.includes(a.action_type));
+    return hit ? Number(hit.value) || 0 : 0;
+  }
+
+  function buildAdsCard() {
+    const card = document.createElement('div');
+    card.className = 'tool-card';
+    card.innerHTML = `
+      <div class="tool-hd">
+        <div class="tool-name">📣 Ads</div>
+        <div class="tool-actions">
+          <button class="icon-btn" data-act="load">↻ Refresh</button>
+        </div>
+      </div>
+      <div class="tool-desc">Spend, reach and results from the Meta (Facebook) ad account via the Graph API.</div>
+      <div class="status-line" data-el="status"></div>
+      <div class="no-wrap"><table class="no-table" data-el="table"></table></div>
+
+      <div class="config-toggle" data-act="toggleConfig">⚙ set ad account</div>
+      <div class="config-panel" data-el="configPanel">
+        <div class="config-hint">
+          Needs a Meta access token with ads_read permission (from Graph API Explorer, or a long-lived system user token) and the numeric ad account ID. Stored locally in this browser only.
+        </div>
+        <div class="id-row">
+          <input type="text" data-el="accountInput" placeholder="Ad account ID (e.g. 1234567890)" autocomplete="off" spellcheck="false" />
+          <input type="password" data-el="tokenInput" placeholder="Meta access token" autocomplete="off" spellcheck="false" />
+          <button class="save-btn" data-act="save">Save</button>
+        </div>
+      </div>
+    `;
+
+    const el = sel => card.querySelector(`[data-el="${sel}"]`);
+    const statusEl = el('status');
+    const tableEl = el('table');
+    const configPanel = el('configPanel');
+    const accountInput = el('accountInput');
+    const tokenInput = el('tokenInput');
+
+    function setStatus(text, cls) {
+      statusEl.className = `status-line ${cls || ''}`;
+      statusEl.innerHTML = text ? `<span class="status-dot ${cls || ''}"></span>${text}` : '';
+    }
+
+    const peso = n => `₱${(n || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+
+    function renderRows(rows) {
+      tableEl.innerHTML = `
+        <thead><tr>
+          <th>Range</th><th>Spend</th><th>Reach</th><th>Clicks</th><th>CTR</th><th>CPC</th><th>Results</th>
+        </tr></thead>
+        <tbody>
+          ${rows.map(r => `
+            <tr>
+              <td class="no-name">${r.label}</td>
+              <td class="no-num">${r.row ? peso(r.row.spend) : '—'}</td>
+              <td class="no-num">${r.row ? Number(r.row.reach || 0).toLocaleString() : '—'}</td>
+              <td class="no-num">${r.row ? Number(r.row.clicks || 0).toLocaleString() : '—'}</td>
+              <td class="no-num">${r.row ? `${Number(r.row.ctr || 0).toFixed(2)}%` : '—'}</td>
+              <td class="no-num">${r.row ? peso(r.row.cpc) : '—'}</td>
+              <td class="no-num">${r.row ? adsCountResultActions(r.row).toLocaleString() : '—'}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      `;
+    }
+
+    async function load() {
+      const token = localStorage.getItem(ADS_TOKEN_STORAGE) || '';
+      const accountId = localStorage.getItem(ADS_ACCOUNT_STORAGE) || '';
+      if (!token || !accountId) {
+        setStatus('Set ad account ID + access token first ↓', 'error');
+        configPanel.classList.add('open');
+        tableEl.innerHTML = '';
+        return;
+      }
+      setStatus('Loading…', 'loading');
+      try {
+        const results = await Promise.all(
+          ADS_PRESETS.map(p => adsFetchInsights(token, accountId, p.key).catch(() => null))
+        );
+        renderRows(ADS_PRESETS.map((p, i) => ({ label: p.label, row: results[i] })));
+        setStatus('Loaded ✓', 'success');
+      } catch (err) {
+        setStatus(`Error: ${err.message}`, 'error');
+        tableEl.innerHTML = '';
+      }
+    }
+
+    card.addEventListener('click', (e) => {
+      const act = e.target.dataset.act;
+      if (act === 'load') load();
+      else if (act === 'toggleConfig') configPanel.classList.toggle('open');
+      else if (act === 'save') {
+        const acct = accountInput.value.trim();
+        const token = tokenInput.value.trim();
+        if (!acct || !token) return;
+        localStorage.setItem(ADS_ACCOUNT_STORAGE, acct);
+        localStorage.setItem(ADS_TOKEN_STORAGE, token);
+        setStatus('Saved ✓', 'success');
+        load();
+      }
+    });
+
+    const savedAccount = localStorage.getItem(ADS_ACCOUNT_STORAGE) || '';
+    const savedToken = localStorage.getItem(ADS_TOKEN_STORAGE) || '';
+    if (savedAccount) accountInput.value = savedAccount;
+    if (savedToken) tokenInput.value = savedToken;
+    if (savedAccount && savedToken) load();
+    else configPanel.classList.add('open');
+
+    return card;
+  }
+
   cardsDataRoot.appendChild(buildSalesCard());
+  cardsDataRoot.appendChild(buildAdsCard());
 </script>
 </body>
 </html>

@@ -215,6 +215,21 @@
   .proof-diff { font-size: 10px; color: #f87171; margin-top: 4px; font-family: 'DM Mono', monospace; }
   .proof-link { font-size: 9px; color: #ff6b35; text-decoration: none; margin-top: 6px; display: inline-block; }
   .proof-link:hover { text-decoration: underline; }
+
+  .no-wrap { max-height: 460px; overflow: auto; margin-top: 4px; }
+  .no-table { width: 100%; border-collapse: collapse; font-size: 10px; }
+  .no-table th {
+    position: sticky; top: 0; background: #1a1a1a; color: #666; text-align: left;
+    font-family: 'DM Mono', monospace; font-size: 8px; letter-spacing: 0.5px; text-transform: uppercase;
+    padding: 6px 8px; border-bottom: 1px solid #2a2a2a; white-space: nowrap;
+  }
+  .no-table td { padding: 6px 8px; border-bottom: 1px solid #1e1e1e; color: #ccc; vertical-align: middle; }
+  .no-table tr:hover td { background: #1a1a1a; }
+  .no-table td.no-name { font-weight: 600; color: #fff; white-space: nowrap; }
+  .no-table td.no-num { text-align: right; white-space: nowrap; font-family: 'DM Mono', monospace; }
+  .no-table td.no-check { text-align: center; }
+  .no-table input[type="checkbox"] { width: 15px; height: 15px; accent-color: #ff6b35; cursor: pointer; }
+  .no-table a.proof-link { margin: 0; }
 </style>
 </head>
 <body>
@@ -2163,10 +2178,168 @@ Then extract:
     return { participant: null, checked };
   }
 
+  // ─── New Orders (Google Sheet) ──────────────────────────────────────────
+  // Reads the "New orders" tab of a Google Sheet via the Sheets API (API key,
+  // read-only) and lets the DP Received checkbox be toggled from here. Writes
+  // go through a small Apps Script Web App bound to the sheet, since a plain
+  // API key cannot write to Sheets (Google requires OAuth/service-account
+  // credentials for that) — confirmed via a direct 401 from the Sheets API.
+
+  const GOOGLE_SHEET_ID = '15RKLBEsQsZnmh96awKv4JsI3UMz6YEDBr84DSELG_KE';
+  const GOOGLE_SHEET_TAB = 'New orders';
+  const NO_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxaGjPkim8bZqOeMrQwZRtIlv6uVP68azTSAiawER_6LbSpK4LRGwsMnRLa5EwM_KU/exec';
+  const GOOGLE_API_KEY_STORAGE = 'mh_google_sheets_api_key';
+  const NO_DP_RECEIVED_COL = 6; // column F, 1-based
+
+  function buildNewOrdersCard() {
+    const card = document.createElement('div');
+    card.className = 'tool-card';
+    card.innerHTML = `
+      <div class="tool-hd">
+        <div class="tool-name">🆕 New Orders</div>
+        <div class="tool-actions">
+          <button class="icon-btn" data-act="load">↻ Refresh</button>
+        </div>
+      </div>
+      <div class="tool-desc">Live view of the "New orders" sheet. Toggle DP Received directly from here.</div>
+      <div class="status-line" data-el="status"></div>
+      <div class="proof-summary" data-el="summary"></div>
+      <div class="no-wrap"><table class="no-table" data-el="table"></table></div>
+
+      <div class="config-toggle" data-act="toggleConfig">⚙ set google sheets api key</div>
+      <div class="config-panel" data-el="configPanel">
+        <div class="config-hint">
+          A Google API key with the <b>Google Sheets API</b> enabled (read-only). Stored locally in this browser only.
+        </div>
+        <div class="id-row">
+          <input type="password" data-el="apiKeyInput" placeholder="Google API key" autocomplete="off" spellcheck="false" />
+          <button class="save-btn" data-act="saveApiKey">Save</button>
+        </div>
+      </div>
+    `;
+
+    const el = sel => card.querySelector(`[data-el="${sel}"]`);
+    const statusEl = el('status');
+    const summaryEl = el('summary');
+    const tableEl = el('table');
+    const configPanel = el('configPanel');
+    const apiKeyInput = el('apiKeyInput');
+
+    function setStatus(text, cls) {
+      statusEl.className = `status-line ${cls || ''}`;
+      statusEl.innerHTML = text ? `<span class="status-dot ${cls || ''}"></span>${text}` : '';
+    }
+
+    function renderRows(rows) {
+      if (rows.length === 0) {
+        tableEl.innerHTML = '';
+        return;
+      }
+      tableEl.innerHTML = `
+        <thead><tr>
+          <th>FB Name</th><th>Meta link</th><th>Downpayment</th><th>Payment</th><th>Notes</th><th>DP Received</th>
+        </tr></thead>
+        <tbody>
+          ${rows.map(r => `
+            <tr>
+              <td class="no-name">${r.name || ''}</td>
+              <td>${r.metaLink ? `<a class="proof-link" href="${r.metaLink}" target="_blank" rel="noopener">Open ↗</a>` : ''}</td>
+              <td class="no-num">${r.downpayment || ''}</td>
+              <td>${r.payment || ''}</td>
+              <td>${r.notes || ''}</td>
+              <td class="no-check"><input type="checkbox" data-row="${r.sheetRow}" ${r.dpReceived ? 'checked' : ''} /></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      `;
+    }
+
+    async function load() {
+      const apiKey = localStorage.getItem(GOOGLE_API_KEY_STORAGE) || '';
+      if (!apiKey) {
+        setStatus('Set Google Sheets API key first ↓', 'error');
+        configPanel.classList.add('open');
+        return;
+      }
+      setStatus('Loading...', '');
+      try {
+        const range = encodeURIComponent(`${GOOGLE_SHEET_TAB}!A2:F1000`);
+        const resp = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}/values/${range}?key=${encodeURIComponent(apiKey)}`);
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error?.message || `HTTP ${resp.status}`);
+
+        const values = data.values || [];
+        const rows = values
+          .map((row, i) => ({
+            sheetRow: i + 2,
+            name: row[0] || '',
+            metaLink: row[1] || '',
+            downpayment: row[2] || '',
+            payment: row[3] || '',
+            notes: row[4] || '',
+            dpReceived: String(row[5] || '').toUpperCase() === 'TRUE',
+          }))
+          .filter(r => r.name);
+
+        summaryEl.textContent = `${rows.length} order(s)`;
+        setStatus('Loaded ✓', 'success');
+        renderRows(rows);
+      } catch (err) {
+        setStatus(`Error: ${err.message}`, 'error');
+      }
+    }
+
+    async function toggleDpReceived(checkbox) {
+      const row = Number(checkbox.dataset.row);
+      const value = checkbox.checked;
+      checkbox.disabled = true;
+      setStatus('Updating...', '');
+      try {
+        const resp = await fetch(NO_APPS_SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ row, col: NO_DP_RECEIVED_COL, value }),
+        });
+        const data = await resp.json();
+        if (!data.ok) throw new Error(data.error || 'Update failed');
+        setStatus('Updated ✓', 'success');
+      } catch (err) {
+        checkbox.checked = !value;
+        setStatus(`Error: ${err.message}`, 'error');
+      } finally {
+        checkbox.disabled = false;
+      }
+    }
+
+    card.addEventListener('click', (e) => {
+      const act = e.target.dataset.act;
+      if (act === 'load') load();
+      else if (act === 'toggleConfig') configPanel.classList.toggle('open');
+      else if (act === 'saveApiKey') {
+        const val = apiKeyInput.value.trim();
+        if (!val) return;
+        localStorage.setItem(GOOGLE_API_KEY_STORAGE, val);
+        setStatus('API key saved ✓', 'success');
+        load();
+      }
+    });
+
+    card.addEventListener('change', (e) => {
+      if (e.target.matches('input[type="checkbox"][data-row]')) toggleDpReceived(e.target);
+    });
+
+    const savedApiKey = localStorage.getItem(GOOGLE_API_KEY_STORAGE) || '';
+    if (savedApiKey) { apiKeyInput.value = savedApiKey; load(); }
+    else configPanel.classList.add('open');
+
+    return card;
+  }
+
   cardsRoot.appendChild(buildOrderTrackerCard());
   cardsRoot.appendChild(buildProofCard());
   cardsRoot.appendChild(buildBalanceCard());
   cardsRoot.appendChild(buildShippingCard());
+  cardsRoot.appendChild(buildNewOrdersCard());
 </script>
 </body>
 </html>

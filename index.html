@@ -1496,7 +1496,10 @@ Then extract:
             <div class="proof-name">${f.name}${f.clientNum ? ` <span>#${f.clientNum}</span>` : ''}</div>
             <div class="proof-diff">${f.reason}</div>
             ${actionHtml}
-            <a class="proof-link" href="https://airtable.com/${OT_BASE_ID}/${INV_TABLE}/${f.id}" target="_blank" rel="noopener">Open record ↗</a>
+            <div style="display:flex; gap:12px; margin-top:6px;">
+              ${f.metaLink ? `<a class="proof-link" href="${f.metaLink}" target="_blank" rel="noopener">Open conversation ↗</a>` : ''}
+              <a class="proof-link" href="https://airtable.com/${OT_BASE_ID}/${INV_TABLE}/${f.id}" target="_blank" rel="noopener">Open record ↗</a>
+            </div>
           </div>
         `;
       }).join('');
@@ -1517,7 +1520,7 @@ Then extract:
         const records = await otFetchRecords(
           apiKey, INV_TABLE, INV_STATUS, SHIP_DETAILS, SHIP_DETAILS,
           `{Status}="For packaging"`,
-          [PROOF_FB_NAME, PROOF_CLIENT_NUM, SHIP_PSID]
+          [PROOF_FB_NAME, PROOF_CLIENT_NUM, SHIP_PSID, META_LINK]
         );
 
         const flagged = [];
@@ -1526,13 +1529,14 @@ Then extract:
           const name = r.fields?.[PROOF_FB_NAME] || 'Unnamed';
           const clientNum = r.fields?.[PROOF_CLIENT_NUM];
           const psid = r.fields?.[SHIP_PSID];
+          const metaLink = r.fields?.[META_LINK];
           const details = r.fields?.[SHIP_DETAILS];
           if (!details || !details.trim()) {
-            flagged.push({ id: r.id, name, clientNum, psid, reason: 'Shipping details is empty' });
+            flagged.push({ id: r.id, name, clientNum, psid, metaLink, reason: 'Shipping details is empty' });
             return;
           }
           if (!otHasPhoneNumber(details)) {
-            flagged.push({ id: r.id, name, clientNum, psid, reason: 'No phone number found in Shipping details' });
+            flagged.push({ id: r.id, name, clientNum, psid, metaLink, reason: 'No phone number found in Shipping details' });
             return;
           }
           ok++;
@@ -1542,6 +1546,30 @@ Then extract:
         summaryEl.textContent = `${records.length} scanned · ${flagged.length} flagged · ${ok} ok`;
         setStatus(flagged.length ? `${flagged.length} flagged` : 'All good ✓', flagged.length ? 'error' : 'success');
         renderResults(flagged);
+
+        // Automatically check each flagged-empty record's conversation, so you
+        // don't have to click "Check conversation" one by one.
+        const { pageId, pageToken } = getFbCreds();
+        const toCheck = flagged.filter(f => f.reason === 'Shipping details is empty' && f.psid);
+        if (pageId && pageToken && toCheck.length > 0) {
+          for (let i = 0; i < toCheck.length; i++) {
+            const item = toCheck[i];
+            setStatus(`Checking conversation ${i + 1}/${toCheck.length}: ${item.name}...`, '');
+            try {
+              const state = await otCheckConversationState(pageId, pageToken, item.psid);
+              item.checked = true;
+              item.pageSent = state.pageSent;
+              item.userReply = state.userReply;
+            } catch (err) {
+              item.checkError = err.message;
+            }
+            renderResults(lastFlagged);
+          }
+          const withReply = toCheck.filter(f => f.userReply).length;
+          setStatus(`Done — ${flagged.length} flagged, ${withReply} with a reply ready to approve`, withReply ? 'success' : '');
+        } else if (toCheck.length > 0 && (!pageId || !pageToken)) {
+          setStatus(`${flagged.length} flagged — set Facebook Page credentials ↓ to auto-check conversations`, 'error');
+        }
       } catch (err) {
         setStatus(`Error: ${err.message}`, 'error');
       }

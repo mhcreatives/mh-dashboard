@@ -2497,10 +2497,14 @@ Then extract:
           <button class="icon-btn" data-act="load">↻ Refresh</button>
         </div>
       </div>
-      <div class="tool-desc">Order counts from the "New orders" archive (columns H–L), order value from Airtable's Total field, matched by client name.</div>
+      <div class="tool-desc">Order counts + DP received from the "New orders" archive (columns H–L), order value from Airtable's Total field, matched by client name.</div>
       <div class="status-line" data-el="status"></div>
       <div class="proof-summary" data-el="summary"></div>
       <div class="no-wrap"><table class="no-table" data-el="table"></table></div>
+
+      <div class="ot-divider" style="margin:14px 0;"></div>
+      <div class="tool-name" style="font-size:12px; margin-bottom:8px;">📊 Averages</div>
+      <div class="no-wrap"><table class="no-table" data-el="avgTable"></table></div>
 
       <div class="config-toggle" data-act="toggleConfig">⚙ set api keys</div>
       <div class="config-panel" data-el="configPanel">
@@ -2514,12 +2518,15 @@ Then extract:
     const statusEl = el('status');
     const summaryEl = el('summary');
     const tableEl = el('table');
+    const avgTableEl = el('avgTable');
     const configPanel = el('configPanel');
 
     function setStatus(text, cls) {
       statusEl.className = `status-line ${cls || ''}`;
       statusEl.innerHTML = text ? `<span class="status-dot ${cls || ''}"></span>${text}` : '';
     }
+
+    const peso = n => `₱${(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 
     function renderRows(rows) {
       if (rows.length === 0) {
@@ -2528,15 +2535,35 @@ Then extract:
       }
       tableEl.innerHTML = `
         <thead><tr>
-          <th>Date</th><th>Orders</th><th>Total value</th><th>AOV</th>
+          <th>Date</th><th>Orders</th><th>Total value</th><th>Total DP received</th><th>AOV</th>
         </tr></thead>
         <tbody>
           ${rows.map(r => `
             <tr>
               <td class="no-name">${r.date}</td>
               <td class="no-num">${r.orders}</td>
-              <td class="no-num">₱${r.totalValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
-              <td class="no-num">₱${r.aov.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+              <td class="no-num">${peso(r.totalValue)}</td>
+              <td class="no-num">${peso(r.dpReceived)}</td>
+              <td class="no-num">${peso(r.aov)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      `;
+    }
+
+    function renderAverages(bases) {
+      avgTableEl.innerHTML = `
+        <thead><tr>
+          <th>Basis</th><th>Orders</th><th>Total value</th><th>Total DP received</th><th>AOV</th>
+        </tr></thead>
+        <tbody>
+          ${bases.map(b => `
+            <tr>
+              <td class="no-name">${b.label}</td>
+              <td class="no-num">${b.orders.toFixed(1)}</td>
+              <td class="no-num">${peso(b.totalValue)}</td>
+              <td class="no-num">${peso(b.dpReceived)}</td>
+              <td class="no-num">${peso(b.aov)}</td>
             </tr>
           `).join('')}
         </tbody>
@@ -2558,40 +2585,88 @@ Then extract:
         if (!sheetResp.ok) throw new Error(sheetData.error?.message || `HTTP ${sheetResp.status}`);
 
         const archiveRows = (sheetData.values || [])
-          .map(row => ({ name: row[0] || '', dateEncoded: otNormalizeDateEncoded(row[4]) }))
+          .map(row => ({ name: row[0] || '', dp: Number(row[1]) || 0, dateEncoded: otNormalizeDateEncoded(row[4]) }))
           .filter(r => r.name && r.dateEncoded);
 
         const invRecords = await otFetchRecords(airtableKey, INV_TABLE, PROOF_FB_NAME, INV_TOTAL, INV_TOTAL, null, []);
-        const totalByName = new Map();
+        // Pool of per-record totals per name, consumed one-at-a-time as archive
+        // rows are matched — summing all of a name's Airtable orders into one
+        // bucket and crediting that full sum to every archive row with that
+        // name would massively over-count repeat clients (confirmed: this was
+        // inflating dates with common/repeat names to unrealistic totals).
+        const poolByName = new Map();
         invRecords.forEach(rec => {
           const name = otNormalizeNameForMatch(rec.fields?.[PROOF_FB_NAME]);
           const total = Number(rec.fields?.[INV_TOTAL]) || 0;
           if (!name) return;
-          totalByName.set(name, (totalByName.get(name) || 0) + total);
+          if (!poolByName.has(name)) poolByName.set(name, []);
+          poolByName.get(name).push(total);
         });
 
         const byDate = new Map();
         let unmatched = 0;
         archiveRows.forEach(r => {
           const key = r.dateEncoded;
-          if (!byDate.has(key)) byDate.set(key, { orders: 0, totalValue: 0 });
+          if (!byDate.has(key)) byDate.set(key, { orders: 0, totalValue: 0, dpReceived: 0 });
           const bucket = byDate.get(key);
           bucket.orders++;
-          const matchedTotal = totalByName.get(otNormalizeNameForMatch(r.name));
-          if (matchedTotal !== undefined) bucket.totalValue += matchedTotal;
+          bucket.dpReceived += r.dp;
+          const pool = poolByName.get(otNormalizeNameForMatch(r.name));
+          if (pool && pool.length) bucket.totalValue += pool.shift();
           else unmatched++;
         });
 
         const rows = [...byDate.entries()]
-          .map(([date, v]) => ({ date, orders: v.orders, totalValue: v.totalValue, aov: v.orders ? v.totalValue / v.orders : 0 }))
+          .map(([date, v]) => ({ date, orders: v.orders, totalValue: v.totalValue, dpReceived: v.dpReceived, aov: v.orders ? v.totalValue / v.orders : 0 }))
           .sort((a, b) => b.date.localeCompare(a.date));
 
         summaryEl.textContent = `${archiveRows.length} archived order(s) across ${rows.length} date(s)${unmatched ? ` · ${unmatched} unmatched to Airtable` : ''}`;
         setStatus('Loaded ✓', 'success');
         renderRows(rows);
+        renderAverages(computeAverageBases(rows));
       } catch (err) {
         setStatus(`Error: ${err.message}`, 'error');
       }
+    }
+
+    function computeAverageBases(rows) {
+      const sumRange = list => list.reduce((acc, r) => ({
+        orders: acc.orders + r.orders,
+        totalValue: acc.totalValue + r.totalValue,
+        dpReceived: acc.dpReceived + r.dpReceived,
+      }), { orders: 0, totalValue: 0, dpReceived: 0 });
+
+      const withAov = s => ({ ...s, aov: s.orders ? s.totalValue / s.orders : 0 });
+      const scale = (s, factor) => withAov({ orders: s.orders * factor, totalValue: s.totalValue * factor, dpReceived: s.dpReceived * factor });
+
+      const today = new Date();
+      const currentMonthKey = today.toISOString().slice(0, 7);
+      const dayOfMonth = today.getDate();
+
+      const currentMonthRows = rows.filter(r => r.date.startsWith(currentMonthKey));
+      const currentMonthSum = sumRange(currentMonthRows);
+
+      const thirtyDaysAgo = new Date(today);
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const thirtyDaysAgoKey = thirtyDaysAgo.toISOString().slice(0, 10);
+      const last30Rows = rows.filter(r => r.date >= thirtyDaysAgoKey);
+      const last30Sum = sumRange(last30Rows);
+
+      const allSum = sumRange(rows);
+      const dates = rows.map(r => r.date).sort();
+      let spanDays = 1;
+      if (dates.length > 1) {
+        const first = new Date(dates[0]);
+        const last = new Date(dates[dates.length - 1]);
+        spanDays = Math.max(1, Math.round((last - first) / 86400000) + 1);
+      }
+
+      return [
+        { label: 'Current month', ...withAov(currentMonthSum) },
+        { label: '30-day estimate (current month run rate)', ...scale(currentMonthSum, dayOfMonth ? 30 / dayOfMonth : 0) },
+        { label: 'Last 30 days', ...withAov(last30Sum) },
+        { label: '30-day estimate (all data available)', ...scale(allSum, 30 / spanDays) },
+      ];
     }
 
     card.addEventListener('click', (e) => {

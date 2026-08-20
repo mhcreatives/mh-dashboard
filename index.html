@@ -2422,8 +2422,6 @@ Then extract:
     }
 
     async function deleteRow(sheetRow, name) {
-      const ok = confirm(`Delete ${name}'s row from the Updates sheet? This cannot be undone from the dashboard.`);
-      if (!ok) return;
       setStatus(`Deleting ${name}...`, '');
       try {
         const resp = await fetch(NO_APPS_SCRIPT_URL, {

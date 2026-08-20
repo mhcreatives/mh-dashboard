@@ -2462,8 +2462,152 @@ Then extract:
     return card;
   }
 
+  // ─── Sales (New orders archive H:L + Airtable Total) ────────────────────
+  // Columns H (Encoded Name) through L (Date Encoded) on the "New orders"
+  // tab are the archive of past orders — used here for the per-date order
+  // count. The archive's own "DP" column (I) is a downpayment, not the full
+  // order value, so the actual value comes from Airtable's Total field
+  // instead, matched to the archive row by client name.
+
+  function otNormalizeNameForMatch(name) {
+    return otStripBidiMarks(name || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  }
+
+  // The "Date Encoded" column mixes formats over time — "2026-06-27" for
+  // older rows, "06/29/2026" (M/D/YYYY) for newer ones. Normalize both to
+  // YYYY-MM-DD so grouping and chronological sorting both work correctly.
+  function otNormalizeDateEncoded(raw) {
+    const s = (raw || '').trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (m) {
+      const [, mo, d, y] = m;
+      return `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`;
+    }
+    return s || null;
+  }
+
+  function buildSalesCard() {
+    const card = document.createElement('div');
+    card.className = 'tool-card';
+    card.innerHTML = `
+      <div class="tool-hd">
+        <div class="tool-name">💵 Sales</div>
+        <div class="tool-actions">
+          <button class="icon-btn" data-act="load">↻ Refresh</button>
+        </div>
+      </div>
+      <div class="tool-desc">Order counts from the "New orders" archive (columns H–L), order value from Airtable's Total field, matched by client name.</div>
+      <div class="status-line" data-el="status"></div>
+      <div class="proof-summary" data-el="summary"></div>
+      <div class="no-wrap"><table class="no-table" data-el="table"></table></div>
+
+      <div class="config-toggle" data-act="toggleConfig">⚙ set api keys</div>
+      <div class="config-panel" data-el="configPanel">
+        <div class="config-hint">
+          Uses the same Google Sheets API key (New Orders card) and Airtable API key (Order Tracker card). Stored locally in this browser only.
+        </div>
+      </div>
+    `;
+
+    const el = sel => card.querySelector(`[data-el="${sel}"]`);
+    const statusEl = el('status');
+    const summaryEl = el('summary');
+    const tableEl = el('table');
+    const configPanel = el('configPanel');
+
+    function setStatus(text, cls) {
+      statusEl.className = `status-line ${cls || ''}`;
+      statusEl.innerHTML = text ? `<span class="status-dot ${cls || ''}"></span>${text}` : '';
+    }
+
+    function renderRows(rows) {
+      if (rows.length === 0) {
+        tableEl.innerHTML = '';
+        return;
+      }
+      tableEl.innerHTML = `
+        <thead><tr>
+          <th>Date</th><th>Orders</th><th>Total value</th><th>AOV</th>
+        </tr></thead>
+        <tbody>
+          ${rows.map(r => `
+            <tr>
+              <td class="no-name">${r.date}</td>
+              <td class="no-num">${r.orders}</td>
+              <td class="no-num">₱${r.totalValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+              <td class="no-num">₱${r.aov.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      `;
+    }
+
+    async function load() {
+      const googleKey = localStorage.getItem(GOOGLE_API_KEY_STORAGE) || '';
+      const airtableKey = localStorage.getItem(OT_KEY_STORAGE) || '';
+      if (!googleKey || !airtableKey) {
+        setStatus('Set Google Sheets API key (New Orders card) and Airtable API key (Order Tracker card) first', 'error');
+        return;
+      }
+      setStatus('Loading...', '');
+      try {
+        const range = encodeURIComponent(`${GOOGLE_SHEET_TAB}!H2:L2000`);
+        const sheetResp = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}/values/${range}?key=${encodeURIComponent(googleKey)}`);
+        const sheetData = await sheetResp.json();
+        if (!sheetResp.ok) throw new Error(sheetData.error?.message || `HTTP ${sheetResp.status}`);
+
+        const archiveRows = (sheetData.values || [])
+          .map(row => ({ name: row[0] || '', dateEncoded: otNormalizeDateEncoded(row[4]) }))
+          .filter(r => r.name && r.dateEncoded);
+
+        const invRecords = await otFetchRecords(airtableKey, INV_TABLE, PROOF_FB_NAME, INV_TOTAL, INV_TOTAL, null, []);
+        const totalByName = new Map();
+        invRecords.forEach(rec => {
+          const name = otNormalizeNameForMatch(rec.fields?.[PROOF_FB_NAME]);
+          const total = Number(rec.fields?.[INV_TOTAL]) || 0;
+          if (!name) return;
+          totalByName.set(name, (totalByName.get(name) || 0) + total);
+        });
+
+        const byDate = new Map();
+        let unmatched = 0;
+        archiveRows.forEach(r => {
+          const key = r.dateEncoded;
+          if (!byDate.has(key)) byDate.set(key, { orders: 0, totalValue: 0 });
+          const bucket = byDate.get(key);
+          bucket.orders++;
+          const matchedTotal = totalByName.get(otNormalizeNameForMatch(r.name));
+          if (matchedTotal !== undefined) bucket.totalValue += matchedTotal;
+          else unmatched++;
+        });
+
+        const rows = [...byDate.entries()]
+          .map(([date, v]) => ({ date, orders: v.orders, totalValue: v.totalValue, aov: v.orders ? v.totalValue / v.orders : 0 }))
+          .sort((a, b) => b.date.localeCompare(a.date));
+
+        summaryEl.textContent = `${archiveRows.length} archived order(s) across ${rows.length} date(s)${unmatched ? ` · ${unmatched} unmatched to Airtable` : ''}`;
+        setStatus('Loaded ✓', 'success');
+        renderRows(rows);
+      } catch (err) {
+        setStatus(`Error: ${err.message}`, 'error');
+      }
+    }
+
+    card.addEventListener('click', (e) => {
+      const act = e.target.dataset.act;
+      if (act === 'load') load();
+      else if (act === 'toggleConfig') configPanel.classList.toggle('open');
+    });
+
+    load();
+
+    return card;
+  }
+
   cardsRoot.appendChild(buildNewOrdersCard());
   cardsRoot.appendChild(buildUpdatesCard());
+  cardsRoot.appendChild(buildSalesCard());
   cardsRoot.appendChild(buildOrderTrackerCard());
   cardsRoot.appendChild(buildProofCard());
   cardsRoot.appendChild(buildBalanceCard());

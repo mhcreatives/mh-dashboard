@@ -2335,11 +2335,117 @@ Then extract:
     return card;
   }
 
+  // ─── Updates (Google Sheet, "Updates" tab) ──────────────────────────────
+  // Same spreadsheet, second tab: column B is the client name, column C is
+  // their full order breakdown (no checkbox column on this tab). Read-only.
+
+  const UPDATES_SHEET_TAB = 'Updates';
+
+  function buildUpdatesCard() {
+    const card = document.createElement('div');
+    card.className = 'tool-card';
+    card.innerHTML = `
+      <div class="tool-hd">
+        <div class="tool-name">📝 Updates</div>
+        <div class="tool-actions">
+          <button class="icon-btn" data-act="load">↻ Refresh</button>
+        </div>
+      </div>
+      <div class="tool-desc">Live view of the "Updates" sheet — client order breakdowns.</div>
+      <div class="status-line" data-el="status"></div>
+      <div class="proof-summary" data-el="summary"></div>
+      <div class="proof-results" data-el="results" style="max-height:460px;"></div>
+
+      <div class="config-toggle" data-act="toggleConfig">⚙ set google sheets api key</div>
+      <div class="config-panel" data-el="configPanel">
+        <div class="config-hint">
+          Same Google API key as the New Orders card. Stored locally in this browser only.
+        </div>
+        <div class="id-row">
+          <input type="password" data-el="apiKeyInput" placeholder="Google API key" autocomplete="off" spellcheck="false" />
+          <button class="save-btn" data-act="saveApiKey">Save</button>
+        </div>
+      </div>
+    `;
+
+    const el = sel => card.querySelector(`[data-el="${sel}"]`);
+    const statusEl = el('status');
+    const summaryEl = el('summary');
+    const resultsEl = el('results');
+    const configPanel = el('configPanel');
+    const apiKeyInput = el('apiKeyInput');
+
+    function setStatus(text, cls) {
+      statusEl.className = `status-line ${cls || ''}`;
+      statusEl.innerHTML = text ? `<span class="status-dot ${cls || ''}"></span>${text}` : '';
+    }
+
+    function renderRows(rows) {
+      if (rows.length === 0) {
+        resultsEl.innerHTML = '';
+        return;
+      }
+      resultsEl.innerHTML = rows.map(r => `
+        <div class="proof-item">
+          <div class="proof-name">${r.name}</div>
+          <div style="white-space:pre-wrap; font-size:10px; color:#ccc; background:#111; border-radius:6px; padding:8px; margin-top:6px; font-family:'DM Mono',monospace; max-height:220px; overflow-y:auto;">${r.breakdown.replace(/</g, '&lt;')}</div>
+        </div>
+      `).join('');
+    }
+
+    async function load() {
+      const apiKey = localStorage.getItem(GOOGLE_API_KEY_STORAGE) || '';
+      if (!apiKey) {
+        setStatus('Set Google Sheets API key first ↓', 'error');
+        configPanel.classList.add('open');
+        return;
+      }
+      setStatus('Loading...', '');
+      try {
+        const range = encodeURIComponent(`${UPDATES_SHEET_TAB}!B1:C1000`);
+        const resp = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}/values/${range}?key=${encodeURIComponent(apiKey)}`);
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error?.message || `HTTP ${resp.status}`);
+
+        const values = data.values || [];
+        const rows = values
+          .map(row => ({ name: row[0] || '', breakdown: row[1] || '' }))
+          .filter(r => r.name);
+
+        summaryEl.textContent = `${rows.length} update(s)`;
+        setStatus('Loaded ✓', 'success');
+        renderRows(rows);
+      } catch (err) {
+        setStatus(`Error: ${err.message}`, 'error');
+      }
+    }
+
+    card.addEventListener('click', (e) => {
+      const act = e.target.dataset.act;
+      if (act === 'load') load();
+      else if (act === 'toggleConfig') configPanel.classList.toggle('open');
+      else if (act === 'saveApiKey') {
+        const val = apiKeyInput.value.trim();
+        if (!val) return;
+        localStorage.setItem(GOOGLE_API_KEY_STORAGE, val);
+        setStatus('API key saved ✓', 'success');
+        load();
+      }
+    });
+
+    const savedApiKey = localStorage.getItem(GOOGLE_API_KEY_STORAGE) || '';
+    if (savedApiKey) { apiKeyInput.value = savedApiKey; load(); }
+    else configPanel.classList.add('open');
+
+    return card;
+  }
+
+  cardsRoot.appendChild(buildNewOrdersCard());
+  cardsRoot.appendChild(buildUpdatesCard());
   cardsRoot.appendChild(buildOrderTrackerCard());
   cardsRoot.appendChild(buildProofCard());
   cardsRoot.appendChild(buildBalanceCard());
   cardsRoot.appendChild(buildShippingCard());
-  cardsRoot.appendChild(buildNewOrdersCard());
 </script>
 </body>
 </html>

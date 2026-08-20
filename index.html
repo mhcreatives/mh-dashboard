@@ -265,12 +265,17 @@
   const INV_ASSIGNEE = 'fldhul0vE8f1uQlrT';
   const INV_SOUVENIR_TOTAL = 'fldd2HSPwFB7tzyVT';
   const INV_LAYOUT_FINALIZED = 'fldGfqub3TKd2JySk';
+  // Airtable field literally named "Total" — Own Total + Souvenir total +
+  // Additional Orders Total. Distinct from INV_TOTAL, which is "Own Total"
+  // only (invitation line items, excludes souvenirs/additional orders).
+  const INV_GRAND_TOTAL = 'fldFuQ0qYKiXDIker';
 
   const SOU_TABLE = 'tblXtn5j4tMaL9Tax';
   const SOU_STATUS = 'fldhozzU0CbMQTnnq';
   const SOU_TOTAL = 'fldd6sDmRz4I6g8Vt';
   const SOU_DATE_SHIPPED = 'fldqUDCjBPp5Rii9r';
   const SOU_INV_LINK = 'fld01NmCcAHEdlhMD';
+  const SOU_FB_NAME = 'fldthHOJea7EpbNMO';
 
   const OT_KEY_STORAGE = 'mh_order_tracker_api_key';
 
@@ -2588,20 +2593,29 @@ Then extract:
           .map(row => ({ name: row[0] || '', dp: Number(row[1]) || 0, dateEncoded: otNormalizeDateEncoded(row[4]) }))
           .filter(r => r.name && r.dateEncoded);
 
-        const invRecords = await otFetchRecords(airtableKey, INV_TABLE, PROOF_FB_NAME, INV_TOTAL, INV_TOTAL, null, []);
+        const invRecords = await otFetchRecords(airtableKey, INV_TABLE, PROOF_FB_NAME, INV_GRAND_TOTAL, INV_GRAND_TOTAL, null, []);
+        // Standalone souvenir orders (no linked Invitation) have no Invitation
+        // record at all, so they'd otherwise be invisible here — Invitation's
+        // "Total" field already folds in souvenirs that ARE linked, so only
+        // unlinked ones need adding separately to avoid double-counting.
+        const souRecords = await otFetchRecords(airtableKey, SOU_TABLE, SOU_FB_NAME, SOU_TOTAL, SOU_TOTAL, null, [SOU_INV_LINK]);
+        const souStandalone = souRecords.filter(rec => !(rec.fields?.[SOU_INV_LINK] || []).length);
+
         // Pool of per-record totals per name, consumed one-at-a-time as archive
         // rows are matched — summing all of a name's Airtable orders into one
         // bucket and crediting that full sum to every archive row with that
         // name would massively over-count repeat clients (confirmed: this was
         // inflating dates with common/repeat names to unrealistic totals).
         const poolByName = new Map();
-        invRecords.forEach(rec => {
-          const name = otNormalizeNameForMatch(rec.fields?.[PROOF_FB_NAME]);
-          const total = Number(rec.fields?.[INV_TOTAL]) || 0;
+        const addToPool = (nameRaw, totalRaw) => {
+          const name = otNormalizeNameForMatch(nameRaw);
+          const total = Number(totalRaw) || 0;
           if (!name) return;
           if (!poolByName.has(name)) poolByName.set(name, []);
           poolByName.get(name).push(total);
-        });
+        };
+        invRecords.forEach(rec => addToPool(rec.fields?.[PROOF_FB_NAME], rec.fields?.[INV_GRAND_TOTAL]));
+        souStandalone.forEach(rec => addToPool(rec.fields?.[SOU_FB_NAME], rec.fields?.[SOU_TOTAL]));
 
         const byDate = new Map();
         let unmatched = 0;

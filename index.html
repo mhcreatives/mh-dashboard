@@ -2389,6 +2389,7 @@ Then extract:
         <div class="proof-item">
           <div class="proof-name">${r.name}</div>
           <div style="white-space:pre-wrap; font-size:10px; color:#ccc; background:#111; border-radius:6px; padding:8px; margin-top:6px; font-family:'DM Mono',monospace; max-height:220px; overflow-y:auto;">${r.breakdown.replace(/</g, '&lt;')}</div>
+          <button class="icon-btn" data-act="deleteRow" data-row="${r.sheetRow}" style="margin-top:6px; color:#f87171;">🗑 Delete</button>
         </div>
       `).join('');
     }
@@ -2409,12 +2410,31 @@ Then extract:
 
         const values = data.values || [];
         const rows = values
-          .map(row => ({ name: row[0] || '', breakdown: row[1] || '' }))
+          .map((row, i) => ({ sheetRow: i + 1, name: row[0] || '', breakdown: row[1] || '' }))
           .filter(r => r.name);
 
         summaryEl.textContent = `${rows.length} update(s)`;
         setStatus('Loaded ✓', 'success');
         renderRows(rows);
+      } catch (err) {
+        setStatus(`Error: ${err.message}`, 'error');
+      }
+    }
+
+    async function deleteRow(sheetRow, name) {
+      const ok = confirm(`Delete ${name}'s row from the Updates sheet? This cannot be undone from the dashboard.`);
+      if (!ok) return;
+      setStatus(`Deleting ${name}...`, '');
+      try {
+        const resp = await fetch(NO_APPS_SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'delete', tab: UPDATES_SHEET_TAB, row: sheetRow }),
+        });
+        const data = await resp.json();
+        if (!data.ok) throw new Error(data.error || 'Delete failed');
+        setStatus(`Deleted ✓`, 'success');
+        load();
       } catch (err) {
         setStatus(`Error: ${err.message}`, 'error');
       }
@@ -2430,6 +2450,10 @@ Then extract:
         localStorage.setItem(GOOGLE_API_KEY_STORAGE, val);
         setStatus('API key saved ✓', 'success');
         load();
+      } else if (act === 'deleteRow') {
+        const row = Number(e.target.dataset.row);
+        const name = e.target.closest('.proof-item')?.querySelector('.proof-name')?.textContent || 'this entry';
+        deleteRow(row, name);
       }
     });
 

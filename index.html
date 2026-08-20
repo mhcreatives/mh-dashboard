@@ -2535,7 +2535,7 @@ Then extract:
       }
       tableEl.innerHTML = `
         <thead><tr>
-          <th>Date</th><th>Orders</th><th>Total value</th><th>Total DP received</th><th>AOV</th>
+          <th>Date</th><th>Orders</th><th>Total value</th><th>Total DP</th><th>AOV</th>
         </tr></thead>
         <tbody>
           ${rows.map(r => `
@@ -2554,7 +2554,7 @@ Then extract:
     function renderAverages(bases) {
       avgTableEl.innerHTML = `
         <thead><tr>
-          <th>Basis</th><th>Orders</th><th>Total value</th><th>Total DP received</th><th>AOV</th>
+          <th>Basis</th><th>Orders</th><th>Total value</th><th>Total DP</th><th>AOV</th>
         </tr></thead>
         <tbody>
           ${bases.map(b => `

@@ -1212,6 +1212,24 @@ Postal/zip code:`;
     return tokensB.some(w => tokensA.has(w));
   }
 
+  // Stricter than otNamesLooselyMatch: a single shared word is too weak to
+  // resolve a PSID by (confirmed false positive: "Sheryl Jean Panagsagan" vs.
+  // "Nai Jean Belen Dancel" both contain "Jean", a common middle name).
+  // Requires at least half of the record name's meaningful words to also
+  // appear in the candidate's name — still permissive enough for the
+  // nickname case ("Shane Lacson" vs. "Chrystel Shane Tria Lubrico" is 1
+  // of 2 = 50%), but a lone shared common word in a longer name no longer
+  // qualifies on its own. Returns the match fraction (0 if no shared words).
+  function otNameMatchScore(recordName, candidateName) {
+    const tokenize = s => (s || '').toLowerCase().split(/\s+/).filter(w => w.length > 2);
+    const recordTokens = tokenize(recordName);
+    if (recordTokens.length === 0) return 0;
+    const candidateTokens = new Set(tokenize(candidateName));
+    const shared = recordTokens.filter(w => candidateTokens.has(w)).length;
+    return shared / recordTokens.length;
+  }
+  const OT_NAME_MATCH_MIN_SCORE = 0.5;
+
   // How long after the balance-request message we're still willing to treat
   // a client attachment as a plausible receipt reply. Anything sent later
   // than this is more likely an unrelated photo from a later conversation.
@@ -1250,6 +1268,34 @@ Postal/zip code:`;
   // so testing "is this the client" (=== psid) is more reliable than testing
   // "is this NOT the page" (!== pageId), which would wrongly treat a staff
   // member's message as if it came from the client.
+  // The known image_data/payload/file_url shapes miss some real attachments
+  // (confirmed in practice: certain client-sent images came back as
+  // attachment objects with the URL nested somewhere else, e.g. under a
+  // "video_data" preview, a "sticker_id"-adjacent payload, or a differently
+  // named subfield depending on how the client's app shared the image). Try
+  // the known fields first, then fall back to a recursive scan for any
+  // string value on a key that looks like a URL, so a shape we haven't seen
+  // yet doesn't silently produce zero candidates.
+  function otExtractAttachmentImageUrl(att) {
+    const known = att.image_data?.url || att.image_data?.preview_url
+      || att.video_data?.url || att.video_data?.preview_url
+      || att.payload?.url || att.payload?.image_url
+      || att.file_url || null;
+    if (known) return known;
+    const seen = new Set();
+    const stack = [att];
+    while (stack.length) {
+      const node = stack.pop();
+      if (!node || typeof node !== 'object' || seen.has(node)) continue;
+      seen.add(node);
+      for (const [key, value] of Object.entries(node)) {
+        if (typeof value === 'string' && /url/i.test(key) && /^https?:\/\//i.test(value)) return value;
+        if (value && typeof value === 'object') stack.push(value);
+      }
+    }
+    return null;
+  }
+
   function otFindReceiptCandidates(messages, psid, balance) {
     const amountDigits = typeof balance === 'number' && balance > 0 ? String(Math.round(balance)) : null;
     const anchorIndex = messages.findIndex(m => {
@@ -1293,8 +1339,7 @@ Postal/zip code:`;
     for (const m of clientMessages) {
       const atts = m.attachments?.data || [];
       for (const att of atts) {
-        const imageUrl = att.image_data?.url || att.image_data?.preview_url
-          || att.payload?.url || att.payload?.image_url || att.file_url || null;
+        const imageUrl = otExtractAttachmentImageUrl(att);
         if (imageUrl) candidates.push({ attachment: att, imageUrl, created_time: m.created_time });
       }
     }
@@ -1309,7 +1354,7 @@ Postal/zip code:`;
       clientMessageCount: clientMessages.length,
       clientAttachmentCount: clientAttachments.length,
       candidateTimes: candidates.map(c => c.created_time),
-      rawAttachments: candidates.length === 0 ? clientAttachments : undefined,
+      rawAttachments: candidates.length < clientAttachments.length ? clientAttachments : undefined,
     };
     return { candidates, anchorFound, debug };
   }
@@ -1876,8 +1921,12 @@ Then extract:
         const currentPsid = record.fields?.[SHIP_PSID] || null;
 
         setPsidStatus(`Searching conversations for "${recordName}"... this may take a moment`, '');
-        const { participant, checked } = await otFindConversationByParticipantName(pageId, pageToken, recordName);
+        const { participant, checked, ambiguous } = await otFindConversationByParticipantName(pageId, pageToken, recordName);
 
+        if (ambiguous) {
+          setPsidStatus(`Checked ${checked} conversation(s) — multiple equally-likely name matches for "${recordName}", can't pick one automatically. Check Messenger manually.`, 'error');
+          return;
+        }
         if (!participant) {
           setPsidStatus(`Checked ${checked} conversation(s) — no match found for "${recordName}"`, 'error');
           return;
@@ -2213,25 +2262,42 @@ Then extract:
   // querying it directly returns a Graph API error), so this searches by
   // name instead, which doesn't depend on any URL parameter at all.
 
-  // Searches the Page's conversations (paginated) for one whose non-page
-  // participant's name loosely matches `search`. Capped at 30 pages
-  // (~3000 conversations) as a safety net for very large inboxes.
+  // Searches the Page's conversations (paginated) for the one whose
+  // non-page participant's name best matches `search` — scores every
+  // conversation and picks the single best-scoring match rather than
+  // stopping at the first one to clear the loose-match bar, since a common
+  // shared word (a middle name like "Jean") can otherwise false-match an
+  // unrelated conversation before the real one is even reached. Capped at
+  // 30 pages (~3000 conversations) as a safety net for very large inboxes.
   async function otFindConversationByParticipantName(pageId, token, search) {
     let url = `https://graph.facebook.com/v19.0/${pageId}/conversations?fields=participants&limit=100&access_token=${encodeURIComponent(token)}`;
     let pages = 0;
     let checked = 0;
+    let best = null; // { participant, score }
+    let bestTie = false;
     while (url && pages < 30) {
       const data = await otFetchJsonWithRetry(url);
       for (const convo of data.data || []) {
         const participant = (convo.participants?.data || []).find(p => p.id !== pageId);
         checked++;
-        if (participant && otNamesLooselyMatch(participant.name, search)) {
-          return { participant, checked };
+        if (!participant) continue;
+        const score = otNameMatchScore(search, participant.name);
+        if (score < OT_NAME_MATCH_MIN_SCORE) continue;
+        if (score === 1 && participant.name.trim().toLowerCase() === search.trim().toLowerCase()) {
+          return { participant, checked }; // exact name match — no need to keep scanning
+        }
+        if (!best || score > best.score) {
+          best = { participant, score };
+          bestTie = false;
+        } else if (score === best.score && participant.id !== best.participant.id) {
+          bestTie = true;
         }
       }
       url = data.paging?.next || null;
       pages++;
     }
+    if (best && !bestTie) return { participant: best.participant, checked };
+    if (best && bestTie) return { participant: null, checked, ambiguous: true };
     return { participant: null, checked };
   }
 

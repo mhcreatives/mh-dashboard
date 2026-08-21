@@ -230,6 +230,10 @@
   .no-table td.no-check { text-align: center; }
   .no-table input[type="checkbox"] { width: 15px; height: 15px; accent-color: #ff6b35; cursor: pointer; }
   .no-table a.proof-link { margin: 0; }
+  .inv-status-chip {
+    display: inline-block; padding: 3px 9px; border-radius: 20px; white-space: nowrap;
+    background: #1e2a1e; color: #9fd89f; font-size: 9px; font-family: 'DM Mono', monospace;
+  }
 
   .page-tabs { display: flex; gap: 4px; background: #141414; border: 1px solid #1e1e1e; border-radius: 10px; padding: 4px; margin-bottom: 20px; width: fit-content; }
   .page-tab-btn {
@@ -2837,13 +2841,13 @@ Then extract:
       <div class="tool-desc">Orders with Envelope in stock unchecked.</div>
       <div class="status-line" data-el="status"></div>
       <div class="proof-summary" data-el="summary"></div>
-      <div class="proof-results" data-el="results"></div>
+      <div class="no-wrap"><table class="no-table" data-el="table"></table></div>
     `;
 
     const el = sel => card.querySelector(`[data-el="${sel}"]`);
     const statusEl = el('status');
     const summaryEl = el('summary');
-    const resultsEl = el('results');
+    const tableEl = el('table');
 
     let lastFlagged = [];
 
@@ -2854,21 +2858,29 @@ Then extract:
 
     function renderResults(items) {
       if (items.length === 0) {
-        resultsEl.innerHTML = '';
+        tableEl.innerHTML = '';
         return;
       }
-      resultsEl.innerHTML = items.map(it => `
-        <div class="proof-item">
-          <div class="proof-name">${it.name}</div>
-          <div class="ot-sub">${it.status || ''}${it.type ? ` · ${it.type}` : ''}${it.size ? ` · ${it.size}` : ''}${it.color ? ` · ${it.color}` : ''}${it.totalSets ? ` · ${it.totalSets} sets` : ''}</div>
-          ${it.breakdown ? `<div style="white-space:pre-wrap; font-size:10px; color:#ccc; background:#111; border-radius:6px; padding:8px; margin-top:6px; font-family:'DM Mono',monospace; max-height:160px; overflow-y:auto;">${it.breakdown.replace(/</g, '&lt;')}</div>` : ''}
-          <div style="display:flex; gap:12px; align-items:center; margin-top:8px;">
-            <button class="icon-btn" data-act="markInStock" data-id="${it.id}" style="color:#4ade80;">✅ Mark envelope in stock</button>
-            ${it.metaLink ? `<a class="proof-link" href="${it.metaLink}" target="_blank" rel="noopener">Open conversation ↗</a>` : ''}
-            <a class="proof-link" href="https://airtable.com/${OT_BASE_ID}/${INV_TABLE}/${it.id}" target="_blank" rel="noopener">Open record ↗</a>
-          </div>
-        </div>
-      `).join('');
+      tableEl.innerHTML = `
+        <thead><tr>
+          <th>#</th><th>FB Name</th><th>Link</th><th>Status</th><th>Type</th><th>Total sets</th><th>Size</th><th>Color</th><th>Envelope</th>
+        </tr></thead>
+        <tbody>
+          ${items.map(it => `
+            <tr>
+              <td class="no-num">${it.clientNum ?? ''}</td>
+              <td class="no-name"><a class="proof-link" style="margin:0; color:#fff; font-weight:600;" href="https://airtable.com/${OT_BASE_ID}/${INV_TABLE}/${it.id}" target="_blank" rel="noopener" title="${(it.breakdown || '').replace(/"/g, '&quot;')}">${it.name}</a></td>
+              <td>${it.metaLink ? `<a class="proof-link" href="${it.metaLink}" target="_blank" rel="noopener">Open ↗</a>` : ''}</td>
+              <td><span class="inv-status-chip">${it.status || ''}</span></td>
+              <td>${it.type || ''}</td>
+              <td class="no-num">${it.totalSets ?? ''}</td>
+              <td>${it.size || ''}</td>
+              <td>${it.color || ''}</td>
+              <td class="no-check"><input type="checkbox" data-id="${it.id}" /></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      `;
     }
 
     async function scan() {
@@ -2889,13 +2901,14 @@ Then extract:
         const records = await otFetchRecords(
           apiKey, INV_TABLE, INV_STATUS, INV_TOTAL_SETS, INV_TYPE,
           null,
-          [PROOF_FB_NAME, META_LINK, INV_BREAKDOWN, INV_SIZE, INV_COLOR],
+          [PROOF_FB_NAME, PROOF_CLIENT_NUM, META_LINK, INV_BREAKDOWN, INV_SIZE, INV_COLOR],
           INVENTORY_VIEW_ID
         );
 
         const items = records.map(r => ({
           id: r.id,
           name: r.fields?.[PROOF_FB_NAME] || 'Unnamed',
+          clientNum: r.fields?.[PROOF_CLIENT_NUM],
           metaLink: r.fields?.[META_LINK],
           breakdown: r.fields?.[INV_BREAKDOWN],
           status: r.fields?.[INV_STATUS],
@@ -2933,9 +2946,11 @@ Then extract:
     }
 
     card.addEventListener('click', (e) => {
-      const act = e.target.dataset.act;
-      if (act === 'scan') scan();
-      else if (act === 'markInStock') {
+      if (e.target.dataset.act === 'scan') scan();
+    });
+
+    card.addEventListener('change', (e) => {
+      if (e.target.matches('input[type="checkbox"][data-id]')) {
         const item = lastFlagged.find(f => f.id === e.target.dataset.id);
         if (item) markInStock(item);
       }

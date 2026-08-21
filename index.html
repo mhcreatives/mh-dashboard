@@ -290,6 +290,13 @@
   const INV_ASSIGNEE = 'fldhul0vE8f1uQlrT';
   const INV_SOUVENIR_TOTAL = 'fldd2HSPwFB7tzyVT';
   const INV_LAYOUT_FINALIZED = 'fldGfqub3TKd2JySk';
+  const INV_BREAKDOWN = 'fldD5usNmFvz8uc0z';
+  const INV_TYPE = 'fldedGCB6gf73O7ir';
+  const INV_TOTAL_SETS = 'fldP43SyOACXa2igm';
+  const INV_SIZE = 'fldEzljnIJLXsnG9D';
+  const INV_COLOR = 'fldw60O6okJt3FesQ';
+  const INV_ENVELOPE_STOCK = 'fld07AADD4qo7duZb';
+  const INVENTORY_VIEW_ID = 'viwvtyZBajTTobJO6';
   // Airtable field literally named "Total" — Own Total + Souvenir total +
   // Additional Orders Total. Distinct from INV_TOTAL, which is "Own Total"
   // only (invitation line items, excludes souvenirs/additional orders).
@@ -333,14 +340,15 @@
     return '₱' + num.toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   }
 
-  async function otFetchRecords(apiKey, tableId, statusField, totalField, dateField, filterFormula, extraFields) {
+  async function otFetchRecords(apiKey, tableId, statusField, totalField, dateField, filterFormula, extraFields, viewId) {
     const records = [];
     let offset = null;
     do {
       const fieldParams = [statusField, totalField, dateField, ...(extraFields || [])]
         .map(f => `fields%5B%5D=${f}`).join('&');
       const filterPart = filterFormula ? `&filterByFormula=${encodeURIComponent(filterFormula)}` : '';
-      let url = `https://api.airtable.com/v0/${OT_BASE_ID}/${tableId}?pageSize=100&returnFieldsByFieldId=true&${fieldParams}${filterPart}`;
+      const viewPart = viewId ? `&view=${encodeURIComponent(viewId)}` : '';
+      let url = `https://api.airtable.com/v0/${OT_BASE_ID}/${tableId}?pageSize=100&returnFieldsByFieldId=true&${fieldParams}${filterPart}${viewPart}`;
       if (offset) url += `&offset=${encodeURIComponent(offset)}`;
       const resp = await fetch(url, { headers: { Authorization: `Bearer ${apiKey}` } });
       if (!resp.ok) {
@@ -2811,12 +2819,138 @@ Then extract:
     return card;
   }
 
+  // ─── Inventory ───────────────────────────────────────────────────────────
+  // Invitation records with "Envelope in stock" unchecked — lets you mark
+  // one in stock (checks the field) directly from here once envelopes for
+  // that order arrive.
+
+  function buildInventoryCard() {
+    const card = document.createElement('div');
+    card.className = 'tool-card';
+    card.innerHTML = `
+      <div class="tool-hd">
+        <div class="tool-name">📥 Inventory</div>
+        <div class="tool-actions">
+          <button class="icon-btn" data-act="scan">▶ Scan</button>
+        </div>
+      </div>
+      <div class="tool-desc">Orders with Envelope in stock unchecked.</div>
+      <div class="status-line" data-el="status"></div>
+      <div class="proof-summary" data-el="summary"></div>
+      <div class="proof-results" data-el="results"></div>
+    `;
+
+    const el = sel => card.querySelector(`[data-el="${sel}"]`);
+    const statusEl = el('status');
+    const summaryEl = el('summary');
+    const resultsEl = el('results');
+
+    let lastFlagged = [];
+
+    function setStatus(text, cls) {
+      statusEl.className = `status-line ${cls || ''}`;
+      statusEl.innerHTML = text ? `<span class="status-dot ${cls || ''}"></span>${text}` : '';
+    }
+
+    function renderResults(items) {
+      if (items.length === 0) {
+        resultsEl.innerHTML = '';
+        return;
+      }
+      resultsEl.innerHTML = items.map(it => `
+        <div class="proof-item">
+          <div class="proof-name">${it.name}</div>
+          <div class="ot-sub">${it.status || ''}${it.type ? ` · ${it.type}` : ''}${it.size ? ` · ${it.size}` : ''}${it.color ? ` · ${it.color}` : ''}${it.totalSets ? ` · ${it.totalSets} sets` : ''}</div>
+          ${it.breakdown ? `<div style="white-space:pre-wrap; font-size:10px; color:#ccc; background:#111; border-radius:6px; padding:8px; margin-top:6px; font-family:'DM Mono',monospace; max-height:160px; overflow-y:auto;">${it.breakdown.replace(/</g, '&lt;')}</div>` : ''}
+          <div style="display:flex; gap:12px; align-items:center; margin-top:8px;">
+            <button class="icon-btn" data-act="markInStock" data-id="${it.id}" style="color:#4ade80;">✅ Mark envelope in stock</button>
+            ${it.metaLink ? `<a class="proof-link" href="${it.metaLink}" target="_blank" rel="noopener">Open conversation ↗</a>` : ''}
+            <a class="proof-link" href="https://airtable.com/${OT_BASE_ID}/${INV_TABLE}/${it.id}" target="_blank" rel="noopener">Open record ↗</a>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function scan() {
+      const apiKey = localStorage.getItem(OT_KEY_STORAGE) || '';
+      if (!apiKey) {
+        setStatus('Set Airtable API key in Order Tracker first ↓', 'error');
+        return;
+      }
+      setStatus('Scanning...', '');
+      summaryEl.textContent = '';
+      resultsEl.innerHTML = '';
+      try {
+        // Scoped to the "Envelope in stock" view directly, rather than a
+        // raw NOT({Envelope in stock}) formula — the view already has this
+        // as one of its filters (confirmed: the field alone matches 477
+        // records including long-completed orders nobody needs to see;
+        // this view is presumably scoped further, e.g. to active statuses).
+        const records = await otFetchRecords(
+          apiKey, INV_TABLE, INV_STATUS, INV_TOTAL_SETS, INV_TYPE,
+          null,
+          [PROOF_FB_NAME, META_LINK, INV_BREAKDOWN, INV_SIZE, INV_COLOR],
+          INVENTORY_VIEW_ID
+        );
+
+        const items = records.map(r => ({
+          id: r.id,
+          name: r.fields?.[PROOF_FB_NAME] || 'Unnamed',
+          metaLink: r.fields?.[META_LINK],
+          breakdown: r.fields?.[INV_BREAKDOWN],
+          status: r.fields?.[INV_STATUS],
+          type: r.fields?.[INV_TYPE],
+          totalSets: r.fields?.[INV_TOTAL_SETS],
+          size: r.fields?.[INV_SIZE],
+          color: Array.isArray(r.fields?.[INV_COLOR]) ? r.fields[INV_COLOR].join(', ') : r.fields?.[INV_COLOR],
+        }));
+
+        lastFlagged = items;
+        summaryEl.textContent = `${items.length} order(s) with envelope not in stock`;
+        setStatus(items.length ? `${items.length} flagged` : 'All good ✓', items.length ? 'error' : 'success');
+        renderResults(items);
+      } catch (err) {
+        setStatus(`Error: ${err.message}`, 'error');
+      }
+    }
+
+    async function markInStock(item) {
+      const apiKey = localStorage.getItem(OT_KEY_STORAGE) || '';
+      if (!apiKey) {
+        setStatus('Set Airtable API key in Order Tracker first ↓', 'error');
+        return;
+      }
+      setStatus(`Updating ${item.name}...`, '');
+      try {
+        await otPatchRecords(apiKey, INV_TABLE, [{ id: item.id, fields: { 'Envelope in stock': true } }]);
+        lastFlagged = lastFlagged.filter(f => f.id !== item.id);
+        summaryEl.textContent = `${lastFlagged.length} order(s) with envelope not in stock`;
+        setStatus(`${item.name} marked in stock ✓`, 'success');
+        renderResults(lastFlagged);
+      } catch (err) {
+        setStatus(`Error: ${err.message}`, 'error');
+      }
+    }
+
+    card.addEventListener('click', (e) => {
+      const act = e.target.dataset.act;
+      if (act === 'scan') scan();
+      else if (act === 'markInStock') {
+        const item = lastFlagged.find(f => f.id === e.target.dataset.id);
+        if (item) markInStock(item);
+      }
+    });
+
+    return card;
+  }
+
   cardsRoot.appendChild(buildNewOrdersCard());
   cardsRoot.appendChild(buildUpdatesCard());
   cardsRoot.appendChild(buildOrderTrackerCard());
   cardsRoot.appendChild(buildProofCard());
   cardsRoot.appendChild(buildBalanceCard());
   cardsRoot.appendChild(buildShippingCard());
+  cardsRoot.appendChild(buildInventoryCard());
 
   cardsDataRoot.appendChild(buildSalesCard());
 </script>

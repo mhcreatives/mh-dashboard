@@ -3184,11 +3184,22 @@ Then extract:
   async function adsFetchDailyInsights(token, accountId) {
     const acct = accountId.trim().replace(/^act_/, '');
     const fields = 'spend,reach,actions';
-    const url = `https://graph.facebook.com/${ADS_GRAPH_VERSION}/act_${encodeURIComponent(acct)}/insights?fields=${fields}&date_preset=${ADS_DATE_PRESET}&time_increment=1&access_token=${encodeURIComponent(token)}`;
-    const resp = await fetch(url);
-    const json = await resp.json();
-    if (json.error) throw new Error(json.error.message || 'Graph API error');
-    return json.data || [];
+    // Facebook's default page size for a daily-broken-down last_30d query is
+    // smaller than 30 rows and returns oldest-first, so reading only the
+    // first page silently cut off the most recent days (confirmed: a 30-day
+    // window was only showing up through day ~25). Follow pagination fully.
+    let url = `https://graph.facebook.com/${ADS_GRAPH_VERSION}/act_${encodeURIComponent(acct)}/insights?fields=${fields}&date_preset=${ADS_DATE_PRESET}&time_increment=1&limit=100&access_token=${encodeURIComponent(token)}`;
+    const rows = [];
+    let pages = 0;
+    while (url && pages < 10) {
+      const resp = await fetch(url);
+      const json = await resp.json();
+      if (json.error) throw new Error(json.error.message || 'Graph API error');
+      rows.push(...(json.data || []));
+      url = json.paging?.next || null;
+      pages++;
+    }
+    return rows;
   }
 
   function adsCountActions(row, actionTypes) {

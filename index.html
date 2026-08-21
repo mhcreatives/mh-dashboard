@@ -1860,7 +1860,17 @@ Then extract:
         const filter = isNumber ? `{Client Number}=${search}` : `SEARCH(LOWER("${search.replace(/"/g, '\\"')}"),LOWER({FB Name}))`;
         const records = await otFetchRecords(apiKey, INV_TABLE, INV_STATUS, PROOF_FB_NAME, PROOF_CLIENT_NUM, filter, [SHIP_PSID]);
         if (records.length === 0) { setPsidStatus(`No record found matching "${search}"`, 'error'); return; }
-        if (records.length > 1) { setPsidStatus(`${records.length} records matched "${search}" — be more specific`, 'error'); return; }
+        if (records.length > 1) {
+          const names = records.map(r => `${r.fields?.[PROOF_FB_NAME] || 'Unnamed'} (#${r.fields?.[PROOF_CLIENT_NUM] || '?'})`);
+          psidResultsEl.innerHTML = `
+            <div class="proof-item">
+              <div class="proof-diff">${records.length} records matched "${search}" — search by client number instead, or add more of the name, to narrow it down:</div>
+              <div class="proof-diff">${names.map(n => `• ${n}`).join('<br>')}</div>
+            </div>
+          `;
+          setPsidStatus(`${records.length} records matched "${search}" — be more specific`, 'error');
+          return;
+        }
         const record = records[0];
         const recordName = record.fields?.[PROOF_FB_NAME] || 'Unnamed';
         const currentPsid = record.fields?.[SHIP_PSID] || null;

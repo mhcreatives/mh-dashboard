@@ -1921,7 +1921,10 @@ Then extract:
         const currentPsid = record.fields?.[SHIP_PSID] || null;
 
         setPsidStatus(`Searching conversations for "${recordName}"... this may take a moment`, '');
-        const { participant, checked, ambiguous } = await otFindConversationByParticipantName(pageId, pageToken, recordName);
+        const { participant, checked, ambiguous } = await otFindConversationByParticipantName(
+          pageId, pageToken, recordName,
+          (n) => setPsidStatus(`Searching conversations for "${recordName}"... ${n} checked so far`, '')
+        );
 
         if (ambiguous) {
           setPsidStatus(`Checked ${checked} conversation(s) — multiple equally-likely name matches for "${recordName}", can't pick one automatically. Check Messenger manually.`, 'error');
@@ -2268,15 +2271,19 @@ Then extract:
   // stopping at the first one to clear the loose-match bar, since a common
   // shared word (a middle name like "Jean") can otherwise false-match an
   // unrelated conversation before the real one is even reached. Capped at
-  // 30 pages (~3000 conversations) as a safety net for very large inboxes.
-  async function otFindConversationByParticipantName(pageId, token, search) {
+  // OT_PSID_SEARCH_MAX_PAGES pages as a safety net for very large inboxes —
+  // kept generous since the whole point is to search the FULL conversation
+  // list for the real match, not bail out after a token slice of it.
+  const OT_PSID_SEARCH_MAX_PAGES = 150; // ~15,000 conversations
+  async function otFindConversationByParticipantName(pageId, token, search, onProgress) {
     let url = `https://graph.facebook.com/v19.0/${pageId}/conversations?fields=participants&limit=100&access_token=${encodeURIComponent(token)}`;
     let pages = 0;
     let checked = 0;
     let best = null; // { participant, score }
     let bestTie = false;
-    while (url && pages < 30) {
+    while (url && pages < OT_PSID_SEARCH_MAX_PAGES) {
       const data = await otFetchJsonWithRetry(url);
+      if (onProgress) onProgress(checked);
       for (const convo of data.data || []) {
         const participant = (convo.participants?.data || []).find(p => p.id !== pageId);
         checked++;

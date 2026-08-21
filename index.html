@@ -1233,10 +1233,12 @@ Postal/zip code:`;
   // How long after the balance-request message we're still willing to treat
   // a client attachment as a plausible receipt reply. Anything sent later
   // than this is more likely an unrelated photo from a later conversation.
-  // Kept tight deliberately — every candidate in this window costs a Gemini
-  // call to verify, so a wide window on a long-running conversation just
-  // burns tokens checking things that were never going to be the receipt.
-  const RECEIPT_WINDOW_HOURS = 24;
+  // Confirmed in practice that clients often pay and send proof days (not
+  // hours) after being asked to settle the balance, so a 24h window was
+  // silently excluding real receipts — widened to a week. Every candidate
+  // in this window costs a Gemini call to verify, but MAX_RECEIPT_CANDIDATES_TO_CHECK
+  // below still caps that per record regardless of how wide the window is.
+  const RECEIPT_WINDOW_HOURS = 24 * 7;
 
   // Cap how many candidate attachments get sent to Gemini per record — stop
   // after this many even if the window has more, since a genuine receipt
@@ -1298,16 +1300,36 @@ Postal/zip code:`;
 
   function otFindReceiptCandidates(messages, psid, balance) {
     const amountDigits = typeof balance === 'number' && balance > 0 ? String(Math.round(balance)) : null;
-    const anchorIndex = messages.findIndex(m => {
+    const phraseMatchesText = text => BALANCE_REQUEST_ANCHOR_PARTS.every(part => text.includes(part));
+    const messageNumberTokens = text => (text.match(/\d[\d,]*/g) || []).map(t => t.replace(/,/g, ''));
+
+    // Prefer a phrase+amount match (most specific, avoids latching onto a
+    // stale prior "settle the balance" request for a different amount).
+    let anchorIndex = messages.findIndex(m => {
       if (m.from?.id === psid) return false;
       const text = otNormalizeQuotes(otStripBidiMarks((m.message || '').toLowerCase()));
-      if (!BALANCE_REQUEST_ANCHOR_PARTS.every(part => text.includes(part))) return false;
-      if (amountDigits) {
-        const numberTokens = (text.match(/\d[\d,]*/g) || []).map(t => t.replace(/,/g, ''));
-        if (!numberTokens.includes(amountDigits)) return false;
-      }
-      return true;
+      if (!phraseMatchesText(text)) return false;
+      return amountDigits ? messageNumberTokens(text).includes(amountDigits) : true;
     });
+    let anchorAmountUnverified = false;
+    // Fall back to a phrase-only match when there's exactly one candidate
+    // message in the whole conversation — requiring the amount to ALSO match
+    // was rejecting genuine anchors outright (confirmed in practice: the
+    // record's current balance can drift from what an older, still-valid
+    // request literally said, e.g. after a manual adjustment), and with only
+    // one phrase match there's nothing else it could plausibly be.
+    if (anchorIndex < 0 && amountDigits) {
+      const phraseOnlyIndices = [];
+      messages.forEach((m, idx) => {
+        if (m.from?.id === psid) return;
+        const text = otNormalizeQuotes(otStripBidiMarks((m.message || '').toLowerCase()));
+        if (phraseMatchesText(text)) phraseOnlyIndices.push(idx);
+      });
+      if (phraseOnlyIndices.length === 1) {
+        anchorIndex = phraseOnlyIndices[0];
+        anchorAmountUnverified = true;
+      }
+    }
     const anchorFound = anchorIndex >= 0;
     // Without the anchor, there's no reliable way to tell a receipt apart
     // from any other photo the client sent (product samples, proofs, etc.)
@@ -1324,16 +1346,24 @@ Postal/zip code:`;
           text,
           matchesPart1: text.includes(BALANCE_REQUEST_ANCHOR_PARTS[0]),
           matchesPart2: text.includes(BALANCE_REQUEST_ANCHOR_PARTS[1]),
+          numberTokensFound: (text.match(/\d[\d,]*/g) || []).map(t => t.replace(/,/g, '')),
         }));
-      return { candidates: [], anchorFound: false, debug: { nearMisses } };
+      return { candidates: [], anchorFound: false, debug: { targetAmountDigits: amountDigits, nearMisses } };
     }
     const anchorTime = new Date(messages[anchorIndex].created_time);
     const cutoffTime = new Date(anchorTime.getTime() + RECEIPT_WINDOW_HOURS * 60 * 60 * 1000);
     // Only messages after the anchor AND within the time window — stop there,
     // don't keep scanning forward into unrelated later conversation.
-    const windowMessages = messages.slice(0, anchorIndex).filter(m => new Date(m.created_time) <= cutoffTime);
+    const messagesAfterAnchor = messages.slice(0, anchorIndex);
+    const windowMessages = messagesAfterAnchor.filter(m => new Date(m.created_time) <= cutoffTime);
     const clientMessages = windowMessages.filter(m => m.from?.id === psid);
     const clientAttachments = clientMessages.flatMap(m => m.attachments?.data || []);
+
+    // All client messages after the anchor, ignoring the 24h window — lets
+    // debug output reveal a reply that arrived late (outside the window)
+    // instead of that case looking identical to "never replied at all".
+    const allClientMessagesAfterAnchor = messagesAfterAnchor.filter(m => m.from?.id === psid);
+    const lateClientMessages = allClientMessagesAfterAnchor.filter(m => new Date(m.created_time) > cutoffTime);
 
     const candidates = [];
     for (const m of clientMessages) {
@@ -1349,12 +1379,16 @@ Postal/zip code:`;
     const debug = {
       anchorMessage: messages[anchorIndex].message,
       anchorTime: messages[anchorIndex].created_time,
+      anchorAmountUnverified,
       cutoffTime: cutoffTime.toISOString(),
       candidateMessageCount: windowMessages.length,
       clientMessageCount: clientMessages.length,
       clientAttachmentCount: clientAttachments.length,
       candidateTimes: candidates.map(c => c.created_time),
       rawAttachments: candidates.length < clientAttachments.length ? clientAttachments : undefined,
+      lateClientMessageCount: lateClientMessages.length,
+      lateClientMessageTimes: lateClientMessages.map(m => m.created_time),
+      lateClientAttachmentCount: lateClientMessages.flatMap(m => m.attachments?.data || []).length,
     };
     return { candidates, anchorFound, debug };
   }
@@ -2035,7 +2069,7 @@ Then extract:
           const safeJson = v => (JSON.stringify(v, null, 2) || 'undefined').replace(/</g, '&lt;');
           const body = f.debugInfo.nearMisses !== undefined
             ? `Anchor not found. Page messages mentioning "balance"/"mapaship":\n${safeJson(f.debugInfo.nearMisses)}`
-            : `${f.debugInfo.candidateMessageCount} message(s) after anchor, ${f.debugInfo.clientMessageCount} from client, ${f.debugInfo.clientAttachmentCount} attachment(s) total:\nanchor: ${safeJson(f.debugInfo.anchorMessage)} @ ${f.debugInfo.anchorTime}\ncandidateTimes: ${safeJson(f.debugInfo.candidateTimes)}${f.debugInfo.rawAttachments !== undefined ? `\nrawAttachments: ${safeJson(f.debugInfo.rawAttachments)}` : ''}`;
+            : `${f.debugInfo.candidateMessageCount} message(s) after anchor (within ${RECEIPT_WINDOW_HOURS}h window), ${f.debugInfo.clientMessageCount} from client, ${f.debugInfo.clientAttachmentCount} attachment(s) total:\nanchor: ${safeJson(f.debugInfo.anchorMessage)} @ ${f.debugInfo.anchorTime}${f.debugInfo.anchorAmountUnverified ? ' ⚠ (amount in message didn\'t match current balance field — used anyway, only candidate)' : ''}\ncandidateTimes: ${safeJson(f.debugInfo.candidateTimes)}${f.debugInfo.rawAttachments !== undefined ? `\nrawAttachments: ${safeJson(f.debugInfo.rawAttachments)}` : ''}${f.debugInfo.lateClientMessageCount ? `\n⚠ ${f.debugInfo.lateClientMessageCount} client message(s) AFTER the ${RECEIPT_WINDOW_HOURS}h window (${f.debugInfo.lateClientAttachmentCount} with attachments) — window may be too short:\nlateClientMessageTimes: ${safeJson(f.debugInfo.lateClientMessageTimes)}` : ''}`;
           debugHtml = `
           <div style="white-space:pre-wrap; font-size:9px; color:#888; background:#111; border-radius:6px; padding:8px; margin-top:6px; font-family:'DM Mono',monospace; max-height:200px; overflow-y:auto;">DEBUG — ${body}</div>
         `;

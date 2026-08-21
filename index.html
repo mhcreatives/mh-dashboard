@@ -2852,6 +2852,7 @@ Then extract:
       </div>
       <div class="no-wrap" data-el="listWrap" style="display:none; margin-bottom:12px;">
         <div style="white-space:pre-wrap; font-size:11px; color:#ccc; background:#111; border-radius:6px; padding:10px; font-family:'DM Mono',monospace; max-height:260px; overflow-y:auto;" data-el="listText"></div>
+        <button class="icon-btn" data-act="copyList" style="margin-top:6px;">📄 Copy list</button>
       </div>
       <div class="no-wrap"><table class="no-table" data-el="table"></table></div>
     `;
@@ -3018,6 +3019,14 @@ Then extract:
       if (act === 'scan') scan();
       else if (act === 'genList') generateEnvelopeList();
       else if (act === 'markAllOrdered') markAllOrdered();
+      else if (act === 'copyList') {
+        navigator.clipboard.writeText(listTextEl.textContent).then(() => {
+          const btn = e.target;
+          const original = btn.textContent;
+          btn.textContent = '✓ Copied';
+          setTimeout(() => { btn.textContent = original; }, 1500);
+        });
+      }
     });
 
     card.addEventListener('change', (e) => {

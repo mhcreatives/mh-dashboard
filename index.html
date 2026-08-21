@@ -2836,6 +2836,7 @@ Then extract:
   function buildInventoryCard() {
     const card = document.createElement('div');
     card.className = 'tool-card';
+    card.style.gridColumn = 'span 2';
     card.innerHTML = `
       <div class="tool-hd">
         <div class="tool-name">📥 Inventory</div>

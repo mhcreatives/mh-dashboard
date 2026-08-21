@@ -2846,6 +2846,13 @@ Then extract:
       <div class="tool-desc">Orders with Envelope in stock unchecked.</div>
       <div class="status-line" data-el="status"></div>
       <div class="proof-summary" data-el="summary"></div>
+      <div style="display:flex; gap:14px; margin:2px 0 10px;">
+        <button class="icon-btn" data-act="genList">📋 Generate envelope list</button>
+        <button class="icon-btn" data-act="markAllOrdered" style="color:#4ade80;">✅ Mark all as ordered</button>
+      </div>
+      <div class="no-wrap" data-el="listWrap" style="display:none; margin-bottom:12px;">
+        <div style="white-space:pre-wrap; font-size:11px; color:#ccc; background:#111; border-radius:6px; padding:10px; font-family:'DM Mono',monospace; max-height:260px; overflow-y:auto;" data-el="listText"></div>
+      </div>
       <div class="no-wrap"><table class="no-table" data-el="table"></table></div>
     `;
 
@@ -2853,6 +2860,8 @@ Then extract:
     const statusEl = el('status');
     const summaryEl = el('summary');
     const tableEl = el('table');
+    const listWrapEl = el('listWrap');
+    const listTextEl = el('listText');
 
     let lastFlagged = [];
 
@@ -2911,23 +2920,76 @@ Then extract:
           (count) => setStatus(`Scanning... ${count} loaded`, '')
         );
 
-        const items = records.map(r => ({
-          id: r.id,
-          name: r.fields?.[PROOF_FB_NAME] || 'Unnamed',
-          clientNum: r.fields?.[PROOF_CLIENT_NUM],
-          metaLink: r.fields?.[META_LINK],
-          breakdown: r.fields?.[INV_BREAKDOWN],
-          status: r.fields?.[INV_STATUS],
-          type: r.fields?.[INV_TYPE],
-          totalSets: r.fields?.[INV_TOTAL_SETS],
-          size: r.fields?.[INV_SIZE],
-          color: Array.isArray(r.fields?.[INV_COLOR]) ? r.fields[INV_COLOR].join(', ') : r.fields?.[INV_COLOR],
-        }));
+        const items = records.map(r => {
+          const colorList = Array.isArray(r.fields?.[INV_COLOR]) ? r.fields[INV_COLOR] : (r.fields?.[INV_COLOR] ? [r.fields[INV_COLOR]] : []);
+          return {
+            id: r.id,
+            name: r.fields?.[PROOF_FB_NAME] || 'Unnamed',
+            clientNum: r.fields?.[PROOF_CLIENT_NUM],
+            metaLink: r.fields?.[META_LINK],
+            breakdown: r.fields?.[INV_BREAKDOWN],
+            status: r.fields?.[INV_STATUS],
+            type: r.fields?.[INV_TYPE],
+            totalSets: r.fields?.[INV_TOTAL_SETS],
+            size: r.fields?.[INV_SIZE],
+            colorList,
+            color: colorList.join(', '),
+          };
+        });
 
         lastFlagged = items;
         summaryEl.textContent = `${items.length} order(s) with envelope not in stock`;
         setStatus(items.length ? `${items.length} flagged` : 'All good ✓', items.length ? 'error' : 'success');
+        listWrapEl.style.display = 'none';
         renderResults(items);
+      } catch (err) {
+        setStatus(`Error: ${err.message}`, 'error');
+      }
+    }
+
+    // Colored-envelope order list: combines every flagged order needing one
+    // of the "colored" envelope types into "<qty> pcs <size> <color/label>"
+    // lines, merging identical size+color/label combos into a single total
+    // so it can go straight to the envelope supplier as one order.
+    const COLORED_ENVELOPE_TYPES = ['Colored', 'Premium Colored', 'Portrait Colored', 'Premium Portrait Colored', 'Transparent'];
+
+    function generateEnvelopeList() {
+      const relevant = lastFlagged.filter(it => COLORED_ENVELOPE_TYPES.includes(it.type));
+      if (relevant.length === 0) {
+        listTextEl.textContent = 'No colored-envelope orders in the current list.';
+        listWrapEl.style.display = 'block';
+        return;
+      }
+      const groups = new Map();
+      relevant.forEach(it => {
+        const label = it.colorList.length ? it.colorList.join(' ') : (it.type || '');
+        const key = `${it.size || ''}|${label}`;
+        const qty = Number(it.totalSets) || 0;
+        if (!groups.has(key)) groups.set(key, { size: it.size || '', label, qty: 0 });
+        groups.get(key).qty += qty;
+      });
+      const lines = [...groups.values()]
+        .sort((a, b) => b.qty - a.qty)
+        .map(g => `${g.qty} pcs ${g.size} ${g.label}`.trim());
+      listTextEl.textContent = lines.join('\n');
+      listWrapEl.style.display = 'block';
+    }
+
+    async function markAllOrdered() {
+      const apiKey = localStorage.getItem(OT_KEY_STORAGE) || '';
+      if (!apiKey) {
+        setStatus('Set Airtable API key in Order Tracker first ↓', 'error');
+        return;
+      }
+      if (lastFlagged.length === 0) return;
+      setStatus(`Marking ${lastFlagged.length} order(s) as ordered...`, '');
+      try {
+        await otPatchRecords(apiKey, INV_TABLE, lastFlagged.map(it => ({ id: it.id, fields: { 'Envelope in stock': true } })));
+        setStatus(`${lastFlagged.length} order(s) marked as ordered ✓`, 'success');
+        lastFlagged = [];
+        summaryEl.textContent = '0 order(s) with envelope not in stock';
+        listWrapEl.style.display = 'none';
+        renderResults(lastFlagged);
       } catch (err) {
         setStatus(`Error: ${err.message}`, 'error');
       }
@@ -2952,7 +3014,10 @@ Then extract:
     }
 
     card.addEventListener('click', (e) => {
-      if (e.target.dataset.act === 'scan') scan();
+      const act = e.target.dataset.act;
+      if (act === 'scan') scan();
+      else if (act === 'genList') generateEnvelopeList();
+      else if (act === 'markAllOrdered') markAllOrdered();
     });
 
     card.addEventListener('change', (e) => {

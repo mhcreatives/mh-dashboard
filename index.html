@@ -3102,6 +3102,7 @@ Then extract:
         groups.get(key).qty += qty;
       });
       const lines = [...groups.values()]
+        .filter(g => g.qty > 0)
         .sort((a, b) => b.qty - a.qty)
         .map(g => `${g.qty} pcs ${g.size} ${g.label}`.trim());
       listTextEl.textContent = lines.join('\n');

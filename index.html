@@ -503,6 +503,15 @@
           </div>
           <div class="ot-divider"></div>
           <div class="ot-row">
+            <div><div class="ot-label">Assigned + Order Done</div></div>
+            <div class="ot-values"><div class="ot-value" data-el="v-sumAssignedDone" style="width:auto;">—</div></div>
+          </div>
+          <div class="ot-row">
+            <div><div class="ot-label">Printing + Assigned + Done</div></div>
+            <div class="ot-values"><div class="ot-value" data-el="v-sumAll" style="width:auto;">—</div></div>
+          </div>
+          <div class="ot-divider"></div>
+          <div class="ot-row">
             <div><div class="ot-label">Previous Week</div><div class="ot-sub" data-el="prevWeekLabel">—</div></div>
             <div class="ot-values"><div class="ot-value" data-el="v-prevweek-inv">—</div><div class="ot-value" data-el="v-prevweek-sou">—</div><div class="ot-value" data-el="v-prevweek-tot">—</div></div>
           </div>
@@ -570,13 +579,18 @@
 
     function renderSnapshot(inv, sou) {
       const set = (id, side, val) => { el(`v-${id}-${side}`).textContent = otFormatPeso(val); };
+      const totals = {};
       ['printing', 'assemble', 'orderdone', 'prevweek'].forEach(key => {
         const invVal = inv[key] ?? 0;
         const souVal = sou[key] ?? 0;
         set(key, 'inv', invVal);
         set(key, 'sou', souVal);
-        set(key, 'tot', invVal + souVal);
+        const tot = invVal + souVal;
+        set(key, 'tot', tot);
+        totals[key] = tot;
       });
+      el('v-sumAssignedDone').textContent = otFormatPeso(totals.assemble + totals.orderdone);
+      el('v-sumAll').textContent = otFormatPeso(totals.printing + totals.assemble + totals.orderdone);
       lastUpdated.textContent = 'Updated ' + new Date().toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' });
     }
 

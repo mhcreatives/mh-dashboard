@@ -3115,13 +3115,19 @@ Then extract:
         setStatus('Set Airtable API key in Order Tracker first ↓', 'error');
         return;
       }
-      if (lastFlagged.length === 0) return;
-      setStatus(`Marking ${lastFlagged.length} order(s) as ordered...`, '');
+      // Only the colored/transparent-envelope subset — same records the
+      // list button generates the order for, not every flagged record
+      // (confirmed bug: this was marking ALL flagged types as ordered,
+      // including ones with no colored envelope on order at all).
+      const relevant = lastFlagged.filter(it => COLORED_ENVELOPE_TYPES.includes(it.type));
+      if (relevant.length === 0) return;
+      setStatus(`Marking ${relevant.length} order(s) as ordered...`, '');
       try {
-        await otPatchRecords(apiKey, INV_TABLE, lastFlagged.map(it => ({ id: it.id, fields: { 'Envelope in stock': true } })));
-        setStatus(`${lastFlagged.length} order(s) marked as ordered ✓`, 'success');
-        lastFlagged = [];
-        summaryEl.textContent = '0 order(s) with envelope not in stock';
+        await otPatchRecords(apiKey, INV_TABLE, relevant.map(it => ({ id: it.id, fields: { 'Envelope in stock': true } })));
+        const markedIds = new Set(relevant.map(it => it.id));
+        lastFlagged = lastFlagged.filter(it => !markedIds.has(it.id));
+        setStatus(`${relevant.length} order(s) marked as ordered ✓`, 'success');
+        summaryEl.textContent = `${lastFlagged.length} order(s) with envelope not in stock`;
         listWrapEl.style.display = 'none';
         renderResults(lastFlagged);
       } catch (err) {

@@ -3248,6 +3248,10 @@ Then extract:
       <div class="status-line" data-el="status"></div>
       <div class="no-wrap"><table class="no-table" data-el="table"></table></div>
 
+      <div class="ot-divider" style="margin:14px 0;"></div>
+      <div class="tool-name" style="font-size:12px; margin-bottom:8px;">📊 Averages</div>
+      <div class="no-wrap"><table class="no-table" data-el="avgTable"></table></div>
+
       <div class="config-toggle" data-act="toggleConfig">⚙ set ad account</div>
       <div class="config-panel" data-el="configPanel">
         <div class="config-hint">
@@ -3264,6 +3268,7 @@ Then extract:
     const el = sel => card.querySelector(`[data-el="${sel}"]`);
     const statusEl = el('status');
     const tableEl = el('table');
+    const avgTableEl = el('avgTable');
     const configPanel = el('configPanel');
     const accountInput = el('accountInput');
     const tokenInput = el('tokenInput');
@@ -3301,6 +3306,65 @@ Then extract:
       `;
     }
 
+    function renderAverages(bases) {
+      avgTableEl.innerHTML = `
+        <thead><tr>
+          <th>Basis</th><th>Spend</th><th>Messages</th><th>Cost/message</th><th>Purchases</th><th>Cost/purchase</th><th>Reach</th><th>Cost/reach</th>
+        </tr></thead>
+        <tbody>
+          ${bases.map(b => `
+            <tr>
+              <td class="no-name">${b.label}</td>
+              <td class="no-num">${peso(b.spend)}</td>
+              <td class="no-num">${b.messages.toLocaleString(undefined, { maximumFractionDigits: 1 })}</td>
+              <td class="no-num">${peso(b.costPerMessage)}</td>
+              <td class="no-num">${b.purchases.toLocaleString(undefined, { maximumFractionDigits: 1 })}</td>
+              <td class="no-num">${peso(b.costPerPurchase)}</td>
+              <td class="no-num">${b.reach.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+              <td class="no-num">${peso(b.costPerReach)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      `;
+    }
+
+    // last_30d already caps the fetched window, so "all data" and "last 30
+    // days" would be identical here — only Current month and its 30-day
+    // run-rate estimate add anything beyond the raw last-30-days total.
+    function computeAverageBases(rows) {
+      const sumRange = list => list.reduce((acc, r) => ({
+        spend: acc.spend + r.spend,
+        messages: acc.messages + r.messages,
+        purchases: acc.purchases + r.purchases,
+        reach: acc.reach + r.reach,
+      }), { spend: 0, messages: 0, purchases: 0, reach: 0 });
+
+      const withCosts = s => ({
+        ...s,
+        costPerMessage: adsCostPer(s.spend, s.messages),
+        costPerPurchase: adsCostPer(s.spend, s.purchases),
+        costPerReach: adsCostPer(s.spend, s.reach),
+      });
+      const scale = (s, factor) => withCosts({
+        spend: s.spend * factor, messages: s.messages * factor,
+        purchases: s.purchases * factor, reach: s.reach * factor,
+      });
+
+      const today = new Date();
+      const currentMonthKey = today.toISOString().slice(0, 7);
+      const dayOfMonth = today.getDate();
+
+      const currentMonthRows = rows.filter(r => r.date.startsWith(currentMonthKey));
+      const currentMonthSum = sumRange(currentMonthRows);
+      const last30Sum = sumRange(rows);
+
+      return [
+        { label: 'Current month', ...withCosts(currentMonthSum) },
+        { label: '30-day estimate (current month)', ...scale(currentMonthSum, dayOfMonth ? 30 / dayOfMonth : 0) },
+        { label: 'Last 30 days', ...withCosts(last30Sum) },
+      ];
+    }
+
     async function load() {
       const token = localStorage.getItem(ADS_TOKEN_STORAGE) || '';
       const accountId = localStorage.getItem(ADS_ACCOUNT_STORAGE) || '';
@@ -3332,10 +3396,12 @@ Then extract:
           })
           .sort((a, b) => b.date.localeCompare(a.date));
         renderRows(rows);
+        renderAverages(computeAverageBases(rows));
         setStatus('Loaded ✓', 'success');
       } catch (err) {
         setStatus(`Error: ${err.message}`, 'error');
         tableEl.innerHTML = '';
+        avgTableEl.innerHTML = '';
       }
     }
 

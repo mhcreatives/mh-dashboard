@@ -2418,7 +2418,7 @@ Then extract:
   const GOOGLE_SHEET_TAB = 'New orders';
   const NO_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxaGjPkim8bZqOeMrQwZRtIlv6uVP68azTSAiawER_6LbSpK4LRGwsMnRLa5EwM_KU/exec';
   const GOOGLE_API_KEY_STORAGE = 'mh_google_sheets_api_key';
-  const NO_DP_RECEIVED_COL = 6; // column F, 1-based
+  const NO_DP_RECEIVED_COL = 7; // column G, 1-based
 
   function buildNewOrdersCard() {
     const card = document.createElement('div');
@@ -2492,7 +2492,10 @@ Then extract:
       }
       setStatus('Loading...', '');
       try {
-        const range = encodeURIComponent(`${GOOGLE_SHEET_TAB}!A2:F1000`);
+        // Was A2:F1000 reading row[5] as DP Received — the sheet's real column
+        // order is FB Name, Meta link, Downpayment, Payment, Assisted by,
+        // Notes, DP Received, so DP Received is column G (index 6), not F.
+        const range = encodeURIComponent(`${GOOGLE_SHEET_TAB}!A2:G1000`);
         const resp = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}/values/${range}?key=${encodeURIComponent(apiKey)}`);
         const data = await resp.json();
         if (!resp.ok) throw new Error(data.error?.message || `HTTP ${resp.status}`);
@@ -2506,7 +2509,7 @@ Then extract:
             downpayment: row[2] || '',
             payment: row[3] || '',
             notes: row[4] || '',
-            dpReceived: String(row[5] || '').toUpperCase() === 'TRUE',
+            dpReceived: String(row[6] || '').toUpperCase() === 'TRUE',
           }))
           .filter(r => r.name);
 

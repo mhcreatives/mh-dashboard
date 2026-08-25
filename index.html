@@ -2616,10 +2616,8 @@ Then extract:
       }
       resultsEl.innerHTML = rows.map(r => `
         <div class="proof-item">
-          <div class="proof-name" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+          <div class="proof-name">
             <span>${r.name}</span>
-            ${r.metaLink ? `<a class="proof-link" style="margin:0;" href="${r.metaLink}" target="_blank" rel="noopener">Open conversation ↗</a>` : ''}
-            ${r.recordId ? `<a class="proof-link" style="margin:0;" href="https://airtable.com/${OT_BASE_ID}/${INV_TABLE}/${r.recordId}" target="_blank" rel="noopener">Open record ↗</a>` : ''}
           </div>
           <div style="white-space:pre-wrap; font-size:10px; color:#ccc; background:#111; border-radius:6px; padding:8px; margin-top:6px; font-family:'DM Mono',monospace; max-height:120px; overflow-y:auto;">${r.breakdown.replace(/</g, '&lt;')}</div>
           <button class="icon-btn" data-act="deleteRow" data-row="${r.sheetRow}" style="margin-top:6px; color:#f87171;">🗑 Delete</button>
@@ -2645,25 +2643,6 @@ Then extract:
         const rows = values
           .map((row, i) => ({ sheetRow: i + 1, name: row[0] || '', breakdown: row[1] || '' }))
           .filter(r => r.name);
-
-        // Best-effort match to Airtable by name, so "Open conversation" /
-        // "Open record" can be shown — the Updates sheet itself has no
-        // Meta link or record ID column at all.
-        const airtableKey = localStorage.getItem(OT_KEY_STORAGE) || '';
-        if (airtableKey) {
-          try {
-            const invRecords = await otFetchRecords(airtableKey, INV_TABLE, PROOF_FB_NAME, META_LINK, META_LINK, null, []);
-            const byName = new Map();
-            invRecords.forEach(rec => {
-              const name = otNormalizeNameForMatch(rec.fields?.[PROOF_FB_NAME]);
-              if (name && !byName.has(name)) byName.set(name, { id: rec.id, metaLink: rec.fields?.[META_LINK] });
-            });
-            rows.forEach(r => {
-              const match = byName.get(otNormalizeNameForMatch(r.name));
-              if (match) { r.recordId = match.id; r.metaLink = match.metaLink; }
-            });
-          } catch { /* linking is best-effort — sheet data still shows without it */ }
-        }
 
         summaryEl.textContent = `${rows.length} update(s)`;
         setStatus('Loaded ✓', 'success');

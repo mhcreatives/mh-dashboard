@@ -552,16 +552,22 @@
 
     function getKey() { return localStorage.getItem(OT_KEY_STORAGE) || ''; }
 
+    function otDaysInMonthKey(key) {
+      const [year, month] = key.split('-').map(Number);
+      return new Date(year, month, 0).getDate();
+    }
+
     function renderMonthly(months) {
       if (!months || months.length === 0) {
         monthlyPanel.innerHTML = '<div style="padding:20px;text-align:center;color:#555;font-size:11px;">No data</div>';
         return;
       }
       const maxTotal = Math.max(...months.map(m => m.totalInv + m.totalSou + m.totalLayout), 1);
-      const header = `<div class="ot-col-hd"><span>Invitation</span><span>Souvenir</span><span>Layout</span><span>Total</span></div>`;
+      const header = `<div class="ot-col-hd"><span>Invitation</span><span>Souvenir</span><span>Layout</span><span>Total</span><span>Weekly avg</span></div>`;
       const rows = months.map(m => {
         const combined = m.totalInv + m.totalSou + m.totalLayout;
         const pct = Math.round((combined / maxTotal) * 100);
+        const weeklyAvg = (combined / otDaysInMonthKey(m.key)) * 7;
         return `
           <div class="month-row${m.isCurrent ? ' current' : ''}">
             <div class="month-name">${m.label}</div>
@@ -571,6 +577,7 @@
               <div class="month-value">${otFormatPeso(m.totalSou)}</div>
               <div class="month-value">${otFormatPeso(m.totalLayout)}</div>
               <div class="month-value">${otFormatPeso(combined)}</div>
+              <div class="month-value">${otFormatPeso(weeklyAvg)}</div>
             </div>
           </div>`;
       }).join('');
@@ -1104,14 +1111,33 @@ Postal/zip code:`;
   //   Metro Manila
   //   1105
   // otLooksLikeFilledShippingForm requires 3+ literal labels and misses this
-  // entirely. Heuristic instead: a phone number, several lines, and a
-  // trailing 4-digit zip code — permissive on purpose since the caller
-  // always requires a human to click "Approve" before this reaches Airtable.
+  // entirely. Heuristic instead: a phone number, several short lines, and a
+  // last line that's JUST a 4-digit zip code (not a sentence that happens to
+  // contain a 4-digit number, e.g. a year) — permissive on purpose since the
+  // caller always requires a human to click "Approve" before this reaches
+  // Airtable, but not so loose it swallows unrelated forms (confirmed false
+  // positive: a wedding-details questionnaire reply with a phone number in
+  // its RSVP line and "2026" in an event-date sentence).
+  //
+  // Other known form templates whose replies must never be mistaken for
+  // shipping details, even though they can contain a phone number.
+  const OTHER_FORM_LABEL_PATTERNS = [
+    /groom\s*:/i,
+    /bride\s*:/i,
+    /nicknames?\s*(for\s*front\s*page)?\s*:/i,
+    /event\s*date\s*(and\s*time)?\s*:/i,
+    /ceremony\s*(&|and)?\s*reception\s*:/i,
+    /colors?\s*\/?\s*motif\s*:/i,
+    /gift\s*guide\s*:/i,
+    /rsvp\s*:/i,
+  ];
+
   function otLooksLikeFreeformShippingReply(text) {
     if (!text || !otHasPhoneNumber(text)) return false;
+    if (OTHER_FORM_LABEL_PATTERNS.some(re => re.test(text))) return false;
     const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
     if (lines.length < 4) return false;
-    return /(^|\D)\d{4}(\D|$)/.test(lines[lines.length - 1]);
+    return /^\d{4}$/.test(lines[lines.length - 1]);
   }
 
   function otLooksLikeShippingReply(text) {
@@ -2440,7 +2466,7 @@ Then extract:
       }
       tableEl.innerHTML = `
         <thead><tr>
-          <th>FB Name</th><th>Meta link</th><th>Downpayment</th><th>Payment</th><th>Notes</th><th>DP Received</th>
+          <th>FB Name</th><th>Meta link</th><th>Downpayment</th><th>Payment</th><th>Assisted by</th><th>DP Received</th>
         </tr></thead>
         <tbody>
           ${rows.map(r => `

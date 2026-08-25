@@ -2663,11 +2663,12 @@ Then extract:
     return card;
   }
 
-  // ─── Sales (New orders archive H:L + Airtable Total) ────────────────────
-  // Columns H (Encoded Name) through L (Date Encoded) on the "New orders"
+  // ─── Sales (New orders archive I:M + Airtable Total) ────────────────────
+  // Columns I (Encoded Name) through M (Date Encoded) on the "New orders"
   // tab are the archive of past orders — used here for the per-date order
-  // count. The archive's own "DP" column (I) is a downpayment, not the full
-  // order value, so the actual value comes from Airtable's Total field
+  // count. (Was H:L until a column was inserted at H.) The archive's own
+  // "DP" column (J) is a downpayment, not the full order value, so the
+  // actual value comes from Airtable's Total field
   // instead, matched to the archive row by client name.
 
   function otNormalizeNameForMatch(name) {
@@ -2809,7 +2810,10 @@ Then extract:
       }
       setStatus('Loading...', '');
       try {
-        const range = encodeURIComponent(`${GOOGLE_SHEET_TAB}!H2:L2000`);
+        // Was H2:L2000 (Encoded Name/DP/Payment/Notes/Date Encoded) — a column
+        // was inserted at H (a date-labeled tally/notes column), shifting that
+        // 5-column block one to the right.
+        const range = encodeURIComponent(`${GOOGLE_SHEET_TAB}!I2:M2000`);
         const sheetResp = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}/values/${range}?key=${encodeURIComponent(googleKey)}`);
         const sheetData = await sheetResp.json();
         if (!sheetResp.ok) throw new Error(sheetData.error?.message || `HTTP ${sheetResp.status}`);

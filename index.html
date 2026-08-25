@@ -1093,6 +1093,31 @@ Postal/zip code:`;
     return SHIPPING_LABEL_PATTERNS.filter(re => re.test(text)).length >= 3;
   }
 
+  // Some clients answer with the same info (name, number(s), address, zip)
+  // but skip the "Label:" prefixes entirely — just plain lines, e.g.:
+  //   Lysida Lacorte
+  //   0905 245 0390
+  //   32-A
+  //   Road 2
+  //   Bagong Pag-Asa
+  //   Quezon City
+  //   Metro Manila
+  //   1105
+  // otLooksLikeFilledShippingForm requires 3+ literal labels and misses this
+  // entirely. Heuristic instead: a phone number, several lines, and a
+  // trailing 4-digit zip code — permissive on purpose since the caller
+  // always requires a human to click "Approve" before this reaches Airtable.
+  function otLooksLikeFreeformShippingReply(text) {
+    if (!text || !otHasPhoneNumber(text)) return false;
+    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    if (lines.length < 4) return false;
+    return /(^|\D)\d{4}(\D|$)/.test(lines[lines.length - 1]);
+  }
+
+  function otLooksLikeShippingReply(text) {
+    return otLooksLikeFilledShippingForm(text) || otLooksLikeFreeformShippingReply(text);
+  }
+
   // Fetches a URL and parses JSON, automatically retrying on Facebook's
   // transient "(#2) Service temporarily unavailable" error (and a couple
   // other known-transient codes) with backoff, since this is a real server-
@@ -1163,12 +1188,12 @@ Postal/zip code:`;
     const { messages } = await otFetchConversationMessages(pageId, token, psid);
     const pageSent = messages.some(m => m.from?.id === pageId && (m.message || '').includes('Recipient Name:'));
 
-    const singleMatch = messages.find(m => m.from?.id !== pageId && otLooksLikeFilledShippingForm(m.message));
+    const singleMatch = messages.find(m => m.from?.id !== pageId && otLooksLikeShippingReply(m.message));
     if (singleMatch) return { pageSent, userReply: singleMatch.message };
 
     const userMsgs = messages.filter(m => m.from?.id !== pageId && m.message);
     const combined = userMsgs.slice(0, 8).map(m => m.message).reverse().join('\n');
-    if (otLooksLikeFilledShippingForm(combined)) return { pageSent, userReply: combined };
+    if (otLooksLikeShippingReply(combined)) return { pageSent, userReply: combined };
 
     return { pageSent, userReply: null };
   }

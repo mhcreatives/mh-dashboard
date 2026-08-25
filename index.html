@@ -210,6 +210,7 @@
   .proof-summary { font-size: 10px; color: #555; font-family: 'DM Mono', monospace; margin: 4px 0 10px; }
   .proof-results { display: flex; flex-direction: column; gap: 8px; max-height: 420px; overflow-y: auto; }
   .proof-item { background: #1a1a1a; border-radius: 8px; padding: 10px 12px; border: 1px solid #2a1414; }
+  .proof-item.balance-match { border-color: #fbbf24; background: #2a2410; box-shadow: 0 0 0 1px #fbbf24; }
   .proof-name { font-size: 11px; font-weight: 600; color: #fff; }
   .proof-name span { color: #555; font-weight: 400; }
   .proof-diff { font-size: 10px; color: #f87171; margin-top: 4px; font-family: 'DM Mono', monospace; }
@@ -1934,6 +1935,10 @@ Then extract:
       <div class="tool-desc">"For packaging" orders with Balance not yet paid — checks for a receipt in Messenger.</div>
       <div class="status-line" data-el="status"></div>
       <div class="proof-summary" data-el="summary"></div>
+      <div class="id-row" style="margin-bottom:8px;">
+        <input type="text" inputmode="decimal" data-el="balanceFindInput" placeholder="Amount received (e.g. 1360) — highlights matching balance" autocomplete="off" spellcheck="false" />
+      </div>
+      <div class="status-line" data-el="balanceFindStatus"></div>
       <div class="proof-results" data-el="results"></div>
 
       <div class="config-toggle" data-act="toggleConfig">⚙ set facebook page credentials</div>
@@ -1976,6 +1981,8 @@ Then extract:
     const pageIdInput = el('pageIdInput');
     const pageTokenInput = el('pageTokenInput');
     const geminiKeyInput = el('geminiKeyInput');
+    const balanceFindInput = el('balanceFindInput');
+    const balanceFindStatusEl = el('balanceFindStatus');
     const psidStatusEl = el('psidStatus');
     const psidSearchInput = el('psidSearchInput');
     const psidResultsEl = el('psidResults');
@@ -2092,7 +2099,7 @@ Then extract:
       resultsEl.innerHTML = sorted.map(f => {
         if (f.autoPaid || f.autoPaidError) {
           return `
-          <div class="proof-item">
+          <div class="proof-item" data-balance="0">
             <div class="proof-name">${f.name}${f.clientNum ? ` <span>#${f.clientNum}</span>` : ''}</div>
             ${f.autoPaid
               ? `<div class="proof-diff" style="color:#4ade80;">Balance was ₱0 — automatically marked as paid ✓</div>`
@@ -2140,7 +2147,7 @@ Then extract:
         `;
         }
         return `
-        <div class="proof-item">
+        <div class="proof-item" data-balance="${f.balance}">
           <div class="proof-name">${f.name}${f.clientNum ? ` <span>#${f.clientNum}</span>` : ''}</div>
           <div class="proof-diff">Balance pending: ${otFormatPeso(f.balance)}</div>
           <div class="proof-diff" style="color:${f.hasReceipt ? '#4ade80' : '#f87171'};">${f.receiptStatus}</div>
@@ -2156,6 +2163,37 @@ Then extract:
         </div>
       `;
       }).join('');
+      highlightBalanceMatches();
+    }
+
+    // Highlights every rendered record whose balance matches the typed
+    // amount (within a peso of rounding tolerance, since receipts and
+    // Airtable balances are both whole-peso in practice) — lets you type in
+    // a payment amount you just received and instantly spot which client(s)
+    // it belongs to, without reading through every "Balance pending" line.
+    function highlightBalanceMatches() {
+      const items = resultsEl.querySelectorAll('.proof-item[data-balance]');
+      const raw = balanceFindInput.value.replace(/[^\d.]/g, '');
+      const target = raw ? parseFloat(raw) : null;
+
+      let matchCount = 0;
+      items.forEach(item => {
+        const balance = parseFloat(item.dataset.balance);
+        const isMatch = target !== null && !isNaN(balance) && Math.abs(balance - target) < 1;
+        item.classList.toggle('balance-match', isMatch);
+        if (isMatch) matchCount++;
+      });
+
+      if (target === null) {
+        balanceFindStatusEl.innerHTML = '';
+      } else if (matchCount === 0) {
+        balanceFindStatusEl.innerHTML = `<span class="status-dot error"></span>No matching balance found`;
+        balanceFindStatusEl.className = 'status-line error';
+      } else {
+        balanceFindStatusEl.innerHTML = `<span class="status-dot success"></span>${matchCount} match${matchCount > 1 ? 'es' : ''} highlighted`;
+        balanceFindStatusEl.className = 'status-line success';
+        resultsEl.querySelector('.balance-match')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
     }
 
     async function scan() {
@@ -2346,6 +2384,8 @@ Then extract:
         savePsid();
       }
     });
+
+    balanceFindInput.addEventListener('input', () => highlightBalanceMatches());
 
     const savedPageId = localStorage.getItem(FB_PAGE_ID_STORAGE) || '';
     const savedPageToken = localStorage.getItem(FB_PAGE_TOKEN_STORAGE) || '';

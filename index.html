@@ -1647,7 +1647,10 @@ Then extract:
                 : `<button class="icon-btn" data-act="fillFromReply" data-id="${f.id}" style="margin-top:6px;">✅ Approve update to Airtable</button>`}
             `;
           } else if (f.pageSent) {
-            actionHtml = `<div class="proof-diff">Form already sent — no reply yet</div>`;
+            actionHtml = `
+              <div class="proof-diff">Form already sent — no reply yet</div>
+              <button class="icon-btn" data-act="sendForm" data-id="${f.id}" style="margin-top:6px;">✉ Send form again</button>
+            `;
           } else {
             actionHtml = `<button class="icon-btn" data-act="sendForm" data-id="${f.id}" style="margin-top:6px;">✉ Send form</button>`;
           }

@@ -210,7 +210,6 @@
   .proof-summary { font-size: 10px; color: #555; font-family: 'DM Mono', monospace; margin: 4px 0 10px; }
   .proof-results { display: flex; flex-direction: column; gap: 8px; max-height: 420px; overflow-y: auto; }
   .proof-item { background: #1a1a1a; border-radius: 8px; padding: 10px 12px; border: 1px solid #2a1414; }
-  .proof-item.balance-match { border-color: #fbbf24; background: #2a2410; box-shadow: 0 0 0 1px #fbbf24; }
   .proof-name { font-size: 11px; font-weight: 600; color: #fff; }
   .proof-name span { color: #555; font-weight: 400; }
   .proof-diff { font-size: 10px; color: #f87171; margin-top: 4px; font-family: 'DM Mono', monospace; }
@@ -553,22 +552,16 @@
 
     function getKey() { return localStorage.getItem(OT_KEY_STORAGE) || ''; }
 
-    function otDaysInMonthKey(key) {
-      const [year, month] = key.split('-').map(Number);
-      return new Date(year, month, 0).getDate();
-    }
-
     function renderMonthly(months) {
       if (!months || months.length === 0) {
         monthlyPanel.innerHTML = '<div style="padding:20px;text-align:center;color:#555;font-size:11px;">No data</div>';
         return;
       }
       const maxTotal = Math.max(...months.map(m => m.totalInv + m.totalSou + m.totalLayout), 1);
-      const header = `<div class="ot-col-hd"><span>Invitation</span><span>Souvenir</span><span>Layout</span><span>Total</span><span>Weekly avg</span></div>`;
+      const header = `<div class="ot-col-hd"><span>Invitation</span><span>Souvenir</span><span>Layout</span><span>Total</span></div>`;
       const rows = months.map(m => {
         const combined = m.totalInv + m.totalSou + m.totalLayout;
         const pct = Math.round((combined / maxTotal) * 100);
-        const weeklyAvg = (combined / otDaysInMonthKey(m.key)) * 7;
         return `
           <div class="month-row${m.isCurrent ? ' current' : ''}">
             <div class="month-name">${m.label}</div>
@@ -578,7 +571,6 @@
               <div class="month-value">${otFormatPeso(m.totalSou)}</div>
               <div class="month-value">${otFormatPeso(m.totalLayout)}</div>
               <div class="month-value">${otFormatPeso(combined)}</div>
-              <div class="month-value">${otFormatPeso(weeklyAvg)}</div>
             </div>
           </div>`;
       }).join('');
@@ -1101,50 +1093,6 @@ Postal/zip code:`;
     return SHIPPING_LABEL_PATTERNS.filter(re => re.test(text)).length >= 3;
   }
 
-  // Some clients answer with the same info (name, number(s), address, zip)
-  // but skip the "Label:" prefixes entirely — just plain lines, e.g.:
-  //   Lysida Lacorte
-  //   0905 245 0390
-  //   32-A
-  //   Road 2
-  //   Bagong Pag-Asa
-  //   Quezon City
-  //   Metro Manila
-  //   1105
-  // otLooksLikeFilledShippingForm requires 3+ literal labels and misses this
-  // entirely. Heuristic instead: a phone number, several short lines, and a
-  // last line that's JUST a 4-digit zip code (not a sentence that happens to
-  // contain a 4-digit number, e.g. a year) — permissive on purpose since the
-  // caller always requires a human to click "Approve" before this reaches
-  // Airtable, but not so loose it swallows unrelated forms (confirmed false
-  // positive: a wedding-details questionnaire reply with a phone number in
-  // its RSVP line and "2026" in an event-date sentence).
-  //
-  // Other known form templates whose replies must never be mistaken for
-  // shipping details, even though they can contain a phone number.
-  const OTHER_FORM_LABEL_PATTERNS = [
-    /groom\s*:/i,
-    /bride\s*:/i,
-    /nicknames?\s*(for\s*front\s*page)?\s*:/i,
-    /event\s*date\s*(and\s*time)?\s*:/i,
-    /ceremony\s*(&|and)?\s*reception\s*:/i,
-    /colors?\s*\/?\s*motif\s*:/i,
-    /gift\s*guide\s*:/i,
-    /rsvp\s*:/i,
-  ];
-
-  function otLooksLikeFreeformShippingReply(text) {
-    if (!text || !otHasPhoneNumber(text)) return false;
-    if (OTHER_FORM_LABEL_PATTERNS.some(re => re.test(text))) return false;
-    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-    if (lines.length < 4) return false;
-    return /^\d{4}$/.test(lines[lines.length - 1]);
-  }
-
-  function otLooksLikeShippingReply(text) {
-    return otLooksLikeFilledShippingForm(text) || otLooksLikeFreeformShippingReply(text);
-  }
-
   // Fetches a URL and parses JSON, automatically retrying on Facebook's
   // transient "(#2) Service temporarily unavailable" error (and a couple
   // other known-transient codes) with backoff, since this is a real server-
@@ -1215,12 +1163,12 @@ Postal/zip code:`;
     const { messages } = await otFetchConversationMessages(pageId, token, psid);
     const pageSent = messages.some(m => m.from?.id === pageId && (m.message || '').includes('Recipient Name:'));
 
-    const singleMatch = messages.find(m => m.from?.id !== pageId && otLooksLikeShippingReply(m.message));
+    const singleMatch = messages.find(m => m.from?.id !== pageId && otLooksLikeFilledShippingForm(m.message));
     if (singleMatch) return { pageSent, userReply: singleMatch.message };
 
     const userMsgs = messages.filter(m => m.from?.id !== pageId && m.message);
     const combined = userMsgs.slice(0, 8).map(m => m.message).reverse().join('\n');
-    if (otLooksLikeShippingReply(combined)) return { pageSent, userReply: combined };
+    if (otLooksLikeFilledShippingForm(combined)) return { pageSent, userReply: combined };
 
     return { pageSent, userReply: null };
   }
@@ -1699,10 +1647,7 @@ Then extract:
                 : `<button class="icon-btn" data-act="fillFromReply" data-id="${f.id}" style="margin-top:6px;">✅ Approve update to Airtable</button>`}
             `;
           } else if (f.pageSent) {
-            actionHtml = `
-              <div class="proof-diff">Form already sent — no reply yet</div>
-              <button class="icon-btn" data-act="sendForm" data-id="${f.id}" style="margin-top:6px;">✉ Send form again</button>
-            `;
+            actionHtml = `<div class="proof-diff">Form already sent — no reply yet</div>`;
           } else {
             actionHtml = `<button class="icon-btn" data-act="sendForm" data-id="${f.id}" style="margin-top:6px;">✉ Send form</button>`;
           }
@@ -1938,10 +1883,6 @@ Then extract:
       <div class="tool-desc">"For packaging" orders with Balance not yet paid — checks for a receipt in Messenger.</div>
       <div class="status-line" data-el="status"></div>
       <div class="proof-summary" data-el="summary"></div>
-      <div class="id-row" style="margin-bottom:8px;">
-        <input type="text" inputmode="decimal" data-el="balanceFindInput" placeholder="Amount received (e.g. 1360) — highlights matching balance" autocomplete="off" spellcheck="false" />
-      </div>
-      <div class="status-line" data-el="balanceFindStatus"></div>
       <div class="proof-results" data-el="results"></div>
 
       <div class="config-toggle" data-act="toggleConfig">⚙ set facebook page credentials</div>
@@ -1984,8 +1925,6 @@ Then extract:
     const pageIdInput = el('pageIdInput');
     const pageTokenInput = el('pageTokenInput');
     const geminiKeyInput = el('geminiKeyInput');
-    const balanceFindInput = el('balanceFindInput');
-    const balanceFindStatusEl = el('balanceFindStatus');
     const psidStatusEl = el('psidStatus');
     const psidSearchInput = el('psidSearchInput');
     const psidResultsEl = el('psidResults');
@@ -2102,7 +2041,7 @@ Then extract:
       resultsEl.innerHTML = sorted.map(f => {
         if (f.autoPaid || f.autoPaidError) {
           return `
-          <div class="proof-item" data-balance="0">
+          <div class="proof-item">
             <div class="proof-name">${f.name}${f.clientNum ? ` <span>#${f.clientNum}</span>` : ''}</div>
             ${f.autoPaid
               ? `<div class="proof-diff" style="color:#4ade80;">Balance was ₱0 — automatically marked as paid ✓</div>`
@@ -2150,7 +2089,7 @@ Then extract:
         `;
         }
         return `
-        <div class="proof-item" data-balance="${f.balance}">
+        <div class="proof-item">
           <div class="proof-name">${f.name}${f.clientNum ? ` <span>#${f.clientNum}</span>` : ''}</div>
           <div class="proof-diff">Balance pending: ${otFormatPeso(f.balance)}</div>
           <div class="proof-diff" style="color:${f.hasReceipt ? '#4ade80' : '#f87171'};">${f.receiptStatus}</div>
@@ -2166,37 +2105,6 @@ Then extract:
         </div>
       `;
       }).join('');
-      highlightBalanceMatches();
-    }
-
-    // Highlights every rendered record whose balance matches the typed
-    // amount (within a peso of rounding tolerance, since receipts and
-    // Airtable balances are both whole-peso in practice) — lets you type in
-    // a payment amount you just received and instantly spot which client(s)
-    // it belongs to, without reading through every "Balance pending" line.
-    function highlightBalanceMatches() {
-      const items = resultsEl.querySelectorAll('.proof-item[data-balance]');
-      const raw = balanceFindInput.value.replace(/[^\d.]/g, '');
-      const target = raw ? parseFloat(raw) : null;
-
-      let matchCount = 0;
-      items.forEach(item => {
-        const balance = parseFloat(item.dataset.balance);
-        const isMatch = target !== null && !isNaN(balance) && Math.abs(balance - target) < 1;
-        item.classList.toggle('balance-match', isMatch);
-        if (isMatch) matchCount++;
-      });
-
-      if (target === null) {
-        balanceFindStatusEl.innerHTML = '';
-      } else if (matchCount === 0) {
-        balanceFindStatusEl.innerHTML = `<span class="status-dot error"></span>No matching balance found`;
-        balanceFindStatusEl.className = 'status-line error';
-      } else {
-        balanceFindStatusEl.innerHTML = `<span class="status-dot success"></span>${matchCount} match${matchCount > 1 ? 'es' : ''} highlighted`;
-        balanceFindStatusEl.className = 'status-line success';
-        resultsEl.querySelector('.balance-match')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
     }
 
     async function scan() {
@@ -2388,8 +2296,6 @@ Then extract:
       }
     });
 
-    balanceFindInput.addEventListener('input', () => highlightBalanceMatches());
-
     const savedPageId = localStorage.getItem(FB_PAGE_ID_STORAGE) || '';
     const savedPageToken = localStorage.getItem(FB_PAGE_TOKEN_STORAGE) || '';
     const savedGeminiKey = localStorage.getItem(GEMINI_KEY_STORAGE) || '';
@@ -2461,7 +2367,7 @@ Then extract:
   const GOOGLE_SHEET_TAB = 'New orders';
   const NO_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxaGjPkim8bZqOeMrQwZRtIlv6uVP68azTSAiawER_6LbSpK4LRGwsMnRLa5EwM_KU/exec';
   const GOOGLE_API_KEY_STORAGE = 'mh_google_sheets_api_key';
-  const NO_DP_RECEIVED_COL = 7; // column G, 1-based
+  const NO_DP_RECEIVED_COL = 6; // column F, 1-based
 
   function buildNewOrdersCard() {
     const card = document.createElement('div');
@@ -2509,7 +2415,7 @@ Then extract:
       }
       tableEl.innerHTML = `
         <thead><tr>
-          <th>FB Name</th><th>Meta link</th><th>Downpayment</th><th>Payment</th><th>Assisted by</th><th>DP Received</th>
+          <th>FB Name</th><th>Meta link</th><th>Downpayment</th><th>Payment</th><th>Notes</th><th>DP Received</th>
         </tr></thead>
         <tbody>
           ${rows.map(r => `
@@ -2535,10 +2441,7 @@ Then extract:
       }
       setStatus('Loading...', '');
       try {
-        // Was A2:F1000 reading row[5] as DP Received — the sheet's real column
-        // order is FB Name, Meta link, Downpayment, Payment, Assisted by,
-        // Notes, DP Received, so DP Received is column G (index 6), not F.
-        const range = encodeURIComponent(`${GOOGLE_SHEET_TAB}!A2:G1000`);
+        const range = encodeURIComponent(`${GOOGLE_SHEET_TAB}!A2:F1000`);
         const resp = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}/values/${range}?key=${encodeURIComponent(apiKey)}`);
         const data = await resp.json();
         if (!resp.ok) throw new Error(data.error?.message || `HTTP ${resp.status}`);
@@ -2552,7 +2455,7 @@ Then extract:
             downpayment: row[2] || '',
             payment: row[3] || '',
             notes: row[4] || '',
-            dpReceived: String(row[6] || '').toUpperCase() === 'TRUE',
+            dpReceived: String(row[5] || '').toUpperCase() === 'TRUE',
           }))
           .filter(r => r.name);
 
@@ -2662,10 +2565,8 @@ Then extract:
       }
       resultsEl.innerHTML = rows.map(r => `
         <div class="proof-item">
-          <div class="proof-name">
-            <span>${r.name}</span>
-          </div>
-          <div style="white-space:pre-wrap; font-size:10px; color:#ccc; background:#111; border-radius:6px; padding:8px; margin-top:6px; font-family:'DM Mono',monospace; max-height:120px; overflow-y:auto;">${r.breakdown.replace(/</g, '&lt;')}</div>
+          <div class="proof-name">${r.name}</div>
+          <div style="white-space:pre-wrap; font-size:10px; color:#ccc; background:#111; border-radius:6px; padding:8px; margin-top:6px; font-family:'DM Mono',monospace; max-height:220px; overflow-y:auto;">${r.breakdown.replace(/</g, '&lt;')}</div>
           <button class="icon-btn" data-act="deleteRow" data-row="${r.sheetRow}" style="margin-top:6px; color:#f87171;">🗑 Delete</button>
         </div>
       `).join('');
@@ -2739,12 +2640,11 @@ Then extract:
     return card;
   }
 
-  // ─── Sales (New orders archive I:M + Airtable Total) ────────────────────
-  // Columns I (Encoded Name) through M (Date Encoded) on the "New orders"
+  // ─── Sales (New orders archive H:L + Airtable Total) ────────────────────
+  // Columns H (Encoded Name) through L (Date Encoded) on the "New orders"
   // tab are the archive of past orders — used here for the per-date order
-  // count. (Was H:L until a column was inserted at H.) The archive's own
-  // "DP" column (J) is a downpayment, not the full order value, so the
-  // actual value comes from Airtable's Total field
+  // count. The archive's own "DP" column (I) is a downpayment, not the full
+  // order value, so the actual value comes from Airtable's Total field
   // instead, matched to the archive row by client name.
 
   function otNormalizeNameForMatch(name) {
@@ -2886,10 +2786,7 @@ Then extract:
       }
       setStatus('Loading...', '');
       try {
-        // Was H2:L2000 (Encoded Name/DP/Payment/Notes/Date Encoded) — a column
-        // was inserted at H (a date-labeled tally/notes column), shifting that
-        // 5-column block one to the right.
-        const range = encodeURIComponent(`${GOOGLE_SHEET_TAB}!I2:M2000`);
+        const range = encodeURIComponent(`${GOOGLE_SHEET_TAB}!H2:L2000`);
         const sheetResp = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}/values/${range}?key=${encodeURIComponent(googleKey)}`);
         const sheetData = await sheetResp.json();
         if (!sheetResp.ok) throw new Error(sheetData.error?.message || `HTTP ${sheetResp.status}`);
@@ -3351,10 +3248,6 @@ Then extract:
       <div class="status-line" data-el="status"></div>
       <div class="no-wrap"><table class="no-table" data-el="table"></table></div>
 
-      <div class="ot-divider" style="margin:14px 0;"></div>
-      <div class="tool-name" style="font-size:12px; margin-bottom:8px;">📊 Averages</div>
-      <div class="no-wrap"><table class="no-table" data-el="avgTable"></table></div>
-
       <div class="config-toggle" data-act="toggleConfig">⚙ set ad account</div>
       <div class="config-panel" data-el="configPanel">
         <div class="config-hint">
@@ -3371,7 +3264,6 @@ Then extract:
     const el = sel => card.querySelector(`[data-el="${sel}"]`);
     const statusEl = el('status');
     const tableEl = el('table');
-    const avgTableEl = el('avgTable');
     const configPanel = el('configPanel');
     const accountInput = el('accountInput');
     const tokenInput = el('tokenInput');
@@ -3409,65 +3301,6 @@ Then extract:
       `;
     }
 
-    function renderAverages(bases) {
-      avgTableEl.innerHTML = `
-        <thead><tr>
-          <th>Basis</th><th>Spend</th><th>Messages</th><th>Cost/message</th><th>Purchases</th><th>Cost/purchase</th><th>Reach</th><th>Cost/reach</th>
-        </tr></thead>
-        <tbody>
-          ${bases.map(b => `
-            <tr>
-              <td class="no-name">${b.label}</td>
-              <td class="no-num">${peso(b.spend)}</td>
-              <td class="no-num">${b.messages.toLocaleString(undefined, { maximumFractionDigits: 1 })}</td>
-              <td class="no-num">${peso(b.costPerMessage)}</td>
-              <td class="no-num">${b.purchases.toLocaleString(undefined, { maximumFractionDigits: 1 })}</td>
-              <td class="no-num">${peso(b.costPerPurchase)}</td>
-              <td class="no-num">${b.reach.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
-              <td class="no-num">${peso(b.costPerReach)}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      `;
-    }
-
-    // last_30d already caps the fetched window, so "all data" and "last 30
-    // days" would be identical here — only Current month and its 30-day
-    // run-rate estimate add anything beyond the raw last-30-days total.
-    function computeAverageBases(rows) {
-      const sumRange = list => list.reduce((acc, r) => ({
-        spend: acc.spend + r.spend,
-        messages: acc.messages + r.messages,
-        purchases: acc.purchases + r.purchases,
-        reach: acc.reach + r.reach,
-      }), { spend: 0, messages: 0, purchases: 0, reach: 0 });
-
-      const withCosts = s => ({
-        ...s,
-        costPerMessage: adsCostPer(s.spend, s.messages),
-        costPerPurchase: adsCostPer(s.spend, s.purchases),
-        costPerReach: adsCostPer(s.spend, s.reach),
-      });
-      const scale = (s, factor) => withCosts({
-        spend: s.spend * factor, messages: s.messages * factor,
-        purchases: s.purchases * factor, reach: s.reach * factor,
-      });
-
-      const today = new Date();
-      const currentMonthKey = today.toISOString().slice(0, 7);
-      const dayOfMonth = today.getDate();
-
-      const currentMonthRows = rows.filter(r => r.date.startsWith(currentMonthKey));
-      const currentMonthSum = sumRange(currentMonthRows);
-      const last30Sum = sumRange(rows);
-
-      return [
-        { label: 'Current month', ...withCosts(currentMonthSum) },
-        { label: '30-day estimate (current month)', ...scale(currentMonthSum, dayOfMonth ? 30 / dayOfMonth : 0) },
-        { label: 'Last 30 days', ...withCosts(last30Sum) },
-      ];
-    }
-
     async function load() {
       const token = localStorage.getItem(ADS_TOKEN_STORAGE) || '';
       const accountId = localStorage.getItem(ADS_ACCOUNT_STORAGE) || '';
@@ -3499,12 +3332,10 @@ Then extract:
           })
           .sort((a, b) => b.date.localeCompare(a.date));
         renderRows(rows);
-        renderAverages(computeAverageBases(rows));
         setStatus('Loaded ✓', 'success');
       } catch (err) {
         setStatus(`Error: ${err.message}`, 'error');
         tableEl.innerHTML = '';
-        avgTableEl.innerHTML = '';
       }
     }
 

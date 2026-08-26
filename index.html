@@ -2528,14 +2528,15 @@ Then extract:
       statusEl.innerHTML = text ? `<span class="status-dot ${cls || ''}"></span>${text}` : '';
     }
 
-    function renderRows(rows) {
+    function renderRows(rows, colHHeader) {
       if (rows.length === 0) {
         tableEl.innerHTML = '';
         return;
       }
+      const headerText = (colHHeader || 'Column H').replace(/</g, '&lt;');
       tableEl.innerHTML = `
         <thead><tr>
-          <th>FB Name</th><th>Meta link</th><th>Downpayment</th><th>Payment</th><th>Assisted by</th><th>DP Received</th>
+          <th>FB Name</th><th>Meta link</th><th>Downpayment</th><th>Payment</th><th>Assisted by</th><th>DP Received</th><th>${headerText}</th>
         </tr></thead>
         <tbody>
           ${rows.map(r => `
@@ -2546,6 +2547,7 @@ Then extract:
               <td>${r.payment || ''}</td>
               <td>${r.notes || ''}</td>
               <td class="no-check"><input type="checkbox" data-row="${r.sheetRow}" ${r.dpReceived ? 'checked' : ''} /></td>
+              <td>${(r.colH || '').replace(/</g, '&lt;')}</td>
             </tr>
           `).join('')}
         </tbody>
@@ -2564,13 +2566,18 @@ Then extract:
         // Was A2:F1000 reading row[5] as DP Received — the sheet's real column
         // order is FB Name, Meta link, Downpayment, Payment, Assisted by,
         // Notes, DP Received, so DP Received is column G (index 6), not F.
-        const range = encodeURIComponent(`${GOOGLE_SHEET_TAB}!A2:G1000`);
+        // Column H is a separate running tally/notes column whose header
+        // itself is literally a date (changes over time) — fetched starting
+        // at row 1 so its current header text can be shown instead of a
+        // hardcoded label that would go stale.
+        const range = encodeURIComponent(`${GOOGLE_SHEET_TAB}!A1:H1000`);
         const resp = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}/values/${range}?key=${encodeURIComponent(apiKey)}`);
         const data = await resp.json();
         if (!resp.ok) throw new Error(data.error?.message || `HTTP ${resp.status}`);
 
         const values = data.values || [];
-        const rows = values
+        const colHHeader = values[0]?.[7] || 'Column H';
+        const rows = values.slice(1)
           .map((row, i) => ({
             sheetRow: i + 2,
             name: row[0] || '',
@@ -2579,12 +2586,13 @@ Then extract:
             payment: row[3] || '',
             notes: row[4] || '',
             dpReceived: String(row[6] || '').toUpperCase() === 'TRUE',
+            colH: row[7] || '',
           }))
           .filter(r => r.name);
 
         summaryEl.textContent = `${rows.length} order(s)`;
         setStatus('Loaded ✓', 'success');
-        renderRows(rows);
+        renderRows(rows, colHHeader);
       } catch (err) {
         setStatus(`Error: ${err.message}`, 'error');
       }

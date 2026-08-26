@@ -2611,6 +2611,12 @@ Then extract:
 
         const values = data.values || [];
         const colHHeader = values[0]?.[7] || 'Column H';
+        // Column H can hold a value on rows with no FB Name (columns A-F are
+        // filled in later than H in practice) — compute its summary from
+        // every data row, not the name-filtered list below, or a completely
+        // unarchived batch (empty A-F, only H populated) would summarize to
+        // nothing despite H having plenty of data.
+        const allDataRows = values.slice(1).map(row => ({ colH: row[7] || '' }));
         const rows = values.slice(1)
           .map((row, i) => ({
             sheetRow: i + 2,
@@ -2620,14 +2626,13 @@ Then extract:
             payment: row[3] || '',
             notes: row[4] || '',
             dpReceived: String(row[6] || '').toUpperCase() === 'TRUE',
-            colH: row[7] || '',
           }))
           .filter(r => r.name);
 
         summaryEl.textContent = `${rows.length} order(s)`;
         setStatus('Loaded ✓', 'success');
         renderRows(rows);
-        renderColHSummary(rows, colHHeader);
+        renderColHSummary(allDataRows, colHHeader);
       } catch (err) {
         setStatus(`Error: ${err.message}`, 'error');
       }

@@ -1076,10 +1076,16 @@ City/Municipality:
 Province:
 Postal/zip code:`;
 
+  // Loose on purpose — this only needs to catch "is a phone number present
+  // at all" for staff to know whether to follow up, not validate it's
+  // exactly correct. Was requiring an exact digit count (09 + 9 digits, or
+  // 639 + 9 digits) and rejecting anything even one digit off — confirmed
+  // case: "+63909386100" is a real client-provided number, just missing one
+  // digit after the country code, and got flagged as "no number" entirely.
   function otHasPhoneNumber(text) {
     if (!text) return false;
     const digits = text.replace(/\D/g, '');
-    return /09\d{9}/.test(digits) || /639\d{9}/.test(digits);
+    return /0\d{9,11}/.test(digits) || /63\d{8,10}/.test(digits);
   }
 
   // Matches actual "Label:" lines from the shipping form template, not loose

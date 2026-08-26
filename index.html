@@ -2504,6 +2504,10 @@ Then extract:
       <div class="proof-summary" data-el="summary"></div>
       <div class="no-wrap"><table class="no-table" data-el="table"></table></div>
 
+      <div class="ot-divider" style="margin:14px 0;"></div>
+      <div class="tool-name" style="font-size:12px; margin-bottom:8px;" data-el="colHSummaryTitle"></div>
+      <div class="no-wrap"><table class="no-table" data-el="colHSummaryTable"></table></div>
+
       <div class="config-toggle" data-act="toggleConfig">⚙ set google sheets api key</div>
       <div class="config-panel" data-el="configPanel">
         <div class="config-hint">
@@ -2520,6 +2524,8 @@ Then extract:
     const statusEl = el('status');
     const summaryEl = el('summary');
     const tableEl = el('table');
+    const colHSummaryTitle = el('colHSummaryTitle');
+    const colHSummaryTable = el('colHSummaryTable');
     const configPanel = el('configPanel');
     const apiKeyInput = el('apiKeyInput');
 
@@ -2528,15 +2534,14 @@ Then extract:
       statusEl.innerHTML = text ? `<span class="status-dot ${cls || ''}"></span>${text}` : '';
     }
 
-    function renderRows(rows, colHHeader) {
+    function renderRows(rows) {
       if (rows.length === 0) {
         tableEl.innerHTML = '';
         return;
       }
-      const headerText = (colHHeader || 'Column H').replace(/</g, '&lt;');
       tableEl.innerHTML = `
         <thead><tr>
-          <th>FB Name</th><th>Meta link</th><th>Downpayment</th><th>Payment</th><th>Assisted by</th><th>DP Received</th><th>${headerText}</th>
+          <th>FB Name</th><th>Meta link</th><th>Downpayment</th><th>Payment</th><th>Assisted by</th><th>DP Received</th>
         </tr></thead>
         <tbody>
           ${rows.map(r => `
@@ -2547,7 +2552,36 @@ Then extract:
               <td>${r.payment || ''}</td>
               <td>${r.notes || ''}</td>
               <td class="no-check"><input type="checkbox" data-row="${r.sheetRow}" ${r.dpReceived ? 'checked' : ''} /></td>
-              <td>${(r.colH || '').replace(/</g, '&lt;')}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      `;
+    }
+
+    // Column H holds a running tally of which agent assisted each order
+    // (mixed in with occasional stray notes like "[merged] Daily order
+    // count" or a bare number) — rolled up here into a total-orders-per-
+    // agent summary below the main table, rather than shown per row.
+    function renderColHSummary(rows, colHHeader) {
+      colHSummaryTitle.textContent = `📊 ${colHHeader || 'Column H'} summary`;
+      const counts = new Map();
+      rows.forEach(r => {
+        const key = (r.colH || '').trim();
+        if (!key) return;
+        counts.set(key, (counts.get(key) || 0) + 1);
+      });
+      if (counts.size === 0) {
+        colHSummaryTable.innerHTML = '';
+        return;
+      }
+      const entries = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+      colHSummaryTable.innerHTML = `
+        <thead><tr><th>${(colHHeader || 'Column H').replace(/</g, '&lt;')}</th><th>Orders</th></tr></thead>
+        <tbody>
+          ${entries.map(([key, count]) => `
+            <tr>
+              <td class="no-name">${key.replace(/</g, '&lt;')}</td>
+              <td class="no-num">${count}</td>
             </tr>
           `).join('')}
         </tbody>
@@ -2592,7 +2626,8 @@ Then extract:
 
         summaryEl.textContent = `${rows.length} order(s)`;
         setStatus('Loaded ✓', 'success');
-        renderRows(rows, colHHeader);
+        renderRows(rows);
+        renderColHSummary(rows, colHHeader);
       } catch (err) {
         setStatus(`Error: ${err.message}`, 'error');
       }

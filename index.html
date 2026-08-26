@@ -1138,7 +1138,12 @@ Postal/zip code:`;
     if (OTHER_FORM_LABEL_PATTERNS.some(re => re.test(text))) return false;
     const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
     if (lines.length < 4) return false;
-    return /^\d{4}$/.test(lines[lines.length - 1]);
+    // A bare 4-digit zip line anywhere, not just as the final line — some
+    // replies add "Philippines" and/or a repeated landmark/notes line after
+    // the zip (confirmed case: zip followed by "Philippines" then a
+    // "Shipping notes:" section repeating the landmark, which broke the
+    // old last-line-only check entirely).
+    return lines.some(l => /^\d{4}$/.test(l));
   }
 
   function otLooksLikeShippingReply(text) {

@@ -1218,8 +1218,13 @@ Postal/zip code:`;
     const singleMatch = messages.find(m => m.from?.id !== pageId && otLooksLikeShippingReply(m.message));
     if (singleMatch) return { pageSent, userReply: singleMatch.message };
 
+    // 8 was too narrow — a full address split line-by-line across separate
+    // bubbles (name, 2 phone numbers, unit, street, barangay, city,
+    // province, zip = 9 messages) can exceed it on its own, before counting
+    // anything else the client said (confirmed case: "Lysida Lacorte" +
+    // 2 numbers + 6 address lines went undetected because of this).
     const userMsgs = messages.filter(m => m.from?.id !== pageId && m.message);
-    const combined = userMsgs.slice(0, 8).map(m => m.message).reverse().join('\n');
+    const combined = userMsgs.slice(0, 15).map(m => m.message).reverse().join('\n');
     if (otLooksLikeShippingReply(combined)) return { pageSent, userReply: combined };
 
     return { pageSent, userReply: null };

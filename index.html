@@ -1218,13 +1218,23 @@ Postal/zip code:`;
     const singleMatch = messages.find(m => m.from?.id !== pageId && otLooksLikeShippingReply(m.message));
     if (singleMatch) return { pageSent, userReply: singleMatch.message };
 
-    // 8 was too narrow — a full address split line-by-line across separate
-    // bubbles (name, 2 phone numbers, unit, street, barangay, city,
-    // province, zip = 9 messages) can exceed it on its own, before counting
-    // anything else the client said (confirmed case: "Lysida Lacorte" +
-    // 2 numbers + 6 address lines went undetected because of this).
-    const userMsgs = messages.filter(m => m.from?.id !== pageId && m.message);
-    const combined = userMsgs.slice(0, 15).map(m => m.message).reverse().join('\n');
+    // A fixed-size window (previously 8, then 15) kept truncating longer
+    // replies — a full address split line-by-line across separate bubbles
+    // (name, 2 phone numbers, unit, street, barangay, city, province, zip =
+    // 9 messages) can exceed any small cap on its own (confirmed case:
+    // "Lysida Lacorte" + 2 numbers + 6 address lines went undetected).
+    // Instead, scan every client message from the most recent time we sent
+    // the request all the way to the end of the conversation — no count
+    // cap — while still anchoring to "after we asked" so unrelated early
+    // conversation history can't accidentally match or disqualify via
+    // OTHER_FORM_LABEL_PATTERNS.
+    // `messages` is sorted newest-first, so the request we most recently
+    // sent is the FIRST page message found, and every user message at or
+    // before that index in the array is chronologically after it.
+    const lastRequestIdx = messages.findIndex(m => m.from?.id === pageId && (m.message || '').includes('Recipient Name:'));
+    const messagesSinceRequest = lastRequestIdx === -1 ? messages : messages.slice(0, lastRequestIdx);
+    const userMsgs = messagesSinceRequest.filter(m => m.from?.id !== pageId && m.message);
+    const combined = userMsgs.map(m => m.message).reverse().join('\n');
     if (otLooksLikeShippingReply(combined)) return { pageSent, userReply: combined };
 
     return { pageSent, userReply: null };

@@ -244,6 +244,10 @@
   .page-tab-btn.active { background: #ff6b35; color: #fff; }
   .page-panel { display: none; }
   .page-panel.active { display: block; }
+  .assign-frame {
+    width: 100%; height: calc(100vh - 160px); min-height: 600px;
+    border: 1px solid #1e1e1e; border-radius: 12px; background: #fff;
+  }
 </style>
 </head>
 <body>
@@ -260,10 +264,14 @@
   <div class="page-tabs">
     <button class="page-tab-btn active" data-page="operations">Operations</button>
     <button class="page-tab-btn" data-page="data">Data</button>
+    <button class="page-tab-btn" data-page="assign">Assign</button>
   </div>
 
   <div id="page-operations" class="page-panel active"><div id="cards"></div></div>
   <div id="page-data" class="page-panel"><div id="cards-data"></div></div>
+  <div id="page-assign" class="page-panel">
+    <iframe src="https://mhcreatives.github.io/mh-assign-dasboard/" class="assign-frame" title="Assign Dashboard"></iframe>
+  </div>
 
 </div>
 

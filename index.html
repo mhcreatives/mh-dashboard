@@ -791,6 +791,13 @@
     for (let i = 0; i < lines.length && i < 6; i++) {
       const line = lines[i].trim();
       if (line === '') { if (i > 0) break; else continue; }
+      // Check stopRe BEFORE shipMatch: a shipping fee mentioned on a line
+      // that itself starts a new field (e.g. "Balance before ship out: ₱844
+      // + ₱100 shipping fee") belongs to THAT field, not the one currently
+      // being parsed — confirmed bug: parsing "Downpayment" picked up the
+      // ₱100 meant for the very next "Balance before ship out" line because
+      // the shipping match was checked first, inflating DP by the fee.
+      if (i > 0 && stopRe.test(line)) break;
       const shipMatch = line.match(shipRe);
       if (shipMatch) { amount += parseFloat(shipMatch[1].replace(/,/g, '')); break; }
       if (stopRe.test(line)) break;

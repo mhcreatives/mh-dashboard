@@ -3157,19 +3157,24 @@ Then extract:
 
       const today = new Date();
       const currentMonthKey = today.toISOString().slice(0, 7);
-      const dayOfMonth = today.getDate();
+      const todayKey = today.toISOString().slice(0, 10);
+      // Today isn't a finished day yet — including its (partial) orders
+      // would understate every daily average, so exclude it from both the
+      // sums and the day-count divisors below.
+      const historicalRows = rows.filter(r => r.date !== todayKey);
+      const completedDaysInMonth = Math.max(0, today.getDate() - 1);
 
-      const currentMonthRows = rows.filter(r => r.date.startsWith(currentMonthKey));
+      const currentMonthRows = historicalRows.filter(r => r.date.startsWith(currentMonthKey));
       const currentMonthSum = sumRange(currentMonthRows);
 
       const thirtyDaysAgo = new Date(today);
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       const thirtyDaysAgoKey = thirtyDaysAgo.toISOString().slice(0, 10);
-      const last30Rows = rows.filter(r => r.date >= thirtyDaysAgoKey);
+      const last30Rows = historicalRows.filter(r => r.date >= thirtyDaysAgoKey);
       const last30Sum = sumRange(last30Rows);
 
-      const allSum = sumRange(rows);
-      const dates = rows.map(r => r.date).sort();
+      const allSum = sumRange(historicalRows);
+      const dates = historicalRows.map(r => r.date).sort();
       let spanDays = 1;
       if (dates.length > 1) {
         const first = new Date(dates[0]);
@@ -3177,13 +3182,13 @@ Then extract:
         spanDays = Math.max(1, Math.round((last - first) / 86400000) + 1);
       }
 
-      const currentMonthAvgDaily = dayOfMonth ? currentMonthSum.orders / dayOfMonth : 0;
+      const currentMonthAvgDaily = completedDaysInMonth ? currentMonthSum.orders / completedDaysInMonth : 0;
       const last30AvgDaily = last30Sum.orders / 30;
       const allDataAvgDaily = allSum.orders / spanDays;
 
       return [
         { label: 'Current month', ...withAov(currentMonthSum), avgDailyOrders: currentMonthAvgDaily },
-        { label: '30-day estimate (current month)', ...scale(currentMonthSum, dayOfMonth ? 30 / dayOfMonth : 0), avgDailyOrders: currentMonthAvgDaily },
+        { label: '30-day estimate (current month)', ...scale(currentMonthSum, completedDaysInMonth ? 30 / completedDaysInMonth : 0), avgDailyOrders: currentMonthAvgDaily },
         { label: 'Last 30 days', ...withAov(last30Sum), avgDailyOrders: last30AvgDaily },
         { label: 'All data total', ...withAov(allSum), avgDailyOrders: allDataAvgDaily },
         { label: '30-day estimate (all data)', ...scale(allSum, 30 / spanDays), avgDailyOrders: allDataAvgDaily },
@@ -3594,15 +3599,19 @@ Then extract:
 
       const today = new Date();
       const currentMonthKey = today.toISOString().slice(0, 7);
-      const dayOfMonth = today.getDate();
+      const todayKey = today.toISOString().slice(0, 10);
+      // Today isn't a finished day yet — exclude it from sums and from the
+      // day-count divisor used to project a full-month/30-day estimate.
+      const historicalRows = rows.filter(r => r.date !== todayKey);
+      const completedDaysInMonth = Math.max(0, today.getDate() - 1);
 
-      const currentMonthRows = rows.filter(r => r.date.startsWith(currentMonthKey));
+      const currentMonthRows = historicalRows.filter(r => r.date.startsWith(currentMonthKey));
       const currentMonthSum = sumRange(currentMonthRows);
-      const last30Sum = sumRange(rows);
+      const last30Sum = sumRange(historicalRows);
 
       return [
         { label: 'Current month', ...withCosts(currentMonthSum) },
-        { label: '30-day estimate (current month)', ...scale(currentMonthSum, dayOfMonth ? 30 / dayOfMonth : 0) },
+        { label: '30-day estimate (current month)', ...scale(currentMonthSum, completedDaysInMonth ? 30 / completedDaysInMonth : 0) },
         { label: 'Last 30 days', ...withCosts(last30Sum) },
       ];
     }

@@ -2558,31 +2558,68 @@ Then extract:
       `;
     }
 
-    // Column H holds a running tally of which agent assisted each order
-    // (mixed in with occasional stray notes like "[merged] Daily order
-    // count" or a bare number) — rolled up here into a total-orders-per-
-    // agent summary below the main table, rather than shown per row.
-    function renderColHSummary(rows, colHHeader) {
-      colHSummaryTitle.textContent = `📊 ${colHHeader || 'Column H'} summary`;
-      const counts = new Map();
-      rows.forEach(r => {
-        const key = (r.colH || '').trim();
-        if (!key) return;
-        counts.set(key, (counts.get(key) || 0) + 1);
+    // Column H is a structured running tally, not free-form notes: a section
+    // header ("Daily order count" / "Cut off order count") merged across
+    // several rows, immediately followed by that section's overall total as
+    // a "<number> orders" pair, then a run of (agent name, agent count)
+    // pairs for that section. This repeats for every new day/cutoff. Merged
+    // header/total cells can come back from the Sheets API either as the
+    // same value repeated on every spanned row, or as the value once
+    // followed by blanks on the rest of the merge — collapsing consecutive
+    // duplicates and dropping blanks handles both shapes the same way,
+    // reducing the column to one flat sequence of meaningful tokens.
+    function otParseColumnHSections(colHValues) {
+      const tokens = [];
+      let prev = null;
+      colHValues.forEach(raw => {
+        const v = (raw || '').toString().trim();
+        if (!v) { prev = null; return; }
+        if (v === prev) return; // collapse repeated merged-cell value
+        tokens.push(v);
+        prev = v;
       });
-      if (counts.size === 0) {
+
+      const isNumber = t => /^\d+$/.test(t);
+      const sections = [];
+      let current = null;
+      let i = 0;
+      while (i < tokens.length) {
+        const t = tokens[i];
+        // "<label> <number> orders" — a new section header + its total.
+        if (!isNumber(t) && tokens[i + 1] && isNumber(tokens[i + 1]) && (tokens[i + 2] || '').toLowerCase() === 'orders') {
+          current = { label: t, total: Number(tokens[i + 1]), counts: new Map() };
+          sections.push(current);
+          i += 3;
+          continue;
+        }
+        // "<name> <number>" — one agent's count within the current section.
+        if (current && !isNumber(t) && tokens[i + 1] && isNumber(tokens[i + 1])) {
+          current.counts.set(t, (current.counts.get(t) || 0) + Number(tokens[i + 1]));
+          i += 2;
+          continue;
+        }
+        i++; // unrecognized token (stray note, etc.) — skip
+      }
+
+      // A fresh header for the same label each day/cutoff should replace,
+      // not accumulate with, the previous one under that label.
+      const latestByLabel = new Map();
+      sections.forEach(s => latestByLabel.set(s.label, s));
+      return [...latestByLabel.values()];
+    }
+
+    function renderColHSummary(colHValues, colHHeader) {
+      colHSummaryTitle.textContent = `📊 ${colHHeader || 'Column H'} summary`;
+      const sections = otParseColumnHSections(colHValues);
+      if (sections.length === 0) {
         colHSummaryTable.innerHTML = '';
         return;
       }
-      const entries = [...counts.entries()].sort((a, b) => b[1] - a[1]);
       colHSummaryTable.innerHTML = `
-        <thead><tr><th>${(colHHeader || 'Column H').replace(/</g, '&lt;')}</th><th>Orders</th></tr></thead>
         <tbody>
-          ${entries.map(([key, count]) => `
-            <tr>
-              <td class="no-name">${key.replace(/</g, '&lt;')}</td>
-              <td class="no-num">${count}</td>
-            </tr>
+          ${sections.map(s => `
+            <tr><td colspan="2" class="no-name" style="font-weight:700; padding-top:10px;">${s.label.replace(/</g, '&lt;')} <span class="no-num" style="font-weight:700;">${s.total}</span></td></tr>
+            <tr><td colspan="2">${[...s.counts.entries()].map(([name, count]) => `${name.replace(/</g, '&lt;')} ${count}`).join('&nbsp;&nbsp;&nbsp;')}</td></tr>
           `).join('')}
         </tbody>
       `;
@@ -2616,7 +2653,7 @@ Then extract:
         // every data row, not the name-filtered list below, or a completely
         // unarchived batch (empty A-F, only H populated) would summarize to
         // nothing despite H having plenty of data.
-        const allDataRows = values.slice(1).map(row => ({ colH: row[7] || '' }));
+        const colHValues = values.slice(1).map(row => row[7] || '');
         const rows = values.slice(1)
           .map((row, i) => ({
             sheetRow: i + 2,
@@ -2632,7 +2669,7 @@ Then extract:
         summaryEl.textContent = `${rows.length} order(s)`;
         setStatus('Loaded ✓', 'success');
         renderRows(rows);
-        renderColHSummary(allDataRows, colHHeader);
+        renderColHSummary(colHValues, colHHeader);
       } catch (err) {
         setStatus(`Error: ${err.message}`, 'error');
       }

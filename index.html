@@ -2585,8 +2585,13 @@ Then extract:
       let i = 0;
       while (i < tokens.length) {
         const t = tokens[i];
-        // "<label> <number> orders" — a new section header + its total.
-        if (!isNumber(t) && tokens[i + 1] && isNumber(tokens[i + 1]) && (tokens[i + 2] || '').toLowerCase() === 'orders') {
+        // "<label> <number> order(s)" — a new section header + its total.
+        // The literal word pluralizes with the count ("1 order" vs "96
+        // orders"), confirmed in practice — a strict "orders" match was
+        // silently dropping every total-of-1 section (and everything under
+        // it, since no section was open yet to collect those name/count
+        // pairs into).
+        if (!isNumber(t) && tokens[i + 1] && isNumber(tokens[i + 1]) && /^orders?$/i.test(tokens[i + 2] || '')) {
           current = { label: t, total: Number(tokens[i + 1]), counts: new Map() };
           sections.push(current);
           i += 3;

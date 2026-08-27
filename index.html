@@ -1292,10 +1292,6 @@ Postal/zip code:`;
     'para mapaship na po',
   ];
 
-  function otBuildBalanceRequestMessage(balance) {
-    return `Hello po, here's the final output. Kindly settle the balance total of ${otFormatPeso(balance)}, para mapaship na po. Salamat!😊`;
-  }
-
   // Normalizes curly/smart quotes to straight ones — messages may contain
   // ’ (U+2019) instead of a plain apostrophe, which would silently break an
   // exact substring match against a hardcoded straight-quote string.
@@ -2196,7 +2192,6 @@ Then extract:
           ${f.paid
             ? `<div class="proof-diff" style="color:#4ade80;">Marked as paid ✓</div>`
             : `<button class="icon-btn" data-act="markPaid" data-id="${f.id}" style="margin-top:6px;">✓ Payment Received</button>`}
-          ${f.psid ? `<button class="icon-btn" data-act="sendBalanceRequest" data-id="${f.id}" style="margin-top:6px; margin-left:12px;">✉ ${f.receiptStatus && !f.receiptStatus.includes('not found') ? 'Send balance request again' : 'Send balance request'}</button>` : ''}
           <div style="display:flex; gap:12px; margin-top:6px;">
             ${f.metaLink ? `<a class="proof-link" href="${f.metaLink}" target="_blank" rel="noopener">Open conversation ↗</a>` : ''}
             <a class="proof-link" href="https://airtable.com/${OT_BASE_ID}/${INV_TABLE}/${f.id}" target="_blank" rel="noopener">Open record ↗</a>
@@ -2398,34 +2393,6 @@ Then extract:
       }
     }
 
-    // Sends the balance-request message regardless of whether one was
-    // already found in the conversation history — same "resend" pattern as
-    // the Shipping card's form button, for cases like a client who lost the
-    // message, asked to be reminded, or the record's balance changed since
-    // the first request went out.
-    async function sendBalanceRequest(item) {
-      const { pageId, pageToken } = getFbCreds();
-      if (!pageId || !pageToken) {
-        setStatus('Set Facebook Page credentials first ↓', 'error');
-        configPanel.classList.add('open');
-        return;
-      }
-      if (!item.psid) {
-        setStatus('This record has no PSID — cannot send', 'error');
-        return;
-      }
-      const ok = confirm(`Send the balance request (${otFormatPeso(item.balance)}) to ${item.name} via Messenger?`);
-      if (!ok) return;
-
-      setStatus(`Sending balance request to ${item.name}...`, '');
-      try {
-        await otSendMessengerMessage(pageId, pageToken, item.psid, otBuildBalanceRequestMessage(item.balance));
-        setStatus(`Balance request sent to ${item.name} ✓`, 'success');
-      } catch (err) {
-        setStatus(`Error: ${err.message}`, 'error');
-      }
-    }
-
     card.addEventListener('click', (e) => {
       const act = e.target.dataset.act;
       if (act === 'scan') {
@@ -2447,9 +2414,6 @@ Then extract:
       } else if (act === 'markPaid') {
         const item = lastFlagged.find(f => f.id === e.target.dataset.id);
         if (item) markPaid(item);
-      } else if (act === 'sendBalanceRequest') {
-        const item = lastFlagged.find(f => f.id === e.target.dataset.id);
-        if (item) sendBalanceRequest(item);
       } else if (act === 'psidResolve') {
         resolvePsid();
       } else if (act === 'psidSave') {

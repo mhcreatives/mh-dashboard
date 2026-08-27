@@ -2550,7 +2550,7 @@ Then extract:
               <td>${r.metaLink ? `<a class="proof-link" href="${r.metaLink}" target="_blank" rel="noopener">Open ↗</a>` : ''}</td>
               <td class="no-num">${r.downpayment || ''}</td>
               <td>${r.payment || ''}</td>
-              <td>${r.notes || ''}</td>
+              <td>${r.notes ? `<span style="display:inline-block; padding:2px 8px; border-radius:20px; background:${otColorForName(r.notes)}22; color:${otColorForName(r.notes)}; font-weight:600; font-size:10px;">${r.notes.replace(/</g, '&lt;')}</span>` : ''}</td>
               <td class="no-check"><input type="checkbox" data-row="${r.sheetRow}" ${r.dpReceived ? 'checked' : ''} /></td>
             </tr>
           `).join('')}
@@ -2613,6 +2613,19 @@ Then extract:
       return [...latestByLabel.values()];
     }
 
+    // Deterministic per-name color, not random — the same "Assisted by" name
+    // must land on the same color every render/reload so it stays a usable
+    // visual identifier instead of shuffling around. A fixed hue palette
+    // (not raw hash-to-hue) keeps colors visually distinct from each other
+    // at a glance, which a naive hash-mod-360 doesn't reliably guarantee for
+    // a small handful of names.
+    const NAME_COLOR_PALETTE = ['#ff6b35', '#4ade80', '#60a5fa', '#f472b6', '#facc15', '#a78bfa', '#2dd4bf', '#fb923c', '#e879f9', '#38bdf8'];
+    function otColorForName(name) {
+      let hash = 0;
+      for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+      return NAME_COLOR_PALETTE[hash % NAME_COLOR_PALETTE.length];
+    }
+
     function renderColHSummary(colHValues, colHHeader) {
       colHSummaryTitle.textContent = `📊 ${colHHeader || 'Column H'} summary`;
       const sections = otParseColumnHSections(colHValues);
@@ -2624,7 +2637,10 @@ Then extract:
         <tbody>
           ${sections.map(s => `
             <tr><td colspan="2" class="no-name" style="font-weight:700; padding-top:10px;">${s.label.replace(/</g, '&lt;')} <span class="no-num" style="font-weight:700;">${s.total}</span></td></tr>
-            <tr><td colspan="2">${[...s.counts.entries()].map(([name, count]) => `${name.replace(/</g, '&lt;')} ${count}`).join('&nbsp;&nbsp;&nbsp;')}</td></tr>
+            <tr><td colspan="2">${[...s.counts.entries()].map(([name, count]) => {
+              const color = otColorForName(name);
+              return `<span style="display:inline-block; margin:2px 6px 2px 0; padding:2px 8px; border-radius:20px; background:${color}22; color:${color}; font-weight:600; font-size:10px;">${name.replace(/</g, '&lt;')} ${count}</span>`;
+            }).join('')}</td></tr>
           `).join('')}
         </tbody>
       `;

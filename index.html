@@ -2771,6 +2771,7 @@ Then extract:
         <div class="tool-name">📝 Updates</div>
         <div class="tool-actions">
           <button class="icon-btn" data-act="load">↻ Refresh</button>
+          <button class="icon-btn" data-act="deleteAll" style="color:#f87171;">🗑 Delete all</button>
         </div>
       </div>
       <div class="tool-desc">Live view of the "Updates" sheet — client order breakdowns.</div>
@@ -2796,6 +2797,8 @@ Then extract:
     const resultsEl = el('results');
     const configPanel = el('configPanel');
     const apiKeyInput = el('apiKeyInput');
+
+    let lastRows = [];
 
     function setStatus(text, cls) {
       statusEl.className = `status-line ${cls || ''}`;
@@ -2837,6 +2840,7 @@ Then extract:
           .map((row, i) => ({ sheetRow: i + 1, name: row[0] || '', breakdown: row[1] || '' }))
           .filter(r => r.name);
 
+        lastRows = rows;
         summaryEl.textContent = `${rows.length} update(s)`;
         setStatus('Loaded ✓', 'success');
         renderRows(rows);
@@ -2862,6 +2866,35 @@ Then extract:
       }
     }
 
+    async function deleteAll() {
+      if (lastRows.length === 0) return;
+      const ok = confirm(`Delete all ${lastRows.length} pending update(s)? This can't be undone.`);
+      if (!ok) return;
+
+      // Delete bottom-up (highest sheet row first) — deleting a row shifts
+      // every row below it up by one, so working from the bottom keeps the
+      // remaining rows' sheetRow numbers valid for the rest of the loop.
+      const toDelete = lastRows.slice().sort((a, b) => b.sheetRow - a.sheetRow);
+      let done = 0, failed = 0;
+      for (const r of toDelete) {
+        setStatus(`Deleting ${done + failed + 1}/${toDelete.length}: ${r.name}...`, '');
+        try {
+          const resp = await fetch(NO_APPS_SCRIPT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ action: 'delete', tab: UPDATES_SHEET_TAB, row: r.sheetRow }),
+          });
+          const data = await resp.json();
+          if (!data.ok) throw new Error(data.error || 'Delete failed');
+          done++;
+        } catch (err) {
+          failed++;
+        }
+      }
+      setStatus(`Deleted ${done}${failed ? `, ${failed} failed` : ''} ✓`, failed ? 'error' : 'success');
+      load();
+    }
+
     card.addEventListener('click', (e) => {
       const act = e.target.dataset.act;
       if (act === 'load') load();
@@ -2876,6 +2909,8 @@ Then extract:
         const row = Number(e.target.dataset.row);
         const name = e.target.closest('.proof-item')?.querySelector('.proof-name')?.textContent || 'this entry';
         deleteRow(row, name);
+      } else if (act === 'deleteAll') {
+        deleteAll();
       }
     });
 

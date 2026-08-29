@@ -20,18 +20,18 @@
 
   .wrap { width: 100%; max-width: 1240px; }
 
-  #cards, #cards-data {
+  #cards, #cards-data, #cards-tasks {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
     gap: 14px;
   }
 
   @media (max-width: 1080px) {
-    #cards, #cards-data { grid-template-columns: 1fr 1fr; }
+    #cards, #cards-data, #cards-tasks { grid-template-columns: 1fr 1fr; }
   }
 
   @media (max-width: 720px) {
-    #cards, #cards-data { grid-template-columns: 1fr; }
+    #cards, #cards-data, #cards-tasks { grid-template-columns: 1fr; }
   }
 
   .header {
@@ -153,6 +153,36 @@
   input:focus { border-color: #ff6b35; }
   input::placeholder { color: #333; }
 
+  select {
+    padding: 8px 11px;
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 6px;
+    color: #f0f0f0;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    outline: none;
+  }
+  select:focus { border-color: #ff6b35; }
+
+  .task-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #1e1e1e; }
+  .task-row:last-child { border-bottom: none; }
+  .task-row input[type="checkbox"] { width: 15px; height: 15px; accent-color: #ff6b35; cursor: pointer; flex: none; }
+  .task-text { flex: 1; font-size: 12px; color: #f0f0f0; }
+  .task-text.done { color: #555; text-decoration: line-through; }
+  .task-del { background: none; border: none; color: #555; cursor: pointer; font-size: 13px; padding: 2px 6px; }
+  .task-del:hover { color: #f87171; }
+
+  .goal-group-label { font-size: 10px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin: 14px 0 6px; }
+  .goal-group-label:first-child { margin-top: 0; }
+  .goal-status {
+    font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 10px; border: none; cursor: pointer;
+    font-family: 'DM Sans', sans-serif; text-transform: uppercase; letter-spacing: 0.3px; flex: none;
+  }
+  .goal-status.not_started { background: #2a2a2a; color: #999; }
+  .goal-status.in_progress { background: #3a2a10; color: #f5a524; }
+  .goal-status.done { background: #10301c; color: #4ade80; }
+
   .save-btn {
     padding: 8px 14px;
     background: #1e1e1e;
@@ -265,6 +295,7 @@
     <button class="page-tab-btn active" data-page="operations">Operations</button>
     <button class="page-tab-btn" data-page="data">Data</button>
     <button class="page-tab-btn" data-page="assign">Assign</button>
+    <button class="page-tab-btn" data-page="tasks">Tasks</button>
   </div>
 
   <div id="page-operations" class="page-panel active"><div id="cards"></div></div>
@@ -272,6 +303,7 @@
   <div id="page-assign" class="page-panel">
     <iframe src="https://mhcreatives.github.io/mh-assign-dasboard/" class="assign-frame" title="Assign Dashboard"></iframe>
   </div>
+  <div id="page-tasks" class="page-panel"><div id="cards-tasks"></div></div>
 
 </div>
 
@@ -287,6 +319,7 @@
 
   const cardsRoot = document.getElementById('cards');
   const cardsDataRoot = document.getElementById('cards-data');
+  const cardsTasksRoot = document.getElementById('cards-tasks');
 
   const PROOF_EXT_ID_STORAGE = 'mh_ext_id_proof';
 
@@ -3726,6 +3759,346 @@ Then extract:
 
   cardsDataRoot.appendChild(buildSalesCard());
   cardsDataRoot.appendChild(buildAdsCard());
+
+  // ─── Tasks & Goals (stored as a JSON file in this GitHub repo) ──────────
+  // No spreadsheet, no third-party backend — the data lives in a single
+  // committed file (tasks-data.json) read/written via the GitHub Contents
+  // API, so it's the same on every device without needing Google Sheets.
+  // Every save is a small commit to the repo; acceptable tradeoff for a
+  // personal task list, but worth knowing before this gets heavy daily use.
+
+  const TASKS_REPO_OWNER = 'mhcreatives';
+  const TASKS_REPO_NAME = 'mh-dashboard';
+  const TASKS_DATA_PATH = 'tasks-data.json';
+  const TASKS_GITHUB_TOKEN_STORAGE = 'mh_tasks_github_token';
+
+  function utf8ToBase64(str) {
+    const bytes = new TextEncoder().encode(str);
+    let binary = '';
+    bytes.forEach(b => { binary += String.fromCharCode(b); });
+    return btoa(binary);
+  }
+  function base64ToUtf8(b64) {
+    const binary = atob(b64.replace(/\n/g, ''));
+    const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
+    return new TextDecoder().decode(bytes);
+  }
+  function tasksNewId() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+
+  let tasksDataCache = { dailyTasks: [], goals: [] };
+  let tasksDataSha = null; // null = file doesn't exist in the repo yet
+
+  async function ghFetchTasksData(token) {
+    const url = `https://api.github.com/repos/${TASKS_REPO_OWNER}/${TASKS_REPO_NAME}/contents/${TASKS_DATA_PATH}`;
+    const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' } });
+    if (resp.status === 404) { tasksDataSha = null; return { dailyTasks: [], goals: [] }; }
+    const json = await resp.json();
+    if (!resp.ok) throw new Error(json.message || `GitHub API error ${resp.status}`);
+    tasksDataSha = json.sha;
+    try {
+      const parsed = JSON.parse(base64ToUtf8(json.content));
+      return { dailyTasks: parsed.dailyTasks || [], goals: parsed.goals || [] };
+    } catch {
+      return { dailyTasks: [], goals: [] };
+    }
+  }
+
+  async function ghSaveTasksData(token, data) {
+    const url = `https://api.github.com/repos/${TASKS_REPO_OWNER}/${TASKS_REPO_NAME}/contents/${TASKS_DATA_PATH}`;
+    const doPut = () => {
+      const body = { message: 'Update tasks/goals data', content: utf8ToBase64(JSON.stringify(data, null, 2)) };
+      if (tasksDataSha) body.sha = tasksDataSha;
+      return fetch(url, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    };
+    let resp = await doPut();
+    if (resp.status === 409) {
+      // sha is stale (file changed elsewhere since we last loaded it) —
+      // refetch to get the current sha, then retry once with our data
+      // (last-write-wins; fine for a personal single-user task list).
+      await ghFetchTasksData(token);
+      resp = await doPut();
+    }
+    const json = await resp.json();
+    if (!resp.ok) throw new Error(json.message || `GitHub API error ${resp.status}`);
+    tasksDataSha = json.content.sha;
+  }
+
+  let renderDailyTasksList = () => {};
+  let renderGoalsList = () => {};
+  let setDailyTasksStatus = () => {};
+  let setGoalsStatus = () => {};
+
+  async function initTasksData() {
+    const token = localStorage.getItem(TASKS_GITHUB_TOKEN_STORAGE) || '';
+    if (!token) {
+      setDailyTasksStatus('Set GitHub token first ↓', 'error');
+      setGoalsStatus('Set GitHub token in Daily Tasks card ↓', 'error');
+      return;
+    }
+    setDailyTasksStatus('Loading...', '');
+    setGoalsStatus('Loading...', '');
+    try {
+      tasksDataCache = await ghFetchTasksData(token);
+      setDailyTasksStatus('Loaded ✓', 'success');
+      setGoalsStatus('Loaded ✓', 'success');
+      renderDailyTasksList();
+      renderGoalsList();
+    } catch (err) {
+      setDailyTasksStatus(`Error: ${err.message}`, 'error');
+      setGoalsStatus(`Error: ${err.message}`, 'error');
+    }
+  }
+
+  async function saveTasksData(onError) {
+    const token = localStorage.getItem(TASKS_GITHUB_TOKEN_STORAGE) || '';
+    if (!token) return;
+    try {
+      await ghSaveTasksData(token, tasksDataCache);
+    } catch (err) {
+      onError?.(err);
+    }
+  }
+
+  function buildDailyTasksCard() {
+    const card = document.createElement('div');
+    card.className = 'tool-card';
+    card.innerHTML = `
+      <div class="tool-hd">
+        <div class="tool-name">✅ Daily Tasks</div>
+        <div class="tool-actions">
+          <button class="icon-btn" data-act="refresh">↻ Refresh</button>
+        </div>
+      </div>
+      <div class="tool-desc">A running checklist — nothing auto-clears, check things off as you go.</div>
+      <div class="status-line" data-el="status"></div>
+      <div class="id-row" style="margin-bottom:8px;">
+        <input type="text" data-el="taskInput" placeholder="Add a task..." autocomplete="off" spellcheck="false" />
+        <button class="save-btn" data-act="add">Add</button>
+      </div>
+      <div data-el="list"></div>
+
+      <div class="config-toggle" data-act="toggleConfig">⚙ set GitHub token</div>
+      <div class="config-panel" data-el="configPanel">
+        <div class="config-hint">
+          A GitHub personal access token (fine-grained, scoped to just this repo, with Contents read/write) — used by both the Daily Tasks and Goals cards. Stored locally in this browser only.
+        </div>
+        <div class="id-row">
+          <input type="password" data-el="tokenInput" placeholder="GitHub personal access token" autocomplete="off" spellcheck="false" />
+          <button class="save-btn" data-act="saveToken">Save</button>
+        </div>
+      </div>
+    `;
+
+    const el = sel => card.querySelector(`[data-el="${sel}"]`);
+    const statusEl = el('status');
+    const taskInput = el('taskInput');
+    const listEl = el('list');
+    const configPanel = el('configPanel');
+    const tokenInput = el('tokenInput');
+
+    function setStatus(text, cls) {
+      statusEl.className = `status-line ${cls || ''}`;
+      statusEl.innerHTML = text ? `<span class="status-dot ${cls || ''}"></span>${text}` : '';
+    }
+    setDailyTasksStatus = setStatus;
+
+    function render() {
+      const tasks = tasksDataCache.dailyTasks || [];
+      if (tasks.length === 0) { listEl.innerHTML = ''; return; }
+      listEl.innerHTML = tasks.map(t => `
+        <div class="task-row">
+          <input type="checkbox" data-id="${t.id}" ${t.done ? 'checked' : ''} />
+          <div class="task-text${t.done ? ' done' : ''}">${t.text.replace(/</g, '&lt;')}</div>
+          <button class="task-del" data-act="delete" data-id="${t.id}">✕</button>
+        </div>
+      `).join('');
+    }
+    renderDailyTasksList = render;
+
+    async function addTask() {
+      const text = taskInput.value.trim();
+      if (!text) return;
+      tasksDataCache.dailyTasks = tasksDataCache.dailyTasks || [];
+      tasksDataCache.dailyTasks.unshift({ id: tasksNewId(), text, done: false });
+      taskInput.value = '';
+      render();
+      setStatus('Saving...', '');
+      await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
+      setStatus('Saved ✓', 'success');
+    }
+
+    async function toggleTask(id) {
+      const t = (tasksDataCache.dailyTasks || []).find(x => x.id === id);
+      if (!t) return;
+      t.done = !t.done;
+      render();
+      setStatus('Saving...', '');
+      await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
+      setStatus('Saved ✓', 'success');
+    }
+
+    async function deleteTask(id) {
+      tasksDataCache.dailyTasks = (tasksDataCache.dailyTasks || []).filter(x => x.id !== id);
+      render();
+      setStatus('Saving...', '');
+      await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
+      setStatus('Saved ✓', 'success');
+    }
+
+    card.addEventListener('click', (e) => {
+      const act = e.target.dataset.act;
+      if (act === 'add') addTask();
+      else if (act === 'refresh') initTasksData();
+      else if (act === 'toggleConfig') configPanel.classList.toggle('open');
+      else if (act === 'delete') deleteTask(e.target.dataset.id);
+      else if (act === 'saveToken') {
+        const val = tokenInput.value.trim();
+        if (!val) return;
+        localStorage.setItem(TASKS_GITHUB_TOKEN_STORAGE, val);
+        setStatus('Token saved ✓', 'success');
+        initTasksData();
+      }
+    });
+    card.addEventListener('change', (e) => {
+      if (e.target.matches('input[type="checkbox"][data-id]')) toggleTask(e.target.dataset.id);
+    });
+    taskInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addTask(); });
+
+    const savedToken = localStorage.getItem(TASKS_GITHUB_TOKEN_STORAGE) || '';
+    if (savedToken) tokenInput.value = savedToken;
+    else configPanel.classList.add('open');
+
+    return card;
+  }
+
+  const GOAL_TIMEFRAMES = ['3 months', '6 months', '1 year', 'Long-term'];
+  const GOAL_STATUSES = [
+    { value: 'not_started', label: 'Not started' },
+    { value: 'in_progress', label: 'In progress' },
+    { value: 'done', label: 'Done' },
+  ];
+
+  function buildGoalsCard() {
+    const card = document.createElement('div');
+    card.className = 'tool-card';
+    card.innerHTML = `
+      <div class="tool-hd">
+        <div class="tool-name">🎯 Goals</div>
+        <div class="tool-actions">
+          <button class="icon-btn" data-act="refresh">↻ Refresh</button>
+        </div>
+      </div>
+      <div class="tool-desc">Your goal board — grouped by timeframe. Uses the same GitHub token as Daily Tasks.</div>
+      <div class="status-line" data-el="status"></div>
+      <div class="id-row" style="margin-bottom:8px;">
+        <input type="text" data-el="titleInput" placeholder="Goal title..." autocomplete="off" spellcheck="false" />
+      </div>
+      <div class="id-row" style="margin-bottom:8px;">
+        <select data-el="timeframeInput">${GOAL_TIMEFRAMES.map(t => `<option value="${t}">${t}</option>`).join('')}</select>
+        <select data-el="statusInput">${GOAL_STATUSES.map(s => `<option value="${s.value}">${s.label}</option>`).join('')}</select>
+      </div>
+      <div class="id-row" style="margin-bottom:8px;">
+        <input type="text" data-el="notesInput" placeholder="Notes (optional)" autocomplete="off" spellcheck="false" />
+        <button class="save-btn" data-act="add">Add goal</button>
+      </div>
+      <div data-el="list"></div>
+    `;
+
+    const el = sel => card.querySelector(`[data-el="${sel}"]`);
+    const statusEl = el('status');
+    const titleInput = el('titleInput');
+    const timeframeInput = el('timeframeInput');
+    const statusInput = el('statusInput');
+    const notesInput = el('notesInput');
+    const listEl = el('list');
+
+    function setStatus(text, cls) {
+      statusEl.className = `status-line ${cls || ''}`;
+      statusEl.innerHTML = text ? `<span class="status-dot ${cls || ''}"></span>${text}` : '';
+    }
+    setGoalsStatus = setStatus;
+
+    function render() {
+      const goals = tasksDataCache.goals || [];
+      if (goals.length === 0) { listEl.innerHTML = ''; return; }
+      const statusLabel = v => GOAL_STATUSES.find(s => s.value === v)?.label || v;
+      listEl.innerHTML = GOAL_TIMEFRAMES
+        .map(tf => ({ tf, items: goals.filter(g => g.timeframe === tf) }))
+        .filter(g => g.items.length > 0)
+        .map(({ tf, items }) => `
+          <div class="goal-group-label">${tf}</div>
+          ${items.map(g => `
+            <div class="proof-item" style="margin-bottom:8px;">
+              <div class="proof-name" style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                <span>${g.title.replace(/</g, '&lt;')}</span>
+                <button class="goal-status ${g.status}" data-act="cycleStatus" data-id="${g.id}">${statusLabel(g.status)}</button>
+              </div>
+              ${g.notes ? `<div class="proof-diff" style="margin-top:4px;">${g.notes.replace(/</g, '&lt;')}</div>` : ''}
+              <button class="task-del" data-act="delete" data-id="${g.id}" style="margin-top:4px;">🗑 Delete</button>
+            </div>
+          `).join('')}
+        `).join('');
+    }
+    renderGoalsList = render;
+
+    async function addGoal() {
+      const title = titleInput.value.trim();
+      if (!title) return;
+      tasksDataCache.goals = tasksDataCache.goals || [];
+      tasksDataCache.goals.push({
+        id: tasksNewId(), title,
+        timeframe: timeframeInput.value,
+        status: statusInput.value,
+        notes: notesInput.value.trim(),
+      });
+      titleInput.value = '';
+      notesInput.value = '';
+      render();
+      setStatus('Saving...', '');
+      await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
+      setStatus('Saved ✓', 'success');
+    }
+
+    async function cycleStatus(id) {
+      const g = (tasksDataCache.goals || []).find(x => x.id === id);
+      if (!g) return;
+      const idx = GOAL_STATUSES.findIndex(s => s.value === g.status);
+      g.status = GOAL_STATUSES[(idx + 1) % GOAL_STATUSES.length].value;
+      render();
+      setStatus('Saving...', '');
+      await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
+      setStatus('Saved ✓', 'success');
+    }
+
+    async function deleteGoal(id) {
+      tasksDataCache.goals = (tasksDataCache.goals || []).filter(x => x.id !== id);
+      render();
+      setStatus('Saving...', '');
+      await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
+      setStatus('Saved ✓', 'success');
+    }
+
+    card.addEventListener('click', (e) => {
+      const act = e.target.dataset.act;
+      if (act === 'add') addGoal();
+      else if (act === 'refresh') initTasksData();
+      else if (act === 'cycleStatus') cycleStatus(e.target.dataset.id);
+      else if (act === 'delete') deleteGoal(e.target.dataset.id);
+    });
+    titleInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addGoal(); });
+
+    return card;
+  }
+
+  cardsTasksRoot.appendChild(buildDailyTasksCard());
+  cardsTasksRoot.appendChild(buildGoalsCard());
+  initTasksData();
 </script>
 </body>
 </html>

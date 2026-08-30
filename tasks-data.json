@@ -1,4 +1,15 @@
 {
-  "dailyTasks": [],
+  "dailyTasks": [
+    {
+      "id": "mtfkk7dytx5y2s",
+      "text": "test",
+      "done": false
+    },
+    {
+      "id": "mtfkha46blcio1",
+      "text": "test",
+      "done": false
+    }
+  ],
   "goals": []
 }

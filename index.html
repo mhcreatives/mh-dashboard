@@ -182,6 +182,8 @@
   .goal-status.not_started { background: #2a2a2a; color: #999; }
   .goal-status.in_progress { background: #3a2a10; color: #f5a524; }
   .goal-status.done { background: #10301c; color: #4ade80; }
+  .goal-progress-track { height: 5px; background: #1e1e1e; border-radius: 3px; margin-top: 6px; overflow: hidden; }
+  .goal-progress-fill { height: 100%; background: #ff6b35; border-radius: 3px; }
 
   .save-btn {
     padding: 8px 14px;
@@ -3899,6 +3901,16 @@ Then extract:
         <input type="text" data-el="taskInput" placeholder="Add a task..." autocomplete="off" spellcheck="false" />
         <button class="save-btn" data-act="add">Add</button>
       </div>
+      <div class="id-row" style="margin-bottom:8px;">
+        <select data-el="priorityInput">
+          <option value="none">No priority</option>
+          <option value="low">Low</option>
+          <option value="med">Medium</option>
+          <option value="high">High</option>
+        </select>
+        <input type="date" data-el="dueDateInput" />
+      </div>
+      <div class="proof-summary" data-el="summary" style="display:flex; align-items:center; justify-content:space-between;"></div>
       <div data-el="list"></div>
 
       <div class="config-toggle" data-act="toggleConfig">⚙ set GitHub token</div>
@@ -3916,9 +3928,24 @@ Then extract:
     const el = sel => card.querySelector(`[data-el="${sel}"]`);
     const statusEl = el('status');
     const taskInput = el('taskInput');
+    const priorityInput = el('priorityInput');
+    const dueDateInput = el('dueDateInput');
+    const summaryEl = el('summary');
     const listEl = el('list');
     const configPanel = el('configPanel');
     const tokenInput = el('tokenInput');
+
+    const PRIORITY_LABELS = { none: '', low: 'Low', med: 'Medium', high: 'High' };
+    const PRIORITY_COLORS = { none: 'transparent', low: '#5b9bd5', med: '#f5a524', high: '#f87171' };
+
+    function todayKeyLocal() {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+    function formatDueDate(dateStr) {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
 
     function setStatus(text, cls) {
       statusEl.className = `status-line ${cls || ''}`;
@@ -3930,25 +3957,41 @@ Then extract:
 
     function render() {
       const allTasks = tasksDataCache.dailyTasks || [];
+      const openCount = allTasks.filter(t => !t.done).length;
+      const doneCount = allTasks.length - openCount;
+      summaryEl.innerHTML = allTasks.length === 0 ? '' : `
+        <span>${openCount} open · ${doneCount} done</span>
+        ${doneCount > 0 ? `<button class="icon-btn" data-act="clearCompleted">Clear completed</button>` : ''}
+      `;
       if (allTasks.length === 0) { listEl.innerHTML = ''; return; }
+      const today = todayKeyLocal();
       // Done tasks sink to the bottom, but keep each group's own relative
       // order (a stable partition, not a re-sort within each group).
       const tasks = [...allTasks.filter(t => !t.done), ...allTasks.filter(t => t.done)];
       listEl.innerHTML = tasks.map(t => {
+        const priority = t.priority || 'none';
+        const borderStyle = priority !== 'none' && !t.done ? `border-left: 3px solid ${PRIORITY_COLORS[priority]}; padding-left: 8px;` : '';
         if (t.id === editingTaskId) {
           return `
-            <div class="task-row">
+            <div class="task-row" style="flex-wrap:wrap; ${borderStyle}">
               <input type="checkbox" data-id="${t.id}" ${t.done ? 'checked' : ''} />
               <input type="text" class="task-edit-input" data-id="${t.id}" value="${t.text.replace(/"/g, '&quot;')}" autocomplete="off" spellcheck="false" style="flex:1;" />
               <button class="task-del" data-act="saveEdit" data-id="${t.id}" style="color:#4ade80;">✓</button>
               <button class="task-del" data-act="cancelEdit">✕</button>
+              <select class="task-edit-priority" data-id="${t.id}" style="margin-left:23px;">
+                ${Object.keys(PRIORITY_LABELS).map(p => `<option value="${p}" ${p === priority ? 'selected' : ''}>${p === 'none' ? 'No priority' : PRIORITY_LABELS[p]}</option>`).join('')}
+              </select>
+              <input type="date" class="task-edit-duedate" data-id="${t.id}" value="${t.dueDate || ''}" />
             </div>
           `;
         }
+        const dueBadge = t.dueDate && !t.done
+          ? `<span style="font-size:10px; margin-left:6px; padding:1px 6px; border-radius:8px; ${t.dueDate < today ? 'color:#f87171; background:#3a1e1e;' : 'color:#888; background:#1e1e1e;'}">${formatDueDate(t.dueDate)}</span>`
+          : '';
         return `
-        <div class="task-row">
+        <div class="task-row" style="${borderStyle}">
           <input type="checkbox" data-id="${t.id}" ${t.done ? 'checked' : ''} />
-          <div class="task-text${t.done ? ' done' : ''}" data-act="startEdit" data-id="${t.id}">${t.text.replace(/</g, '&lt;')}</div>
+          <div class="task-text${t.done ? ' done' : ''}" data-act="startEdit" data-id="${t.id}">${t.text.replace(/</g, '&lt;')}${dueBadge}</div>
           <button class="task-del" data-act="startEdit" data-id="${t.id}">✎</button>
           <button class="task-del" data-act="delete" data-id="${t.id}">✕</button>
         </div>
@@ -3973,12 +4016,19 @@ Then extract:
 
     async function saveEditTask(id) {
       const input = listEl.querySelector(`.task-edit-input[data-id="${id}"]`);
+      const priorityEl = listEl.querySelector(`.task-edit-priority[data-id="${id}"]`);
+      const dueDateEl = listEl.querySelector(`.task-edit-duedate[data-id="${id}"]`);
       const text = input ? input.value.trim() : '';
       editingTaskId = null;
       if (!text) { render(); return; }
       const t = (tasksDataCache.dailyTasks || []).find(x => x.id === id);
-      if (!t || t.text === text) { render(); return; }
+      if (!t) { render(); return; }
+      const newPriority = priorityEl ? priorityEl.value : (t.priority || 'none');
+      const newDueDate = dueDateEl ? (dueDateEl.value || null) : (t.dueDate || null);
+      if (t.text === text && (t.priority || 'none') === newPriority && (t.dueDate || null) === newDueDate) { render(); return; }
       t.text = text;
+      t.priority = newPriority;
+      t.dueDate = newDueDate;
       render();
       setStatus('Saving...', '');
       const ok = await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
@@ -3989,8 +4039,22 @@ Then extract:
       const text = taskInput.value.trim();
       if (!text) return;
       tasksDataCache.dailyTasks = tasksDataCache.dailyTasks || [];
-      tasksDataCache.dailyTasks.unshift({ id: tasksNewId(), text, done: false });
+      tasksDataCache.dailyTasks.unshift({
+        id: tasksNewId(), text, done: false,
+        priority: priorityInput.value,
+        dueDate: dueDateInput.value || null,
+      });
       taskInput.value = '';
+      priorityInput.value = 'none';
+      dueDateInput.value = '';
+      render();
+      setStatus('Saving...', '');
+      const ok = await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
+      if (ok) setStatus('Saved ✓', 'success');
+    }
+
+    async function clearCompletedTasks() {
+      tasksDataCache.dailyTasks = (tasksDataCache.dailyTasks || []).filter(x => !x.done);
       render();
       setStatus('Saving...', '');
       const ok = await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
@@ -4024,6 +4088,7 @@ Then extract:
       else if (act === 'startEdit') startEditTask(e.target.dataset.id);
       else if (act === 'saveEdit') saveEditTask(e.target.dataset.id);
       else if (act === 'cancelEdit') cancelEditTask();
+      else if (act === 'clearCompleted') clearCompletedTasks();
       else if (act === 'saveToken') {
         const val = tokenInput.value.trim();
         if (!val) return;
@@ -4077,6 +4142,9 @@ Then extract:
       </div>
       <div class="id-row" style="margin-bottom:8px;">
         <input type="text" data-el="notesInput" placeholder="Notes (optional)" autocomplete="off" spellcheck="false" />
+      </div>
+      <div class="id-row" style="margin-bottom:8px;">
+        <input type="number" data-el="progressInput" placeholder="Progress %" min="0" max="100" value="0" />
         <button class="save-btn" data-act="add">Add goal</button>
       </div>
       <div data-el="list"></div>
@@ -4088,7 +4156,14 @@ Then extract:
     const timeframeInput = el('timeframeInput');
     const statusInput = el('statusInput');
     const notesInput = el('notesInput');
+    const progressInput = el('progressInput');
     const listEl = el('list');
+
+    function clampProgress(v) {
+      const n = Number(v);
+      if (isNaN(n)) return 0;
+      return Math.max(0, Math.min(100, Math.round(n)));
+    }
 
     function setStatus(text, cls) {
       statusEl.className = `status-line ${cls || ''}`;
@@ -4123,14 +4198,18 @@ Then extract:
                   <div class="id-row" style="margin-bottom:6px;">
                     <select class="goal-edit-timeframe" data-id="${g.id}">${GOAL_TIMEFRAMES.map(t => `<option value="${t}" ${t === g.timeframe ? 'selected' : ''}>${t}</option>`).join('')}</select>
                   </div>
-                  <div class="id-row">
+                  <div class="id-row" style="margin-bottom:6px;">
                     <input type="text" class="goal-edit-notes" data-id="${g.id}" value="${(g.notes || '').replace(/"/g, '&quot;')}" placeholder="Notes (optional)" autocomplete="off" spellcheck="false" />
+                  </div>
+                  <div class="id-row">
+                    <input type="number" class="goal-edit-progress" data-id="${g.id}" min="0" max="100" value="${g.progress ?? 0}" />
                     <button class="save-btn" data-act="saveEditGoal" data-id="${g.id}">✓ Save</button>
                     <button class="save-btn" data-act="cancelEditGoal">✕ Cancel</button>
                   </div>
                 </div>
               `;
             }
+            const progress = clampProgress(g.progress ?? 0);
             return `
             <div class="proof-item" style="margin-bottom:8px;">
               <div class="proof-name" style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
@@ -4138,6 +4217,8 @@ Then extract:
                 <button class="goal-status ${g.status}" data-act="cycleStatus" data-id="${g.id}">${statusLabel(g.status)}</button>
               </div>
               ${g.notes ? `<div class="proof-diff" style="margin-top:4px;">${g.notes.replace(/</g, '&lt;')}</div>` : ''}
+              <div class="goal-progress-track"><div class="goal-progress-fill" style="width:${progress}%;"></div></div>
+              <div class="proof-diff" style="margin-top:2px;">${progress}%</div>
               <div style="display:flex; gap:12px; margin-top:4px;">
                 <button class="task-del" data-act="startEditGoal" data-id="${g.id}">✎ Edit</button>
                 <button class="task-del" data-act="delete" data-id="${g.id}">🗑 Delete</button>
@@ -4163,6 +4244,7 @@ Then extract:
       const titleInputEl = listEl.querySelector(`.goal-edit-title[data-id="${id}"]`);
       const timeframeInputEl = listEl.querySelector(`.goal-edit-timeframe[data-id="${id}"]`);
       const notesInputEl = listEl.querySelector(`.goal-edit-notes[data-id="${id}"]`);
+      const progressInputEl = listEl.querySelector(`.goal-edit-progress[data-id="${id}"]`);
       const title = titleInputEl ? titleInputEl.value.trim() : '';
       editingGoalId = null;
       if (!title) { render(); return; }
@@ -4171,6 +4253,7 @@ Then extract:
       g.title = title;
       g.timeframe = timeframeInputEl ? timeframeInputEl.value : g.timeframe;
       g.notes = notesInputEl ? notesInputEl.value.trim() : g.notes;
+      g.progress = progressInputEl ? clampProgress(progressInputEl.value) : (g.progress ?? 0);
       render();
       setStatus('Saving...', '');
       const ok = await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
@@ -4186,9 +4269,11 @@ Then extract:
         timeframe: timeframeInput.value,
         status: statusInput.value,
         notes: notesInput.value.trim(),
+        progress: clampProgress(progressInput.value),
       });
       titleInput.value = '';
       notesInput.value = '';
+      progressInput.value = '0';
       render();
       setStatus('Saving...', '');
       const ok = await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
@@ -4226,7 +4311,7 @@ Then extract:
     });
     titleInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addGoal(); });
     listEl.addEventListener('keydown', (e) => {
-      if (!e.target.matches('.goal-edit-title, .goal-edit-notes')) return;
+      if (!e.target.matches('.goal-edit-title, .goal-edit-notes, .goal-edit-progress')) return;
       if (e.key === 'Enter') saveEditGoal(e.target.dataset.id);
       else if (e.key === 'Escape') cancelEditGoal();
     });

@@ -6,5 +6,13 @@
       "done": false
     }
   ],
-  "goals": []
+  "goals": [
+    {
+      "id": "mtfkm8wtyvfadv",
+      "title": "Office",
+      "timeframe": "Long-term",
+      "status": "not_started",
+      "notes": ""
+    }
+  ]
 }

@@ -4084,28 +4084,86 @@ Then extract:
     }
     setGoalsStatus = setStatus;
 
+    let editingGoalId = null;
+
     function render() {
       const goals = tasksDataCache.goals || [];
       if (goals.length === 0) { listEl.innerHTML = ''; return; }
       const statusLabel = v => GOAL_STATUSES.find(s => s.value === v)?.label || v;
       listEl.innerHTML = GOAL_TIMEFRAMES
-        .map(tf => ({ tf, items: goals.filter(g => g.timeframe === tf) }))
+        .map(tf => {
+          const inGroup = goals.filter(g => g.timeframe === tf);
+          // Done goals sink to the bottom of their timeframe group, same
+          // as Daily Tasks — stable partition, not a re-sort within groups.
+          const items = [...inGroup.filter(g => g.status !== 'done'), ...inGroup.filter(g => g.status === 'done')];
+          return { tf, items };
+        })
         .filter(g => g.items.length > 0)
         .map(({ tf, items }) => `
           <div class="goal-group-label">${tf}</div>
-          ${items.map(g => `
+          ${items.map(g => {
+            if (g.id === editingGoalId) {
+              return `
+                <div class="proof-item" style="margin-bottom:8px;">
+                  <div class="id-row" style="margin-bottom:6px;">
+                    <input type="text" class="goal-edit-title" data-id="${g.id}" value="${g.title.replace(/"/g, '&quot;')}" autocomplete="off" spellcheck="false" />
+                  </div>
+                  <div class="id-row" style="margin-bottom:6px;">
+                    <select class="goal-edit-timeframe" data-id="${g.id}">${GOAL_TIMEFRAMES.map(t => `<option value="${t}" ${t === g.timeframe ? 'selected' : ''}>${t}</option>`).join('')}</select>
+                  </div>
+                  <div class="id-row">
+                    <input type="text" class="goal-edit-notes" data-id="${g.id}" value="${(g.notes || '').replace(/"/g, '&quot;')}" placeholder="Notes (optional)" autocomplete="off" spellcheck="false" />
+                    <button class="save-btn" data-act="saveEditGoal" data-id="${g.id}">✓ Save</button>
+                    <button class="save-btn" data-act="cancelEditGoal">✕ Cancel</button>
+                  </div>
+                </div>
+              `;
+            }
+            return `
             <div class="proof-item" style="margin-bottom:8px;">
               <div class="proof-name" style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
-                <span>${g.title.replace(/</g, '&lt;')}</span>
+                <span data-act="startEditGoal" data-id="${g.id}" style="cursor:pointer;">${g.title.replace(/</g, '&lt;')}</span>
                 <button class="goal-status ${g.status}" data-act="cycleStatus" data-id="${g.id}">${statusLabel(g.status)}</button>
               </div>
               ${g.notes ? `<div class="proof-diff" style="margin-top:4px;">${g.notes.replace(/</g, '&lt;')}</div>` : ''}
-              <button class="task-del" data-act="delete" data-id="${g.id}" style="margin-top:4px;">🗑 Delete</button>
+              <div style="display:flex; gap:12px; margin-top:4px;">
+                <button class="task-del" data-act="startEditGoal" data-id="${g.id}">✎ Edit</button>
+                <button class="task-del" data-act="delete" data-id="${g.id}">🗑 Delete</button>
+              </div>
             </div>
-          `).join('')}
+          `;
+          }).join('')}
         `).join('');
     }
     renderGoalsList = render;
+
+    function startEditGoal(id) {
+      editingGoalId = id;
+      render();
+    }
+
+    function cancelEditGoal() {
+      editingGoalId = null;
+      render();
+    }
+
+    async function saveEditGoal(id) {
+      const titleInputEl = listEl.querySelector(`.goal-edit-title[data-id="${id}"]`);
+      const timeframeInputEl = listEl.querySelector(`.goal-edit-timeframe[data-id="${id}"]`);
+      const notesInputEl = listEl.querySelector(`.goal-edit-notes[data-id="${id}"]`);
+      const title = titleInputEl ? titleInputEl.value.trim() : '';
+      editingGoalId = null;
+      if (!title) { render(); return; }
+      const g = (tasksDataCache.goals || []).find(x => x.id === id);
+      if (!g) { render(); return; }
+      g.title = title;
+      g.timeframe = timeframeInputEl ? timeframeInputEl.value : g.timeframe;
+      g.notes = notesInputEl ? notesInputEl.value.trim() : g.notes;
+      render();
+      setStatus('Saving...', '');
+      const ok = await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
+      if (ok) setStatus('Saved ✓', 'success');
+    }
 
     async function addGoal() {
       const title = titleInput.value.trim();
@@ -4150,8 +4208,16 @@ Then extract:
       else if (act === 'refresh') initTasksData();
       else if (act === 'cycleStatus') cycleStatus(e.target.dataset.id);
       else if (act === 'delete') deleteGoal(e.target.dataset.id);
+      else if (act === 'startEditGoal') startEditGoal(e.target.dataset.id);
+      else if (act === 'saveEditGoal') saveEditGoal(e.target.dataset.id);
+      else if (act === 'cancelEditGoal') cancelEditGoal();
     });
     titleInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addGoal(); });
+    listEl.addEventListener('keydown', (e) => {
+      if (!e.target.matches('.goal-edit-title, .goal-edit-notes')) return;
+      if (e.key === 'Enter') saveEditGoal(e.target.dataset.id);
+      else if (e.key === 'Escape') cancelEditGoal();
+    });
 
     return card;
   }

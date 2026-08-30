@@ -8,12 +8,12 @@
     {
       "id": "mtfktj2wom82jj",
       "text": "a",
-      "done": true
+      "done": false
     },
     {
       "id": "mtfkha46blcio1",
       "text": "test",
-      "done": true
+      "done": false
     }
   ],
   "goals": [

@@ -1,4 +1,12 @@
 {
   "dailyTasks": [],
-  "goals": []
+  "goals": [
+    {
+      "id": "mtfl5jl5w6smju",
+      "title": "House",
+      "timeframe": "Long-term",
+      "status": "not_started",
+      "notes": ""
+    }
+  ]
 }

@@ -3917,8 +3917,11 @@ Then extract:
     let editingTaskId = null;
 
     function render() {
-      const tasks = tasksDataCache.dailyTasks || [];
-      if (tasks.length === 0) { listEl.innerHTML = ''; return; }
+      const allTasks = tasksDataCache.dailyTasks || [];
+      if (allTasks.length === 0) { listEl.innerHTML = ''; return; }
+      // Done tasks sink to the bottom, but keep each group's own relative
+      // order (a stable partition, not a re-sort within each group).
+      const tasks = [...allTasks.filter(t => !t.done), ...allTasks.filter(t => t.done)];
       listEl.innerHTML = tasks.map(t => {
         if (t.id === editingTaskId) {
           return `

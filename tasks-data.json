@@ -1,13 +1,6 @@
 {
   "dailyTasks": [
     {
-      "id": "mtflq4csqir763",
-      "text": "5",
-      "done": false,
-      "priority": "none",
-      "dueDate": "0005-05-04"
-    },
-    {
       "id": "mtfl7kz7sdwphu",
       "text": "Inserts cutting",
       "done": false

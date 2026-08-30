@@ -168,7 +168,7 @@
   .task-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #1e1e1e; }
   .task-row:last-child { border-bottom: none; }
   .task-row input[type="checkbox"] { width: 15px; height: 15px; accent-color: #ff6b35; cursor: pointer; flex: none; }
-  .task-text { flex: 1; font-size: 12px; color: #f0f0f0; }
+  .task-text { flex: 1; font-size: 12px; color: #f0f0f0; cursor: pointer; }
   .task-text.done { color: #555; text-decoration: line-through; }
   .task-del { background: none; border: none; color: #555; cursor: pointer; font-size: 13px; padding: 2px 6px; }
   .task-del:hover { color: #f87171; }
@@ -3914,18 +3914,61 @@ Then extract:
     }
     setDailyTasksStatus = setStatus;
 
+    let editingTaskId = null;
+
     function render() {
       const tasks = tasksDataCache.dailyTasks || [];
       if (tasks.length === 0) { listEl.innerHTML = ''; return; }
-      listEl.innerHTML = tasks.map(t => `
+      listEl.innerHTML = tasks.map(t => {
+        if (t.id === editingTaskId) {
+          return `
+            <div class="task-row">
+              <input type="checkbox" data-id="${t.id}" ${t.done ? 'checked' : ''} />
+              <input type="text" class="task-edit-input" data-id="${t.id}" value="${t.text.replace(/"/g, '&quot;')}" autocomplete="off" spellcheck="false" style="flex:1;" />
+              <button class="task-del" data-act="saveEdit" data-id="${t.id}" style="color:#4ade80;">✓</button>
+              <button class="task-del" data-act="cancelEdit">✕</button>
+            </div>
+          `;
+        }
+        return `
         <div class="task-row">
           <input type="checkbox" data-id="${t.id}" ${t.done ? 'checked' : ''} />
-          <div class="task-text${t.done ? ' done' : ''}">${t.text.replace(/</g, '&lt;')}</div>
+          <div class="task-text${t.done ? ' done' : ''}" data-act="startEdit" data-id="${t.id}">${t.text.replace(/</g, '&lt;')}</div>
+          <button class="task-del" data-act="startEdit" data-id="${t.id}">✎</button>
           <button class="task-del" data-act="delete" data-id="${t.id}">✕</button>
         </div>
-      `).join('');
+      `;
+      }).join('');
+      if (editingTaskId) {
+        const input = listEl.querySelector('.task-edit-input');
+        if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
+      }
     }
     renderDailyTasksList = render;
+
+    function startEditTask(id) {
+      editingTaskId = id;
+      render();
+    }
+
+    function cancelEditTask() {
+      editingTaskId = null;
+      render();
+    }
+
+    async function saveEditTask(id) {
+      const input = listEl.querySelector(`.task-edit-input[data-id="${id}"]`);
+      const text = input ? input.value.trim() : '';
+      editingTaskId = null;
+      if (!text) { render(); return; }
+      const t = (tasksDataCache.dailyTasks || []).find(x => x.id === id);
+      if (!t || t.text === text) { render(); return; }
+      t.text = text;
+      render();
+      setStatus('Saving...', '');
+      const ok = await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
+      if (ok) setStatus('Saved ✓', 'success');
+    }
 
     async function addTask() {
       const text = taskInput.value.trim();
@@ -3963,6 +4006,9 @@ Then extract:
       else if (act === 'refresh') initTasksData();
       else if (act === 'toggleConfig') configPanel.classList.toggle('open');
       else if (act === 'delete') deleteTask(e.target.dataset.id);
+      else if (act === 'startEdit') startEditTask(e.target.dataset.id);
+      else if (act === 'saveEdit') saveEditTask(e.target.dataset.id);
+      else if (act === 'cancelEdit') cancelEditTask();
       else if (act === 'saveToken') {
         const val = tokenInput.value.trim();
         if (!val) return;
@@ -3973,6 +4019,11 @@ Then extract:
     });
     card.addEventListener('change', (e) => {
       if (e.target.matches('input[type="checkbox"][data-id]')) toggleTask(e.target.dataset.id);
+    });
+    card.addEventListener('keydown', (e) => {
+      if (!e.target.matches('.task-edit-input')) return;
+      if (e.key === 'Enter') saveEditTask(e.target.dataset.id);
+      else if (e.key === 'Escape') cancelEditTask();
     });
     taskInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addTask(); });
 

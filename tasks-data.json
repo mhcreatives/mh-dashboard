@@ -1,6 +1,11 @@
 {
   "dailyTasks": [
     {
+      "id": "mtfl7hu6h992wy",
+      "text": "Inserts cutting template",
+      "done": false
+    },
+    {
       "id": "mtfl6yez5j55t4",
       "text": "Packaging",
       "done": false

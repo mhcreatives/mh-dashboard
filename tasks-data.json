@@ -1,16 +1,5 @@
 {
-  "dailyTasks": [
-    {
-      "id": "mtfktj2wom82jj",
-      "text": "a",
-      "done": false
-    },
-    {
-      "id": "mtfkha46blcio1",
-      "text": "test",
-      "done": false
-    }
-  ],
+  "dailyTasks": [],
   "goals": [
     {
       "id": "mtfkz2potqqy53",

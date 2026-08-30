@@ -1,0 +1,1568 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  :root{ color-scheme: light dark; }
+  body{ margin:0; }
+  img{ max-width:100%; }
+  [hidden]{ display:none !important; }
+</style>
+<title>Ledger Calendar</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+  /* dark-first: bare :root carries the graphite/gold palette by default */
+  :root{
+    --bg:#15171B;
+    --surface:#1D2025;
+    --surface-sunken:#25282E;
+    --border:#34383F;
+    --text:#ECEDEF;
+    --text-muted:#9DA3AC;
+    --text-faint:#686E77;
+    --accent:#E3A94A;
+    --accent-soft:#3B2F1B;
+    --accent-ink:#F2C878;
+    --positive:#6FBF8B;
+    --negative:#E2776C;
+    --negative-soft:#3A211D;
+    --warn:#E0B366;
+    --warn-soft:#3A2E17;
+    --focus:#E3A94A;
+    --shadow: 0 1px 2px rgba(0,0,0,0.35), 0 10px 28px -10px rgba(0,0,0,0.55);
+  }
+
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      --bg:#F2F1EE;
+      --surface:#FFFFFF;
+      --surface-sunken:#EAE8E3;
+      --border:#DDDAD2;
+      --text:#201D18;
+      --text-muted:#6A6459;
+      --text-faint:#9A9385;
+      --accent:#B87A1E;
+      --accent-soft:#F3E3C7;
+      --accent-ink:#8A5A12;
+      --positive:#2E8B57;
+      --negative:#B23B34;
+      --negative-soft:#F8E4E1;
+      --warn:#B4791F;
+      --warn-soft:#F4E7D3;
+      --focus:#B87A1E;
+      --shadow: 0 1px 2px rgba(32,29,24,0.06), 0 6px 20px -8px rgba(32,29,24,0.12);
+    }
+  }
+
+  :root[data-theme="light"]{
+    --bg:#F2F1EE;
+    --surface:#FFFFFF;
+    --surface-sunken:#EAE8E3;
+    --border:#DDDAD2;
+    --text:#201D18;
+    --text-muted:#6A6459;
+    --text-faint:#9A9385;
+    --accent:#B87A1E;
+    --accent-soft:#F3E3C7;
+    --accent-ink:#8A5A12;
+    --positive:#2E8B57;
+    --negative:#B23B34;
+    --negative-soft:#F8E4E1;
+    --warn:#B4791F;
+    --warn-soft:#F4E7D3;
+    --focus:#B87A1E;
+    --shadow: 0 1px 2px rgba(32,29,24,0.06), 0 6px 20px -8px rgba(32,29,24,0.12);
+  }
+
+  :root[data-theme="dark"]{
+    --bg:#15171B;
+    --surface:#1D2025;
+    --surface-sunken:#25282E;
+    --border:#34383F;
+    --text:#ECEDEF;
+    --text-muted:#9DA3AC;
+    --text-faint:#686E77;
+    --accent:#E3A94A;
+    --accent-soft:#3B2F1B;
+    --accent-ink:#F2C878;
+    --positive:#6FBF8B;
+    --negative:#E2776C;
+    --negative-soft:#3A211D;
+    --warn:#E0B366;
+    --warn-soft:#3A2E17;
+    --focus:#E3A94A;
+    --shadow: 0 1px 2px rgba(0,0,0,0.35), 0 10px 28px -10px rgba(0,0,0,0.55);
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'IBM Plex Sans', system-ui, sans-serif;
+    line-height:1.45;
+  }
+  .wrap{
+    max-width:1180px;
+    margin:0 auto;
+    padding:32px 20px 80px;
+  }
+  h1,h2,h3{
+    font-family:'Fraunces', Georgia, serif;
+    text-wrap:balance;
+    font-weight:600;
+    margin:0;
+  }
+  .brand{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:16px;
+    margin-bottom:28px;
+    flex-wrap:wrap;
+  }
+  .brand h1{
+    font-size:clamp(28px,4vw,36px);
+    color:var(--text);
+    letter-spacing:-0.01em;
+  }
+  .brand .tagline{
+    color:var(--text-muted);
+    font-size:13px;
+  }
+  .save-indicator{
+    font-size:12px;
+    color:var(--text-faint);
+    display:flex;
+    align-items:center;
+    gap:6px;
+    font-variant-numeric:tabular-nums;
+  }
+  .save-dot{
+    width:6px;height:6px;border-radius:50%;
+    background:var(--positive);
+    transition:opacity .3s ease;
+  }
+
+  .num, input.amount, .amount-display{
+    font-family:'IBM Plex Mono', 'SF Mono', monospace;
+    font-variant-numeric:tabular-nums;
+  }
+
+  /* ---- summary hero ---- */
+  .hero{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:18px;
+    padding:28px 28px;
+    color:var(--text);
+    box-shadow:var(--shadow);
+    margin-bottom:20px;
+  }
+  .hero-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    flex-wrap:wrap;
+    gap:20px;
+    margin-bottom:22px;
+  }
+  .hero-label{
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:.09em;
+    color:var(--text-muted);
+    margin-bottom:6px;
+  }
+  .hero-total{
+    font-size:clamp(34px,5vw,50px);
+    font-weight:600;
+    line-height:1;
+    color:var(--accent-ink);
+  }
+  .hero-note{
+    font-size:12px;
+    color:var(--text-faint);
+    margin-top:6px;
+  }
+  .hero-sub{
+    text-align:right;
+  }
+  .hero-net{
+    font-size:clamp(22px,3vw,28px);
+    font-weight:600;
+    line-height:1;
+    color:var(--text);
+    font-family:'IBM Plex Mono','SF Mono',monospace;
+    font-variant-numeric:tabular-nums;
+  }
+  .hero-net.negative{ color:var(--negative); }
+  .hero-sub .hero-note{ text-align:right; }
+  .accounts-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(130px,1fr));
+    gap:10px;
+  }
+  .acct-field{
+    background:var(--surface-sunken);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:10px 12px;
+  }
+  .acct-field label{
+    display:block;
+    font-size:11px;
+    color:var(--text-muted);
+    margin-bottom:4px;
+  }
+  .acct-field input{
+    width:100%;
+    background:transparent;
+    border:none;
+    color:var(--text);
+    font-size:16px;
+    padding:0;
+  }
+  .acct-field input::placeholder{ color:var(--text-faint); }
+  .acct-field input:focus{ outline:none; }
+
+  /* ---- cards ---- */
+  .cards-row{
+    display:grid;
+    grid-template-columns:1.15fr 1.15fr 0.85fr;
+    gap:16px;
+    margin-bottom:28px;
+    align-items:start;
+  }
+  @media (max-width:900px){ .cards-row{ grid-template-columns:1fr 1fr; } }
+  @media (max-width:560px){ .cards-row{ grid-template-columns:1fr; } }
+
+  .card{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:20px;
+    box-shadow:var(--shadow);
+  }
+  .card-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    margin-bottom:14px;
+  }
+  .card-head h2{
+    font-size:19px;
+    color:var(--text);
+  }
+  .card-total{
+    font-size:14px;
+    color:var(--text-muted);
+  }
+  .card-total b{ color:var(--text); }
+
+  .row-list{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    margin-bottom:12px;
+  }
+  .item-row{
+    display:grid;
+    grid-template-columns:1fr 130px 30px;
+    gap:8px;
+    align-items:center;
+  }
+  .item-row input[type="text"]{
+    background:var(--surface-sunken);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:9px 10px;
+    color:var(--text);
+    font-size:14px;
+    width:100%;
+  }
+  .item-row input.amount{
+    background:var(--surface-sunken);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:9px 10px;
+    color:var(--text);
+    font-size:14px;
+    text-align:right;
+    width:100%;
+  }
+  input:focus, button:focus-visible{
+    outline:2px solid var(--focus);
+    outline-offset:1px;
+  }
+  .remove-btn{
+    background:none;
+    border:none;
+    color:var(--text-faint);
+    font-size:18px;
+    cursor:pointer;
+    line-height:1;
+    padding:4px;
+    border-radius:6px;
+  }
+  .remove-btn:hover{ color:var(--negative); background:var(--negative-soft); }
+
+  /* compact card variant, used for Recurring expenses */
+  .card--compact{ padding:16px; }
+  .card--compact .card-head{ margin-bottom:10px; }
+  .card--compact .card-head h2{ font-size:16px; }
+  .card--compact .card-total{ font-size:12px; }
+  .card--compact .row-list{
+    gap:6px;
+    margin-bottom:10px;
+  }
+  .card--compact .add-btn{ padding:6px 10px; font-size:12px; }
+  .card--compact .empty-hint{ font-size:11px; }
+
+  .recur-pager{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:8px;
+    font-size:11px;
+    color:var(--text-muted);
+  }
+  .recur-pager .pager-btn{
+    background:var(--surface-sunken);
+    border:1px solid var(--border);
+    color:var(--text);
+    border-radius:6px;
+    width:24px;
+    height:24px;
+    line-height:1;
+    font-size:13px;
+    cursor:pointer;
+  }
+  .recur-pager .pager-btn:disabled{
+    opacity:.4;
+    cursor:default;
+  }
+  .recur-pager .pager-count{
+    font-variant-numeric:tabular-nums;
+  }
+
+  /* recurring expense row: name/amount line + a date-range line beneath it */
+  .recur-row{
+    background:var(--surface-sunken);
+    border:1px solid var(--border);
+    border-radius:9px;
+    padding:8px;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+  .recur-row .item-row{ grid-template-columns:1fr 84px 22px; gap:6px; }
+  .recur-row .item-row input[type="text"],
+  .recur-row .item-row input.amount{
+    background:var(--surface);
+    padding:6px 8px;
+    font-size:12.5px;
+  }
+  .recur-row .remove-btn{ font-size:15px; padding:2px; }
+  .range-row{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:6px;
+  }
+  .range-field{
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+  }
+  .range-field label{
+    font-size:9px;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    color:var(--text-faint);
+  }
+  .range-select{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:6px;
+    padding:5px 6px;
+    color:var(--text);
+    font-size:12px;
+    font-family:'IBM Plex Sans', system-ui, sans-serif;
+    width:100%;
+  }
+
+  .add-btn{
+    background:var(--accent-soft);
+    color:var(--accent-ink);
+    border:1px dashed var(--accent);
+    border-radius:8px;
+    padding:8px 12px;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    width:100%;
+  }
+  .add-btn:hover{ filter:brightness(0.97); }
+
+  .empty-hint{
+    color:var(--text-faint);
+    font-size:13px;
+    font-style:italic;
+    padding:4px 2px;
+  }
+
+  /* ---- year tabs ---- */
+  .year-tabs{
+    display:flex;
+    gap:8px;
+    margin-bottom:18px;
+    border-bottom:1px solid var(--border);
+  }
+  .year-tab{
+    background:none;
+    border:none;
+    padding:10px 18px;
+    font-family:'Fraunces', serif;
+    font-size:17px;
+    color:var(--text-muted);
+    cursor:pointer;
+    border-bottom:2px solid transparent;
+    margin-bottom:-1px;
+  }
+  .year-tab.active{
+    color:var(--accent-ink);
+    border-bottom-color:var(--accent);
+    font-weight:600;
+  }
+  :root[data-theme="dark"] .year-tab.active{ color:var(--accent-ink); }
+
+  .months-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(280px,1fr));
+    gap:16px;
+  }
+
+  .month-card{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:14px;
+    overflow:hidden;
+    box-shadow:var(--shadow);
+    display:flex;
+    flex-direction:column;
+  }
+  .month-head{
+    background:var(--surface-sunken);
+    padding:14px 16px;
+    border-bottom:1px solid var(--border);
+  }
+  .month-head h3{
+    font-size:16px;
+    color:var(--text);
+  }
+  .month-body{
+    padding:16px;
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+    flex:1;
+  }
+  .stat-line{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-size:13px;
+  }
+  .stat-line .lbl{ color:var(--text-muted); }
+  .stat-line .val{ font-size:14px; font-weight:600; }
+  .stat-line.start .val{ color:var(--text); }
+  .stat-line.earn .val{ color:var(--positive); }
+  .stat-line.total-exp{
+    padding-top:10px;
+    border-top:1px dashed var(--border);
+  }
+  .stat-line.total-exp .lbl{ font-weight:600; color:var(--text); }
+  .stat-line.total-exp .val{ color:var(--negative); font-weight:600; }
+  .stat-line.net-cash .lbl{ font-weight:600; color:var(--text); }
+  .stat-line.net-cash .val.positive{ color:var(--positive); font-weight:600; }
+  .stat-line.net-cash .val.negative{ color:var(--negative); font-weight:600; }
+  .earn-input-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:8px;
+  }
+  .earn-input-row .lbl{ font-size:13px; color:var(--text-muted); }
+  .earn-input-row input.amount{
+    background:var(--surface-sunken);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:7px 9px;
+    color:var(--positive);
+    font-size:14px;
+    text-align:right;
+    width:120px;
+  }
+  .exp-section .sub-label{
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    color:var(--text-faint);
+    margin-bottom:8px;
+  }
+  .exp-row{
+    display:grid;
+    grid-template-columns:1fr 90px 26px;
+    gap:6px;
+    align-items:center;
+    margin-bottom:6px;
+  }
+  .exp-row input[type="text"]{
+    background:var(--surface-sunken);
+    border:1px solid var(--border);
+    border-radius:7px;
+    padding:7px 8px;
+    font-size:13px;
+    color:var(--text);
+    width:100%;
+  }
+  .exp-row input.amount{
+    background:var(--surface-sunken);
+    border:1px solid var(--border);
+    border-radius:7px;
+    padding:7px 8px;
+    font-size:13px;
+    color:var(--negative);
+    text-align:right;
+    width:100%;
+  }
+  .exp-row .remove-btn{ font-size:16px; padding:2px; }
+  .add-exp-btn{
+    background:none;
+    border:1px dashed var(--border);
+    border-radius:7px;
+    padding:6px 10px;
+    font-size:12px;
+    color:var(--text-muted);
+    cursor:pointer;
+    width:100%;
+    margin-top:2px;
+  }
+  .add-exp-btn:hover{ border-color:var(--accent); color:var(--accent-ink); }
+
+  .month-footer{
+    margin-top:auto;
+    padding-top:12px;
+    border-top:1px solid var(--border);
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+  }
+  .month-footer .lbl{ font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.05em; }
+  .month-footer .val{ font-size:19px; font-weight:600; }
+  .val.negative{ color:var(--negative); }
+  .val.positive{ color:var(--text); }
+
+  .reset-link{
+    display:inline-block;
+    margin-top:24px;
+    font-size:12px;
+    color:var(--text-faint);
+    text-decoration:underline;
+    cursor:pointer;
+    background:none;
+    border:none;
+  }
+  .reset-link:hover{ color:var(--negative); }
+
+  .backup-bar{
+    display:flex;
+    gap:18px;
+    margin-top:24px;
+    flex-wrap:wrap;
+  }
+  .backup-bar .reset-link{ margin-top:0; }
+
+  .backup-panel{
+    margin-top:14px;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:16px;
+    box-shadow:var(--shadow);
+  }
+  .backup-panel-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:12px;
+    margin-bottom:10px;
+    font-size:13px;
+    color:var(--text-muted);
+  }
+  .backup-panel-head span{ max-width:520px; }
+  .backup-textarea{
+    width:100%;
+    min-height:110px;
+    background:var(--surface-sunken);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:10px;
+    color:var(--text);
+    font-family:'IBM Plex Mono','SF Mono',monospace;
+    font-size:12px;
+    resize:vertical;
+    margin-bottom:10px;
+    box-sizing:border-box;
+  }
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <div class="brand">
+    <div>
+      <h1>Ledger Calendar</h1>
+      <div class="tagline">Cash on hand, liabilities, and goals — carried month to month</div>
+    </div>
+    <div class="save-indicator"><span class="save-dot" id="saveDot"></span><span id="saveText">saved</span></div>
+  </div>
+
+  <!-- HERO: Cash on hand -->
+  <div class="hero">
+    <div class="hero-top">
+      <div>
+        <div class="hero-label">Cash on hand</div>
+        <div class="hero-total num" id="totalCash">₱0</div>
+        <div class="hero-note" id="accountCount"></div>
+      </div>
+      <div class="hero-sub">
+        <div class="hero-label">Net cash on hand</div>
+        <div class="hero-net num" id="netCash">₱0</div>
+        <div class="hero-note">after liabilities</div>
+      </div>
+    </div>
+    <div class="accounts-grid" id="accountsGrid"></div>
+  </div>
+
+  <!-- Liabilities + Goals -->
+  <div class="cards-row">
+    <div class="card">
+      <div class="card-head">
+        <h2>Liabilities</h2>
+        <div class="card-total">Total <b class="num" id="liabTotal">₱0.00</b></div>
+      </div>
+      <div class="row-list" id="liabList"></div>
+      <button class="add-btn" id="addLiab">+ Add liability</button>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>Goals</h2>
+        <div class="card-total">Total <b class="num" id="goalTotal">₱0.00</b></div>
+      </div>
+      <div class="row-list" id="goalList"></div>
+      <button class="add-btn" id="addGoal">+ Add goal</button>
+    </div>
+
+    <div class="card card--compact">
+      <div class="card-head">
+        <h2>Recurring expenses</h2>
+        <div class="card-total">This month <b class="num" id="recurTotal">₱0</b></div>
+      </div>
+      <div class="row-list" id="recurList"></div>
+      <button class="add-btn" id="addRecur">+ Add recurring expense</button>
+      <div class="empty-hint" style="margin-top:10px;">Applied to every month within the range you set.</div>
+    </div>
+  </div>
+
+  <!-- Yearly calendar -->
+  <div class="year-tabs" id="yearTabs"></div>
+  <div class="months-grid" id="monthsGrid"></div>
+
+  <div class="backup-bar">
+    <button class="reset-link" id="showExport">Export data</button>
+    <button class="reset-link" id="showImport">Import data</button>
+    <button class="reset-link" id="resetAll">Reset all data</button>
+  </div>
+
+  <div class="backup-panel" id="exportPanel" hidden>
+    <div class="backup-panel-head">
+      <span>Copy this code to move your data to another copy of this page (like a downloaded file).</span>
+      <button class="reset-link" id="closeExport">Close</button>
+    </div>
+    <textarea class="backup-textarea" id="exportText" readonly></textarea>
+    <button class="add-btn" id="copyExport">Copy to clipboard</button>
+  </div>
+
+  <div class="backup-panel" id="importPanel" hidden>
+    <div class="backup-panel-head">
+      <span>Paste a backup code exported from another copy of this page, then load it. This replaces everything currently entered here.</span>
+      <button class="reset-link" id="closeImport">Close</button>
+    </div>
+    <textarea class="backup-textarea" id="importText" placeholder="Paste backup code here"></textarea>
+    <button class="add-btn" id="loadImport">Load data</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var STORAGE_KEY = "ledger-calendar-v1";
+
+  var ACCOUNTS = ["Gcash 1","Gcash 2","Maya 1","Maya 2","Maya savings","UB","CBS","Loans","Others"];
+
+  // months from Aug 2026 through Dec 2028
+  function buildMonthKeys(){
+    var keys = [];
+    var years = [2026, 2027, 2028];
+    years.forEach(function(y){
+      var startM = (y === 2026) ? 7 : 0; // Aug = index 7
+      for (var m = startM; m <= 11; m++){
+        keys.push(y + "-" + String(m+1).padStart(2,"0"));
+      }
+    });
+    return keys;
+  }
+  var MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  var MONTH_KEYS = buildMonthKeys();
+
+  // fixed expense categories that appear as their own input in every month
+  var FIXED_EXPENSE_NAMES = ["Salaries","Materials","Ads","Electricity"];
+
+  function emptyFixedExpenses(){
+    var f = {};
+    FIXED_EXPENSE_NAMES.forEach(function(n){ f[n] = 0; });
+    return f;
+  }
+
+  function monthLabel(key){
+    var parts = key.split("-");
+    var idx = parseInt(parts[1],10) - 1;
+    return MONTH_NAMES[idx].slice(0,3) + " " + parts[0];
+  }
+
+  // today's month key, clamped into the supported range, used as the
+  // "this month" reference for the recurring-expenses summary
+  function currentMonthKey(){
+    var now = new Date();
+    var key = now.getFullYear() + "-" + String(now.getMonth()+1).padStart(2,"0");
+    if (MONTH_KEYS.indexOf(key) > -1) return key;
+    return key < MONTH_KEYS[0] ? MONTH_KEYS[0] : MONTH_KEYS[MONTH_KEYS.length-1];
+  }
+
+  function defaultState(){
+    var accounts = {};
+    ACCOUNTS.forEach(function(a){ accounts[a] = 0; });
+    var months = {};
+    MONTH_KEYS.forEach(function(k){ months[k] = { earned: 0, expenses: [], fixed: emptyFixedExpenses() }; });
+    return {
+      accounts: accounts,
+      liabilities: [],
+      goals: [],
+      recurringExpenses: [],
+      months: months
+    };
+  }
+
+  function loadState(){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return defaultState();
+      var parsed = JSON.parse(raw);
+      var d = defaultState();
+      // shallow-merge, keep new schema safe against older saves
+      d.accounts = Object.assign(d.accounts, parsed.accounts || {});
+      d.liabilities = Array.isArray(parsed.liabilities) ? parsed.liabilities : [];
+      d.goals = Array.isArray(parsed.goals) ? parsed.goals : [];
+      d.recurringExpenses = (Array.isArray(parsed.recurringExpenses) ? parsed.recurringExpenses : []).map(function(r){
+        // older saves had no range: default to the full calendar so behavior is unchanged
+        return {
+          id: r.id || uid(),
+          name: r.name || "",
+          amount: Number(r.amount) || 0,
+          startKey: (r.startKey && MONTH_KEYS.indexOf(r.startKey) > -1) ? r.startKey : MONTH_KEYS[0],
+          endKey: (r.endKey && MONTH_KEYS.indexOf(r.endKey) > -1) ? r.endKey : MONTH_KEYS[MONTH_KEYS.length-1]
+        };
+      });
+      if (parsed.months){
+        Object.keys(d.months).forEach(function(k){
+          if (parsed.months[k]){
+            d.months[k].earned = Number(parsed.months[k].earned) || 0;
+            d.months[k].expenses = Array.isArray(parsed.months[k].expenses) ? parsed.months[k].expenses : [];
+            var savedFixed = parsed.months[k].fixed || {};
+            FIXED_EXPENSE_NAMES.forEach(function(n){
+              d.months[k].fixed[n] = Number(savedFixed[n]) || 0;
+            });
+          }
+        });
+      }
+      return d;
+    }catch(e){
+      console.warn("could not load saved data, starting fresh", e);
+      return defaultState();
+    }
+  }
+
+  var state = loadState();
+  var saveTimer = null;
+
+  function persist(){
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      flashSaved();
+    }catch(e){
+      var t = document.getElementById("saveText");
+      if (t) t.textContent = "save failed";
+      console.warn("save failed", e);
+    }
+  }
+
+  function scheduleSave(){
+    var dot = document.getElementById("saveDot");
+    var text = document.getElementById("saveText");
+    if (dot) dot.style.opacity = "0.35";
+    if (text) text.textContent = "saving…";
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(persist, 350);
+  }
+
+  function flashSaved(){
+    var dot = document.getElementById("saveDot");
+    var text = document.getElementById("saveText");
+    if (dot) dot.style.opacity = "1";
+    if (text) text.textContent = "saved";
+  }
+
+  function fmt(n){
+    n = Number(n) || 0;
+    var neg = n < 0;
+    var s = Math.round(Math.abs(n)).toLocaleString("en-PH");
+    return (neg ? "−₱" : "₱") + s;
+  }
+
+  // like fmt, but prefixes a "+" for zero/positive values so a net change reads as added vs. lost
+  function fmtSigned(n){
+    n = Number(n) || 0;
+    return (n < 0 ? "" : "+") + fmt(n);
+  }
+
+  function uid(){ return Math.random().toString(36).slice(2,10); }
+
+  /* ---------- render: accounts ---------- */
+  function renderAccounts(){
+    var grid = document.getElementById("accountsGrid");
+    grid.innerHTML = "";
+    var countEl = document.getElementById("accountCount");
+    if (countEl) countEl.textContent = "Across " + ACCOUNTS.length + " accounts";
+    ACCOUNTS.forEach(function(name){
+      var field = document.createElement("div");
+      field.className = "acct-field";
+      var label = document.createElement("label");
+      label.textContent = name;
+      var input = document.createElement("input");
+      input.type = "number";
+      input.step = "1";
+      input.placeholder = "0";
+      input.value = state.accounts[name] ? state.accounts[name] : "";
+      input.addEventListener("input", function(){
+        state.accounts[name] = parseFloat(input.value) || 0;
+        renderTotals();
+        updateMonthFigures(); // first month's starting cash depends on this
+        scheduleSave();
+      });
+      field.appendChild(label);
+      field.appendChild(input);
+      grid.appendChild(field);
+    });
+  }
+
+  function totalCashOnHand(){
+    return ACCOUNTS.reduce(function(sum, a){ return sum + (Number(state.accounts[a]) || 0); }, 0);
+  }
+
+  function liabilitiesTotal(){
+    return state.liabilities.reduce(function(s,l){ return s + (Number(l.amount)||0); }, 0);
+  }
+
+  function renderTotals(){
+    var cash = totalCashOnHand();
+    document.getElementById("totalCash").textContent = fmt(cash);
+
+    var liabTotal = liabilitiesTotal();
+    document.getElementById("liabTotal").textContent = fmt(liabTotal);
+    var goalTotal = state.goals.reduce(function(s,g){ return s + (Number(g.amount)||0); }, 0);
+    document.getElementById("goalTotal").textContent = fmt(goalTotal);
+
+    var net = cash - liabTotal;
+    var netEl = document.getElementById("netCash");
+    if (netEl){
+      netEl.textContent = fmt(net);
+      netEl.className = "hero-net num" + (net < 0 ? " negative" : "");
+    }
+  }
+
+  /* ---------- render: liabilities / goals / recurring (generic list) ---------- */
+  // liveSync is an optional callback fired after each keystroke, for lists
+  // whose values are mirrored elsewhere on the page (e.g. recurring expenses
+  // shown inside month cards). It must never touch `listEl` itself, or typing
+  // would lose focus the same way the old per-keystroke rebuild did.
+  function renderNameAmountList(listEl, items, onChange, emptyLabel, liveSync){
+    listEl.innerHTML = "";
+    if (items.length === 0){
+      var hint = document.createElement("div");
+      hint.className = "empty-hint";
+      hint.textContent = emptyLabel;
+      listEl.appendChild(hint);
+      return;
+    }
+    items.forEach(function(item){
+      var row = document.createElement("div");
+      row.className = "item-row";
+
+      var nameInput = document.createElement("input");
+      nameInput.type = "text";
+      nameInput.placeholder = "Name";
+      nameInput.value = item.name || "";
+      nameInput.addEventListener("input", function(){
+        item.name = nameInput.value;
+        if (liveSync) liveSync();
+        scheduleSave();
+      });
+
+      var amtInput = document.createElement("input");
+      amtInput.type = "number";
+      amtInput.step = "1";
+      amtInput.className = "amount";
+      amtInput.placeholder = "0";
+      amtInput.value = item.amount ? item.amount : "";
+      amtInput.addEventListener("input", function(){
+        item.amount = parseFloat(amtInput.value) || 0;
+        renderTotals();
+        if (liveSync) liveSync();
+        scheduleSave();
+      });
+
+      var rm = document.createElement("button");
+      rm.className = "remove-btn";
+      rm.title = "Remove";
+      rm.textContent = "✕";
+      rm.addEventListener("click", function(){
+        var idx = items.indexOf(item);
+        if (idx > -1) items.splice(idx, 1);
+        renderTotals();
+        onChange();
+        scheduleSave();
+      });
+
+      row.appendChild(nameInput);
+      row.appendChild(amtInput);
+      row.appendChild(rm);
+      listEl.appendChild(row);
+    });
+  }
+
+  function renderLiabilities(){
+    renderNameAmountList(
+      document.getElementById("liabList"),
+      state.liabilities,
+      renderLiabilities,
+      "No liabilities added yet."
+    );
+  }
+  function renderGoals(){
+    renderNameAmountList(
+      document.getElementById("goalList"),
+      state.goals,
+      renderGoals,
+      "No goals added yet."
+    );
+  }
+  // sum of recurring expenses whose [startKey, endKey] range covers `key`
+  function recurringTotalForKey(key){
+    return state.recurringExpenses.reduce(function(s,r){
+      if (key >= r.startKey && key <= r.endKey) return s + (Number(r.amount) || 0);
+      return s;
+    }, 0);
+  }
+  function renderRecurTotal(){
+    document.getElementById("recurTotal").textContent = fmt(recurringTotalForKey(currentMonthKey()));
+  }
+
+  function buildMonthSelect(selectedKey, onPick){
+    var sel = document.createElement("select");
+    sel.className = "range-select";
+    MONTH_KEYS.forEach(function(key){
+      var opt = document.createElement("option");
+      opt.value = key;
+      opt.textContent = monthLabel(key);
+      if (key === selectedKey) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    sel.addEventListener("change", function(){ onPick(sel.value); });
+    return sel;
+  }
+
+  var recurIndex = 0; // which recurring item is currently shown (one at a time)
+
+  function buildRecurRow(item){
+      var row = document.createElement("div");
+      row.className = "recur-row";
+
+      var mainLine = document.createElement("div");
+      mainLine.className = "item-row";
+
+      var nameInput = document.createElement("input");
+      nameInput.type = "text";
+      nameInput.placeholder = "Name";
+      nameInput.value = item.name || "";
+      nameInput.addEventListener("input", function(){
+        item.name = nameInput.value;
+        renderMonths(); // recurring name is mirrored into month cards
+        scheduleSave();
+      });
+
+      var amtInput = document.createElement("input");
+      amtInput.type = "number";
+      amtInput.step = "1";
+      amtInput.className = "amount";
+      amtInput.placeholder = "0";
+      amtInput.value = item.amount ? item.amount : "";
+      amtInput.addEventListener("input", function(){
+        item.amount = parseFloat(amtInput.value) || 0;
+        renderRecurTotal();
+        updateMonthFigures();
+        renderMonths(); // recurring amount is mirrored into month cards
+        scheduleSave();
+      });
+
+      var rm = document.createElement("button");
+      rm.className = "remove-btn";
+      rm.title = "Remove";
+      rm.textContent = "✕";
+      rm.addEventListener("click", function(){
+        var idx = state.recurringExpenses.indexOf(item);
+        if (idx > -1) state.recurringExpenses.splice(idx, 1);
+        if (recurIndex >= state.recurringExpenses.length) {
+          recurIndex = Math.max(0, state.recurringExpenses.length - 1);
+        }
+        renderRecurring();
+        renderMonths();
+        scheduleSave();
+      });
+
+      mainLine.appendChild(nameInput);
+      mainLine.appendChild(amtInput);
+      mainLine.appendChild(rm);
+      row.appendChild(mainLine);
+
+      var rangeLine = document.createElement("div");
+      rangeLine.className = "range-row";
+
+      var fromWrap = document.createElement("div");
+      fromWrap.className = "range-field";
+      var fromLbl = document.createElement("label");
+      fromLbl.textContent = "From";
+      var fromSel = buildMonthSelect(item.startKey, function(val){
+        item.startKey = val;
+        if (item.startKey > item.endKey) item.endKey = item.startKey;
+        renderRecurring();
+        renderMonths();
+        scheduleSave();
+      });
+      fromWrap.appendChild(fromLbl);
+      fromWrap.appendChild(fromSel);
+
+      var toWrap = document.createElement("div");
+      toWrap.className = "range-field";
+      var toLbl = document.createElement("label");
+      toLbl.textContent = "To";
+      var toSel = buildMonthSelect(item.endKey, function(val){
+        item.endKey = val;
+        if (item.endKey < item.startKey) item.startKey = item.endKey;
+        renderRecurring();
+        renderMonths();
+        scheduleSave();
+      });
+      toWrap.appendChild(toLbl);
+      toWrap.appendChild(toSel);
+
+      rangeLine.appendChild(fromWrap);
+      rangeLine.appendChild(toWrap);
+      row.appendChild(rangeLine);
+
+      return row;
+  }
+
+  function renderRecurring(){
+    var listEl = document.getElementById("recurList");
+    listEl.innerHTML = "";
+
+    var items = state.recurringExpenses;
+    if (items.length === 0){
+      var hint = document.createElement("div");
+      hint.className = "empty-hint";
+      hint.textContent = "No recurring expenses yet.";
+      listEl.appendChild(hint);
+      renderRecurTotal();
+      return;
+    }
+
+    if (recurIndex > items.length - 1) recurIndex = items.length - 1;
+    if (recurIndex < 0) recurIndex = 0;
+
+    // pager: shows one recurring item at a time to keep the card short
+    var pager = document.createElement("div");
+    pager.className = "recur-pager";
+
+    var prevBtn = document.createElement("button");
+    prevBtn.className = "pager-btn";
+    prevBtn.type = "button";
+    prevBtn.textContent = "‹";
+    prevBtn.title = "Previous";
+    prevBtn.disabled = recurIndex === 0;
+    prevBtn.addEventListener("click", function(){
+      recurIndex = Math.max(0, recurIndex - 1);
+      renderRecurring();
+    });
+
+    var count = document.createElement("span");
+    count.className = "pager-count";
+    count.textContent = (recurIndex + 1) + " of " + items.length;
+
+    var nextBtn = document.createElement("button");
+    nextBtn.className = "pager-btn";
+    nextBtn.type = "button";
+    nextBtn.textContent = "›";
+    nextBtn.title = "Next";
+    nextBtn.disabled = recurIndex === items.length - 1;
+    nextBtn.addEventListener("click", function(){
+      recurIndex = Math.min(items.length - 1, recurIndex + 1);
+      renderRecurring();
+    });
+
+    pager.appendChild(prevBtn);
+    pager.appendChild(count);
+    pager.appendChild(nextBtn);
+    listEl.appendChild(pager);
+
+    listEl.appendChild(buildRecurRow(items[recurIndex]));
+
+    renderRecurTotal();
+  }
+
+  document.getElementById("addLiab").addEventListener("click", function(){
+    state.liabilities.push({ id: uid(), name: "", amount: 0 });
+    renderLiabilities();
+    scheduleSave();
+  });
+  document.getElementById("addGoal").addEventListener("click", function(){
+    state.goals.push({ id: uid(), name: "", amount: 0 });
+    renderGoals();
+    scheduleSave();
+  });
+  document.getElementById("addRecur").addEventListener("click", function(){
+    state.recurringExpenses.push({
+      id: uid(), name: "", amount: 0,
+      startKey: currentMonthKey(),
+      endKey: MONTH_KEYS[MONTH_KEYS.length-1]
+    });
+    recurIndex = state.recurringExpenses.length - 1; // jump to the new item
+    renderRecurring();
+    renderMonths();
+    scheduleSave();
+  });
+
+  /* ---------- render: yearly calendar ---------- */
+  var activeYear = 2026;
+
+  function yearsList(){
+    var ys = [];
+    MONTH_KEYS.forEach(function(k){
+      var y = parseInt(k.split("-")[0], 10);
+      if (ys.indexOf(y) === -1) ys.push(y);
+    });
+    return ys;
+  }
+
+  function renderYearTabs(){
+    var wrap = document.getElementById("yearTabs");
+    wrap.innerHTML = "";
+    yearsList().forEach(function(y){
+      var btn = document.createElement("button");
+      btn.className = "year-tab" + (y === activeYear ? " active" : "");
+      btn.textContent = y;
+      btn.addEventListener("click", function(){
+        activeYear = y;
+        renderYearTabs();
+        renderMonths();
+      });
+      wrap.appendChild(btn);
+    });
+  }
+
+  // compute each month's starting cash, earned, expense total, ending cash — in key order
+  function computeMonthFigures(){
+    var results = {};
+    var running = totalCashOnHand();
+    MONTH_KEYS.forEach(function(key){
+      var m = state.months[key];
+      var earned = Number(m.earned) || 0;
+      var oneTimeTotal = m.expenses.reduce(function(s,e){ return s + (Number(e.amount)||0); }, 0);
+      var fixedTotal = FIXED_EXPENSE_NAMES.reduce(function(s,n){ return s + (Number(m.fixed[n])||0); }, 0);
+      var recurTotal = recurringTotalForKey(key);
+      var expTotal = oneTimeTotal + fixedTotal + recurTotal;
+      var start = running;
+      var net = earned - expTotal;
+      var end = start + net;
+      results[key] = { start: start, earned: earned, oneTimeTotal: oneTimeTotal, fixedTotal: fixedTotal, recurTotal: recurTotal, expTotal: expTotal, net: net, end: end };
+      running = end;
+    });
+    return results;
+  }
+
+  function renderMonths(){
+    var grid = document.getElementById("monthsGrid");
+    grid.innerHTML = "";
+    var figures = computeMonthFigures();
+
+    MONTH_KEYS.filter(function(k){ return parseInt(k.split("-")[0],10) === activeYear; })
+      .forEach(function(key){
+        var monthIdx = parseInt(key.split("-")[1],10) - 1;
+        var m = state.months[key];
+        var fig = figures[key];
+
+        var card = document.createElement("div");
+        card.className = "month-card";
+
+        var head = document.createElement("div");
+        head.className = "month-head";
+        var h3 = document.createElement("h3");
+        h3.textContent = MONTH_NAMES[monthIdx] + " " + key.split("-")[0];
+        head.appendChild(h3);
+        card.appendChild(head);
+
+        var body = document.createElement("div");
+        body.className = "month-body";
+
+        // starting cash
+        var startLine = document.createElement("div");
+        startLine.className = "stat-line start";
+        var startLbl = document.createElement("span");
+        startLbl.className = "lbl";
+        startLbl.textContent = "Cash on hand";
+        var startVal = document.createElement("span");
+        startVal.className = "val num";
+        startVal.id = "start-" + key;
+        startVal.textContent = fmt(fig.start);
+        startLine.appendChild(startLbl);
+        startLine.appendChild(startVal);
+        body.appendChild(startLine);
+
+        // earned input
+        var earnRow = document.createElement("div");
+        earnRow.className = "earn-input-row";
+        var earnLbl = document.createElement("span");
+        earnLbl.className = "lbl";
+        earnLbl.textContent = "Money earned";
+        var earnInput = document.createElement("input");
+        earnInput.type = "number";
+        earnInput.step = "1";
+        earnInput.className = "amount";
+        earnInput.placeholder = "0";
+        earnInput.value = m.earned ? m.earned : "";
+        earnInput.addEventListener("input", function(){
+          m.earned = parseFloat(earnInput.value) || 0;
+          updateMonthFigures();
+          scheduleSave();
+        });
+        earnRow.appendChild(earnLbl);
+        earnRow.appendChild(earnInput);
+        body.appendChild(earnRow);
+
+        // fixed expense categories: same named input in every month
+        var fixedSection = document.createElement("div");
+        fixedSection.className = "exp-section";
+        var fixedLbl = document.createElement("div");
+        fixedLbl.className = "sub-label";
+        fixedLbl.textContent = "Categories";
+        fixedSection.appendChild(fixedLbl);
+
+        FIXED_EXPENSE_NAMES.forEach(function(catName){
+          var catRow = document.createElement("div");
+          catRow.className = "earn-input-row";
+          var catLbl = document.createElement("span");
+          catLbl.className = "lbl";
+          catLbl.textContent = catName;
+          var catInput = document.createElement("input");
+          catInput.type = "number";
+          catInput.step = "1";
+          catInput.className = "amount";
+          catInput.placeholder = "0";
+          catInput.value = m.fixed[catName] ? m.fixed[catName] : "";
+          catInput.style.color = "var(--negative)";
+          catInput.addEventListener("input", function(){
+            m.fixed[catName] = parseFloat(catInput.value) || 0;
+            updateMonthFigures();
+            scheduleSave();
+          });
+          catRow.appendChild(catLbl);
+          catRow.appendChild(catInput);
+          fixedSection.appendChild(catRow);
+        });
+        body.appendChild(fixedSection);
+
+        // recurring expenses active in this specific month (read-only here;
+        // managed, including their date range, in the Recurring expenses card above)
+        var activeRecur = state.recurringExpenses.filter(function(r){
+          return key >= r.startKey && key <= r.endKey;
+        });
+        if (activeRecur.length > 0){
+          var recurSection = document.createElement("div");
+          recurSection.className = "exp-section";
+          var recurLbl = document.createElement("div");
+          recurLbl.className = "sub-label";
+          recurLbl.textContent = "Recurring";
+          recurSection.appendChild(recurLbl);
+          activeRecur.forEach(function(r){
+            var rRow = document.createElement("div");
+            rRow.className = "stat-line";
+            var rName = document.createElement("span");
+            rName.className = "lbl";
+            rName.textContent = r.name || "Untitled";
+            var rAmt = document.createElement("span");
+            rAmt.className = "val num";
+            rAmt.textContent = fmt(Number(r.amount) || 0);
+            rRow.appendChild(rName);
+            rRow.appendChild(rAmt);
+            recurSection.appendChild(rRow);
+          });
+          body.appendChild(recurSection);
+        }
+
+        // one-time expenses section
+        var expSection = document.createElement("div");
+        expSection.className = "exp-section";
+        var subLbl = document.createElement("div");
+        subLbl.className = "sub-label";
+        subLbl.textContent = "One-time expenses";
+        expSection.appendChild(subLbl);
+
+        m.expenses.forEach(function(exp){
+          var row = document.createElement("div");
+          row.className = "exp-row";
+
+          var nameInput = document.createElement("input");
+          nameInput.type = "text";
+          nameInput.placeholder = "Name";
+          nameInput.value = exp.name || "";
+          nameInput.addEventListener("input", function(){
+            exp.name = nameInput.value;
+            scheduleSave();
+          });
+
+          var amtInput = document.createElement("input");
+          amtInput.type = "number";
+          amtInput.step = "1";
+          amtInput.className = "amount";
+          amtInput.placeholder = "0";
+          amtInput.value = exp.amount ? exp.amount : "";
+          amtInput.addEventListener("input", function(){
+            exp.amount = parseFloat(amtInput.value) || 0;
+            updateMonthFigures();
+            scheduleSave();
+          });
+
+          var rm = document.createElement("button");
+          rm.className = "remove-btn";
+          rm.textContent = "✕";
+          rm.title = "Remove";
+          rm.addEventListener("click", function(){
+            var idx = m.expenses.indexOf(exp);
+            if (idx > -1) m.expenses.splice(idx,1);
+            renderMonths();
+            scheduleSave();
+          });
+
+          row.appendChild(nameInput);
+          row.appendChild(amtInput);
+          row.appendChild(rm);
+          expSection.appendChild(row);
+        });
+
+        var addExpBtn = document.createElement("button");
+        addExpBtn.className = "add-exp-btn";
+        addExpBtn.textContent = "+ Add expense";
+        addExpBtn.addEventListener("click", function(){
+          m.expenses.push({ id: uid(), name: "", amount: 0 });
+          renderMonths();
+          scheduleSave();
+        });
+        expSection.appendChild(addExpBtn);
+
+        body.appendChild(expSection);
+
+        // total expenses for the month (recurring + one-time)
+        var totalExpLine = document.createElement("div");
+        totalExpLine.className = "stat-line total-exp";
+        var teLbl = document.createElement("span");
+        teLbl.className = "lbl";
+        teLbl.textContent = "Total expenses";
+        var teVal = document.createElement("span");
+        teVal.className = "val num";
+        teVal.id = "exp-" + key;
+        teVal.textContent = fmt(fig.expTotal);
+        totalExpLine.appendChild(teLbl);
+        totalExpLine.appendChild(teVal);
+        body.appendChild(totalExpLine);
+
+        // net cash added this month (money earned minus total expenses)
+        var netLine = document.createElement("div");
+        netLine.className = "stat-line net-cash";
+        var netLbl = document.createElement("span");
+        netLbl.className = "lbl";
+        netLbl.textContent = "Net cash added";
+        var netVal = document.createElement("span");
+        netVal.className = "val num " + (fig.net < 0 ? "negative" : "positive");
+        netVal.id = "net-" + key;
+        netVal.textContent = fmtSigned(fig.net);
+        netLine.appendChild(netLbl);
+        netLine.appendChild(netVal);
+        body.appendChild(netLine);
+
+        card.appendChild(body);
+
+        var footer = document.createElement("div");
+        footer.className = "month-footer";
+        var fLbl = document.createElement("span");
+        fLbl.className = "lbl";
+        fLbl.textContent = "Ending balance";
+        var fVal = document.createElement("span");
+        fVal.className = "val num " + (fig.end < 0 ? "negative" : "positive");
+        fVal.id = "end-" + key;
+        fVal.textContent = fmt(fig.end);
+        footer.appendChild(fLbl);
+        footer.appendChild(fVal);
+        card.appendChild(footer);
+
+        grid.appendChild(card);
+      });
+  }
+
+  // recompute balances and patch existing month-card numbers in place,
+  // without rebuilding inputs (so typing never loses focus)
+  function updateMonthFigures(){
+    var figures = computeMonthFigures();
+    MONTH_KEYS.forEach(function(key){
+      var fig = figures[key];
+      var startEl = document.getElementById("start-" + key);
+      if (startEl) startEl.textContent = fmt(fig.start);
+      var expEl = document.getElementById("exp-" + key);
+      if (expEl) expEl.textContent = fmt(fig.expTotal);
+      var netEl = document.getElementById("net-" + key);
+      if (netEl){
+        netEl.textContent = fmtSigned(fig.net);
+        netEl.className = "val num " + (fig.net < 0 ? "negative" : "positive");
+      }
+      var endEl = document.getElementById("end-" + key);
+      if (endEl){
+        endEl.textContent = fmt(fig.end);
+        endEl.className = "val num " + (fig.end < 0 ? "negative" : "positive");
+      }
+    });
+  }
+
+  /* ---------- reset ---------- */
+  document.getElementById("resetAll").addEventListener("click", function(){
+    if (!confirm("Clear all saved data on this device? This cannot be undone.")) return;
+    state = defaultState();
+    try{ localStorage.removeItem(STORAGE_KEY); }catch(e){}
+    renderAll();
+    scheduleSave();
+  });
+
+  /* ---------- export / import (move data between copies of this page) ---------- */
+  var exportPanel = document.getElementById("exportPanel");
+  var importPanel = document.getElementById("importPanel");
+
+  document.getElementById("showExport").addEventListener("click", function(){
+    importPanel.hidden = true;
+    document.getElementById("exportText").value = JSON.stringify(state);
+    exportPanel.hidden = false;
+  });
+  document.getElementById("closeExport").addEventListener("click", function(){
+    exportPanel.hidden = true;
+  });
+  document.getElementById("copyExport").addEventListener("click", function(){
+    var ta = document.getElementById("exportText");
+    ta.focus();
+    ta.select();
+    var btn = document.getElementById("copyExport");
+    var revert = function(){ btn.textContent = "Copy to clipboard"; };
+    try{
+      if (navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(ta.value).then(function(){
+          btn.textContent = "Copied!";
+          setTimeout(revert, 1500);
+        }).catch(function(){
+          document.execCommand("copy");
+          btn.textContent = "Copied!";
+          setTimeout(revert, 1500);
+        });
+      } else {
+        document.execCommand("copy");
+        btn.textContent = "Copied!";
+        setTimeout(revert, 1500);
+      }
+    }catch(e){
+      // selection is still made; user can copy manually with Ctrl/Cmd+C
+    }
+  });
+
+  document.getElementById("showImport").addEventListener("click", function(){
+    exportPanel.hidden = true;
+    document.getElementById("importText").value = "";
+    importPanel.hidden = false;
+  });
+  document.getElementById("closeImport").addEventListener("click", function(){
+    importPanel.hidden = true;
+  });
+  document.getElementById("loadImport").addEventListener("click", function(){
+    var raw = document.getElementById("importText").value.trim();
+    if (!raw){ return; }
+    var parsed;
+    try{
+      parsed = JSON.parse(raw);
+    }catch(e){
+      alert("That doesn't look like a valid backup code. Make sure you copied the whole thing.");
+      return;
+    }
+    if (!confirm("Load this data? It will replace everything currently entered on this page.")) return;
+
+    // reuse loadState's normalization by round-tripping through the same parser
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed)); }catch(e){}
+    state = loadState();
+    renderAll();
+    scheduleSave();
+    importPanel.hidden = true;
+  });
+
+  function renderAll(){
+    renderAccounts();
+    renderTotals();
+    renderLiabilities();
+    renderGoals();
+    renderRecurring();
+    renderYearTabs();
+    renderMonths();
+  }
+
+  renderAll();
+})();
+</script>
+
+</body>
+</html>

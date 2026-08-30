@@ -165,9 +165,54 @@
   }
   select:focus { border-color: #ff6b35; }
 
-  .task-add-bar { display: flex; gap: 6px; flex-wrap: wrap; }
-  .task-add-bar .task-add-priority { flex: none; width: 92px; padding: 8px 6px; font-size: 10px; }
-  .task-add-bar .task-add-date { flex: none; width: 128px; padding: 7px 8px; font-size: 10px; color-scheme: dark; }
+  /* Quick-add bar — modeled on Microsoft To Do's "+ task" row: a plain
+     inline input (no boxed border look) with icon-only actions on the
+     right, each opening a small dropdown menu instead of a full-width
+     select/date field. */
+  .qa-bar {
+    display: flex; align-items: center; gap: 10px;
+    background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px;
+    padding: 8px 12px;
+  }
+  .qa-plus {
+    flex: none; width: 20px; height: 20px; border-radius: 50%;
+    border: none; background: #2a2a2a; color: #ccc;
+    font-size: 14px; line-height: 1; cursor: pointer;
+    display: grid; place-content: center;
+  }
+  .qa-plus:hover { background: #ff6b35; color: #fff; }
+  .qa-input {
+    flex: 1; background: transparent; border: none; padding: 0;
+    font-family: 'DM Sans', sans-serif; font-size: 13px; color: #f0f0f0;
+  }
+  .qa-input:focus { border: none; }
+  .qa-icons { display: flex; gap: 4px; flex: none; }
+  .qa-icon-btn {
+    background: none; border: none; cursor: pointer; font-size: 14px;
+    padding: 4px 6px; border-radius: 6px; opacity: 0.7; transition: all 0.15s;
+  }
+  .qa-icon-btn:hover, .qa-icon-btn.active { opacity: 1; background: #2a2a2a; }
+  .qa-menu {
+    position: relative; margin-top: 4px; background: #1e1e1e; border: 1px solid #2a2a2a;
+    border-radius: 8px; padding: 4px; display: flex; flex-direction: column;
+    max-width: 260px;
+  }
+  .qa-menu-item {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    background: none; border: none; text-align: left; cursor: pointer;
+    padding: 7px 10px; border-radius: 6px; font-size: 12px; color: #f0f0f0;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .qa-menu-item:hover { background: #2a2a2a; }
+  .qa-menu-item .qa-menu-day { color: #888; font-size: 11px; }
+  .qa-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .qa-chip {
+    display: flex; align-items: center; gap: 5px; font-size: 10px;
+    background: #1e1e1e; border: 1px solid #2a2a2a; border-radius: 999px;
+    padding: 3px 9px; color: #ccc;
+  }
+  .qa-chip button { background: none; border: none; color: #666; cursor: pointer; font-size: 11px; padding: 0; }
+  .qa-chip button:hover { color: #f87171; }
   .task-row { display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-bottom: 1px solid #1e1e1e; border-radius: 6px; transition: background 0.15s; }
   .task-row:last-child { border-bottom: none; }
   .task-row:hover { background: #161616; }
@@ -4034,18 +4079,24 @@ Then extract:
       </div>
       <div class="tool-desc">A running checklist — nothing auto-clears, check things off as you go.</div>
       <div class="status-line" data-el="status"></div>
-      <div class="task-add-bar" style="margin-bottom:8px;">
-        <input type="text" data-el="taskInput" placeholder="Add a task..." autocomplete="off" spellcheck="false" style="flex:1;" />
-        <select data-el="priorityInput" class="task-add-priority" title="Priority">
-          <option value="none">Priority</option>
-          <option value="low">Low</option>
-          <option value="med">Medium</option>
-          <option value="high">High</option>
-        </select>
-        <input type="date" data-el="dueDateInput" class="task-add-date" title="Due date" />
-        <button class="save-btn" data-act="add">Add</button>
+      <div class="qa-bar" style="margin-bottom:2px;">
+        <button class="qa-plus" data-act="add" title="Add task">+</button>
+        <input type="text" data-el="taskInput" class="qa-input" placeholder="Add a task" autocomplete="off" spellcheck="false" />
+        <div class="qa-icons">
+          <button class="qa-icon-btn" data-act="toggleDueMenu" data-el="dueBtn" title="Due date">📅</button>
+          <button class="qa-icon-btn" data-act="togglePriorityMenu" data-el="priorityBtn" title="Priority">🚩</button>
+        </div>
       </div>
-      <div class="proof-summary" data-el="summary" style="display:flex; align-items:center; justify-content:space-between;"></div>
+      <div class="qa-chips" data-el="chips"></div>
+      <div class="qa-menu" data-el="dueMenu" hidden></div>
+      <div class="qa-menu" data-el="priorityMenu" hidden>
+        <button class="qa-menu-item" data-act="setPriority" data-value="none"><span>⚪</span> No priority</button>
+        <button class="qa-menu-item" data-act="setPriority" data-value="low"><span style="color:#5b9bd5;">🚩</span> Low</button>
+        <button class="qa-menu-item" data-act="setPriority" data-value="med"><span style="color:#f5a524;">🚩</span> Medium</button>
+        <button class="qa-menu-item" data-act="setPriority" data-value="high"><span style="color:#f87171;">🚩</span> High</button>
+      </div>
+      <input type="date" data-el="dueDateInput" style="display:none;" />
+      <div class="proof-summary" data-el="summary" style="display:flex; align-items:center; justify-content:space-between; margin-top:8px;"></div>
       <div data-el="list"></div>
 
       <div class="config-toggle" data-act="toggleConfig">⚙ set GitHub token</div>
@@ -4063,8 +4114,12 @@ Then extract:
     const el = sel => card.querySelector(`[data-el="${sel}"]`);
     const statusEl = el('status');
     const taskInput = el('taskInput');
-    const priorityInput = el('priorityInput');
     const dueDateInput = el('dueDateInput');
+    const dueBtn = el('dueBtn');
+    const priorityBtn = el('priorityBtn');
+    const dueMenu = el('dueMenu');
+    const priorityMenu = el('priorityMenu');
+    const chipsEl = el('chips');
     const summaryEl = el('summary');
     const listEl = el('list');
     const configPanel = el('configPanel');
@@ -4077,9 +4132,57 @@ Then extract:
       const d = new Date();
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     }
+    function dateKeyFrom(d) {
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
     function formatDueDate(dateStr) {
       const [y, m, d] = dateStr.split('-').map(Number);
       return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+    function weekdayAbbrev(d) {
+      return d.toLocaleDateString('en-US', { weekday: 'short' });
+    }
+
+    // Pending due date/priority for the task about to be added — set via
+    // the quick-add bar's icon menus (Microsoft To Do style), cleared once
+    // the task is actually added.
+    let pendingDueDate = null;
+    let pendingPriority = 'none';
+
+    function renderDueMenu() {
+      const today = new Date();
+      const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+      const daysUntilNextMonday = (8 - today.getDay()) % 7 || 7;
+      const nextWeek = new Date(today); nextWeek.setDate(nextWeek.getDate() + daysUntilNextMonday);
+      const options = [
+        { label: 'Today', icon: '📅', date: today },
+        { label: 'Tomorrow', icon: '📆', date: tomorrow },
+        { label: 'Next week', icon: '📅', date: nextWeek },
+      ];
+      dueMenu.innerHTML = options.map(o => `
+        <button class="qa-menu-item" data-act="setDue" data-value="${dateKeyFrom(o.date)}"><span>${o.icon} ${o.label}</span><span class="qa-menu-day">${weekdayAbbrev(o.date)}</span></button>
+      `).join('') + `
+        <button class="qa-menu-item" data-act="pickDate"><span>🗓️ Pick a date</span></button>
+      `;
+    }
+    renderDueMenu();
+
+    function closeMenus() {
+      dueMenu.hidden = true;
+      priorityMenu.hidden = true;
+      dueBtn.classList.remove('active');
+      priorityBtn.classList.remove('active');
+    }
+
+    function renderChips() {
+      const chips = [];
+      if (pendingDueDate) {
+        chips.push(`<div class="qa-chip">📅 ${formatDueDate(pendingDueDate)}<button data-act="clearDue">✕</button></div>`);
+      }
+      if (pendingPriority !== 'none') {
+        chips.push(`<div class="qa-chip">🚩 ${PRIORITY_LABELS[pendingPriority]}<button data-act="clearPriority">✕</button></div>`);
+      }
+      chipsEl.innerHTML = chips.join('');
     }
 
     function setStatus(text, cls) {
@@ -4176,12 +4279,14 @@ Then extract:
       tasksDataCache.dailyTasks = tasksDataCache.dailyTasks || [];
       tasksDataCache.dailyTasks.unshift({
         id: tasksNewId(), text, done: false,
-        priority: priorityInput.value,
-        dueDate: dueDateInput.value || null,
+        priority: pendingPriority,
+        dueDate: pendingDueDate,
       });
       taskInput.value = '';
-      priorityInput.value = 'none';
+      pendingPriority = 'none';
+      pendingDueDate = null;
       dueDateInput.value = '';
+      renderChips();
       render();
       setStatus('Saving...', '');
       const ok = await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
@@ -4215,15 +4320,45 @@ Then extract:
     }
 
     card.addEventListener('click', (e) => {
-      const act = e.target.dataset.act;
+      const target = e.target.closest('[data-act]');
+      const act = target?.dataset.act;
       if (act === 'add') addTask();
       else if (act === 'refresh') initTasksData();
       else if (act === 'toggleConfig') configPanel.classList.toggle('open');
-      else if (act === 'delete') deleteTask(e.target.dataset.id);
-      else if (act === 'startEdit') startEditTask(e.target.dataset.id);
-      else if (act === 'saveEdit') saveEditTask(e.target.dataset.id);
+      else if (act === 'delete') deleteTask(target.dataset.id);
+      else if (act === 'startEdit') startEditTask(target.dataset.id);
+      else if (act === 'saveEdit') saveEditTask(target.dataset.id);
       else if (act === 'cancelEdit') cancelEditTask();
       else if (act === 'clearCompleted') clearCompletedTasks();
+      else if (act === 'toggleDueMenu') {
+        const willOpen = dueMenu.hidden;
+        closeMenus();
+        if (willOpen) { dueMenu.hidden = false; dueBtn.classList.add('active'); }
+        e.stopPropagation();
+      }
+      else if (act === 'togglePriorityMenu') {
+        const willOpen = priorityMenu.hidden;
+        closeMenus();
+        if (willOpen) { priorityMenu.hidden = false; priorityBtn.classList.add('active'); }
+        e.stopPropagation();
+      }
+      else if (act === 'setDue') {
+        pendingDueDate = target.dataset.value;
+        closeMenus();
+        renderChips();
+      }
+      else if (act === 'pickDate') {
+        closeMenus();
+        dueDateInput.style.display = '';
+        if (dueDateInput.showPicker) dueDateInput.showPicker(); else dueDateInput.focus();
+      }
+      else if (act === 'setPriority') {
+        pendingPriority = target.dataset.value;
+        closeMenus();
+        renderChips();
+      }
+      else if (act === 'clearDue') { pendingDueDate = null; renderChips(); }
+      else if (act === 'clearPriority') { pendingPriority = 'none'; renderChips(); }
       else if (act === 'saveToken') {
         const val = tokenInput.value.trim();
         if (!val) return;
@@ -4231,6 +4366,14 @@ Then extract:
         setStatus('Token saved ✓', 'success');
         initTasksData();
       }
+    });
+    document.addEventListener('click', (e) => {
+      if (!card.contains(e.target)) closeMenus();
+    });
+    dueDateInput.addEventListener('change', () => {
+      pendingDueDate = dueDateInput.value || null;
+      dueDateInput.style.display = 'none';
+      renderChips();
     });
     card.addEventListener('change', (e) => {
       if (e.target.matches('input[type="checkbox"][data-id]')) toggleTask(e.target.dataset.id);

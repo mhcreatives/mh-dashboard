@@ -16,5 +16,13 @@
       "done": false
     }
   ],
-  "goals": []
+  "goals": [
+    {
+      "id": "mtfkz2potqqy53",
+      "title": "ddas",
+      "timeframe": "3 months",
+      "status": "not_started",
+      "notes": ""
+    }
+  ]
 }

@@ -1,19 +1,4 @@
 {
   "dailyTasks": [],
-  "goals": [
-    {
-      "id": "mtfkz2potqqy53",
-      "title": "ddas",
-      "timeframe": "3 months",
-      "status": "not_started",
-      "notes": ""
-    },
-    {
-      "id": "mtfl1savdi02zb",
-      "title": "aa",
-      "timeframe": "3 months",
-      "status": "not_started",
-      "notes": ""
-    }
-  ]
+  "goals": []
 }

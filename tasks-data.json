@@ -16,13 +16,5 @@
       "done": false
     }
   ],
-  "goals": [
-    {
-      "id": "mtfkyvsg4c1e8g",
-      "title": "3",
-      "timeframe": "3 months",
-      "status": "not_started",
-      "notes": ""
-    }
-  ]
+  "goals": []
 }

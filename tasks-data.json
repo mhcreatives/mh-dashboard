@@ -3,7 +3,7 @@
     {
       "id": "mtfktjyox7wafg",
       "text": "d",
-      "done": true
+      "done": false
     },
     {
       "id": "mtfktj2wom82jj",
@@ -13,7 +13,7 @@
     {
       "id": "mtfkha46blcio1",
       "text": "test",
-      "done": false
+      "done": true
     }
   ],
   "goals": [

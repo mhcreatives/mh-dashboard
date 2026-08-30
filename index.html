@@ -3729,14 +3729,15 @@ Then extract:
   const ADS_MESSAGE_ACTION_TYPES = ['onsite_conversion.messaging_conversation_started_7d'];
   const ADS_PURCHASE_ACTION_TYPES = ['omni_purchase', 'purchase', 'offsite_conversion.fb_pixel_purchase'];
 
-  async function adsFetchDailyInsights(token, accountId) {
+  async function adsFetchInsights(token, accountId, datePreset) {
     const acct = accountId.trim().replace(/^act_/, '');
     const fields = 'spend,reach,actions';
-    // Facebook's default page size for a daily-broken-down last_30d query is
-    // smaller than 30 rows and returns oldest-first, so reading only the
-    // first page silently cut off the most recent days (confirmed: a 30-day
-    // window was only showing up through day ~25). Follow pagination fully.
-    let url = `https://graph.facebook.com/${ADS_GRAPH_VERSION}/act_${encodeURIComponent(acct)}/insights?fields=${fields}&date_preset=${ADS_DATE_PRESET}&time_increment=1&limit=100&access_token=${encodeURIComponent(token)}`;
+    // Facebook's default page size for a daily-broken-down query is smaller
+    // than the requested window and returns oldest-first, so reading only
+    // the first page silently cut off the most recent days (confirmed: a
+    // 30-day window was only showing up through day ~25). Follow pagination
+    // fully.
+    let url = `https://graph.facebook.com/${ADS_GRAPH_VERSION}/act_${encodeURIComponent(acct)}/insights?fields=${fields}&date_preset=${datePreset}&time_increment=1&limit=100&access_token=${encodeURIComponent(token)}`;
     const rows = [];
     let pages = 0;
     while (url && pages < 10) {
@@ -3907,8 +3908,20 @@ Then extract:
       }
       setStatus('Loading…', 'loading');
       try {
-        const daily = await adsFetchDailyInsights(token, accountId);
-        const rows = daily
+        // last_30d treats today as not-yet-final and often omits it (or
+        // returns a stale/empty row), so fetch it separately and merge it
+        // in — the table then shows today's running spend even though the
+        // averages below still exclude it as an unfinished day.
+        const [daily, todayRows] = await Promise.all([
+          adsFetchInsights(token, accountId, ADS_DATE_PRESET),
+          adsFetchInsights(token, accountId, 'today'),
+        ]);
+        const merged = [...daily];
+        todayRows.forEach(t => {
+          const idx = merged.findIndex(d => d.date_start === t.date_start);
+          if (idx >= 0) merged[idx] = t; else merged.push(t);
+        });
+        const rows = merged
           .map(d => {
             const spend = Number(d.spend) || 0;
             const messages = adsCountActions(d, ADS_MESSAGE_ACTION_TYPES);

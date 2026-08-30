@@ -3067,9 +3067,10 @@ Then extract:
         <div class="tool-name">💵 Sales</div>
         <div class="tool-actions">
           <button class="icon-btn" data-act="load">↻ Refresh</button>
+          <button class="icon-btn" data-act="refreshAll">⟳ Refresh all data</button>
         </div>
       </div>
-      <div class="tool-desc">Order counts + DP received from the "New orders" archive (columns H–L), order value from Airtable's Total field, matched by client name.</div>
+      <div class="tool-desc">Order counts + DP received from the "New orders" archive (columns H–L), order value from Airtable's Total field, matched by client name. "Refresh" only re-fetches the last 7 days (fast) and reuses cached older data — use "Refresh all data" to fully resync everything.</div>
       <div class="status-line" data-el="status"></div>
       <div class="proof-summary" data-el="summary"></div>
       <div class="no-wrap"><table class="no-table" data-el="table"></table></div>
@@ -3143,130 +3144,227 @@ Then extract:
       `;
     }
 
-    async function load() {
+    // Full-history recomputation is the slow part of this card (matching
+    // clusters requires Airtable data going back as far as the archive
+    // does), and that history only grows over time. So: cache the final
+    // per-date rows in localStorage, and on a normal "Refresh" only
+    // re-fetch/recompute the last SALES_QUICK_REFRESH_DAYS days — cheap,
+    // since it's a small Airtable creation-date-filtered fetch instead of
+    // the entire table — then merge with everything older from cache
+    // (which doesn't change once archived, so re-fetching it every time
+    // was pure waste). "Refresh all data" bypasses the cache entirely and
+    // recomputes everything, for whenever older data needs correcting.
+    const SALES_CACHE_STORAGE = 'mh_sales_rows_cache_v1';
+    const SALES_QUICK_REFRESH_DAYS = 7;
+    // Extra lookback on top of the 7-day window when fetching Airtable
+    // records for a quick refresh — generous relative to the clustering
+    // window (3 days) and fuzzy-match window (5 days) above, so a parent
+    // record just outside the 7-day cutoff is still included when its
+    // child (or a fuzzy-matched sibling) falls inside it. Not a hard
+    // guarantee for the rare record even older than this, which is exactly
+    // what "Refresh all data" exists to fully correct.
+    const SALES_AIRTABLE_LOOKBACK_BUFFER_DAYS = 21;
+
+    function dateKeyDaysAgo(days) {
+      const d = new Date();
+      d.setDate(d.getDate() - days);
+      return d.toISOString().slice(0, 10);
+    }
+
+    function loadSalesCache() {
+      try {
+        const raw = localStorage.getItem(SALES_CACHE_STORAGE);
+        return raw ? JSON.parse(raw) : null;
+      } catch { return null; }
+    }
+    function saveSalesCache(rows) {
+      try { localStorage.setItem(SALES_CACHE_STORAGE, JSON.stringify({ rows, cachedAt: Date.now() })); } catch { /* storage full/unavailable — cache is best-effort */ }
+    }
+
+    async function fetchArchiveRows(googleKey) {
+      // Was H2:L2000 (Encoded Name/DP/Payment/Notes/Date Encoded) — a column
+      // was inserted at H (a date-labeled tally/notes column), shifting that
+      // 5-column block one to the right.
+      const range = encodeURIComponent(`${GOOGLE_SHEET_TAB}!I2:M2000`);
+      const sheetResp = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}/values/${range}?key=${encodeURIComponent(googleKey)}`);
+      const sheetData = await sheetResp.json();
+      if (!sheetResp.ok) throw new Error(sheetData.error?.message || `HTTP ${sheetResp.status}`);
+      return (sheetData.values || [])
+        .map(row => ({ name: row[0] || '', dp: Number(row[1]) || 0, dateEncoded: otNormalizeDateEncoded(row[4]) }))
+        .filter(r => r.name && r.dateEncoded);
+    }
+
+    async function fetchAirtableForSales(airtableKey, sinceDateKey) {
+      const filter = sinceDateKey ? `IS_AFTER(CREATED_TIME(), DATETIME_PARSE("${sinceDateKey}"))` : null;
+      const invRecords = await otFetchRecords(airtableKey, INV_TABLE, PROOF_FB_NAME, INV_GRAND_TOTAL, INV_GRAND_TOTAL, filter, []);
+      // Standalone souvenir orders (no linked Invitation) have no Invitation
+      // record at all, so they'd otherwise be invisible here — Invitation's
+      // "Total" field already folds in souvenirs that ARE linked, so only
+      // unlinked ones need adding separately to avoid double-counting.
+      const souRecords = await otFetchRecords(airtableKey, SOU_TABLE, SOU_FB_NAME, SOU_TOTAL, SOU_TOTAL, filter, [SOU_INV_LINK]);
+      const souStandalone = souRecords.filter(rec => !(rec.fields?.[SOU_INV_LINK] || []).length);
+      return { invRecords, souStandalone };
+    }
+
+    // Turns a set of archive rows + Airtable records into per-date rows.
+    // Pure function of its inputs — used by both the quick (date-limited)
+    // and full refresh paths.
+    function computeSalesRows(archiveRows, invRecords, souStandalone) {
+      // Cluster each name's Airtable records into "orders" by creation-date
+      // proximity (within 3 days of each other), summing totals within a
+      // cluster — this is what actually handles "additional order" child
+      // records correctly: their own Total is 0 (real value already rolled
+      // into the parent via Airtable's rollup), but the child isn't always
+      // created the same day as the parent (confirmed case: parent created
+      // Aug 3, its child created Aug 5 — an exact-same-day match caught
+      // only the ₱0 child and completely missed the ₱7,275 parent). A
+      // 3-day window catches that lag while still keeping a repeat
+      // client's old, never-archived order in its own separate cluster
+      // (confirmed case: a year-old ₱2,475 order must never combine with
+      // an unrelated new order).
+      const CLUSTER_WINDOW_MS = 3 * 24 * 3600 * 1000;
+      const recordsByName = new Map();
+      const addRecord = (nameRaw, totalRaw, createdTime) => {
+        const name = otNormalizeNameForMatch(nameRaw);
+        if (!name || !createdTime) return;
+        if (!recordsByName.has(name)) recordsByName.set(name, []);
+        recordsByName.get(name).push({ total: Number(totalRaw) || 0, time: new Date(createdTime).getTime() });
+      };
+      invRecords.forEach(rec => addRecord(rec.fields?.[PROOF_FB_NAME], rec.fields?.[INV_GRAND_TOTAL], rec.createdTime));
+      souStandalone.forEach(rec => addRecord(rec.fields?.[SOU_FB_NAME], rec.fields?.[SOU_TOTAL], rec.createdTime));
+
+      const clustersByName = new Map();
+      recordsByName.forEach((records, name) => {
+        records.sort((a, b) => a.time - b.time);
+        const clusters = [];
+        let current = null;
+        records.forEach(r => {
+          if (current && (r.time - current.lastTime) <= CLUSTER_WINDOW_MS) {
+            current.total += r.total;
+            current.lastTime = r.time;
+          } else {
+            current = { total: r.total, lastTime: r.time };
+            clusters.push(current);
+          }
+        });
+        clustersByName.set(name, clusters);
+      });
+
+      const byDate = new Map();
+      let unmatched = 0;
+      archiveRows.forEach(r => {
+        const key = r.dateEncoded;
+        if (!byDate.has(key)) byDate.set(key, { orders: 0, totalValue: 0, dpReceived: 0 });
+        const bucket = byDate.get(key);
+        bucket.orders++;
+        bucket.dpReceived += r.dp;
+        const exactClusters = clustersByName.get(otNormalizeNameForMatch(r.name));
+        if (exactClusters && exactClusters.length) {
+          const archiveTime = new Date(r.dateEncoded).getTime();
+          let bestIdx = 0, bestDiff = Infinity;
+          exactClusters.forEach((c, idx) => {
+            const diff = Math.abs(c.lastTime - archiveTime);
+            if (diff < bestDiff) { bestDiff = diff; bestIdx = idx; }
+          });
+          bucket.totalValue += exactClusters.splice(bestIdx, 1)[0].total;
+          return;
+        }
+        // No exact name match — fall back to fuzzy matching (small typos
+        // like "Jaby JA" vs "Jabby VA", "Shiela" vs "Sheila"), but only
+        // accept a candidate whose name is close AND whose order date is
+        // close, so two different clients with similar names on unrelated
+        // dates don't get mismatched.
+        const archiveTime = new Date(r.dateEncoded).getTime();
+        const archiveName = otNormalizeNameForMatch(r.name);
+        let best = null;
+        clustersByName.forEach((clusters, candidateName) => {
+          if (!clusters.length) return;
+          const nameDist = otLevenshteinDistance(archiveName, candidateName);
+          if (nameDist > FUZZY_MAX_NAME_DIST) return;
+          clusters.forEach((c, idx) => {
+            const dateDiffDays = Math.abs(c.lastTime - archiveTime) / 86400000;
+            if (dateDiffDays > FUZZY_MAX_DATE_DIFF_DAYS) return;
+            if (!best || nameDist < best.nameDist || (nameDist === best.nameDist && dateDiffDays < best.dateDiffDays)) {
+              best = { candidateName, idx, nameDist, dateDiffDays, total: c.total };
+            }
+          });
+        });
+        if (best) {
+          clustersByName.get(best.candidateName).splice(best.idx, 1);
+          bucket.totalValue += best.total;
+        } else {
+          unmatched++;
+        }
+      });
+
+      const rows = [...byDate.entries()]
+        .map(([date, v]) => ({ date, orders: v.orders, totalValue: v.totalValue, dpReceived: v.dpReceived, aov: v.orders ? v.totalValue / v.orders : 0 }))
+        .sort((a, b) => b.date.localeCompare(a.date));
+      return { rows, unmatched };
+    }
+
+    function renderSalesRows(rows, note) {
+      const totalOrders = rows.reduce((sum, r) => sum + r.orders, 0);
+      summaryEl.textContent = `${totalOrders} archived order(s) across ${rows.length} date(s)${note || ''}`;
+      renderRows(rows);
+      renderAverages(computeAverageBases(rows));
+    }
+
+    function getKeys() {
       const googleKey = localStorage.getItem(GOOGLE_API_KEY_STORAGE) || '';
       const airtableKey = localStorage.getItem(OT_KEY_STORAGE) || '';
       if (!googleKey || !airtableKey) {
         setStatus('Set Google Sheets API key (New Orders card) and Airtable API key (Order Tracker card) first', 'error');
-        return;
+        return null;
       }
-      setStatus('Loading...', '');
+      return { googleKey, airtableKey };
+    }
+
+    async function load() {
+      const keys = getKeys();
+      if (!keys) return;
+      const cached = loadSalesCache();
+      if (cached?.rows?.length) renderSalesRows(cached.rows, ' (cached, refreshing last 7 days...)');
+      setStatus(cached ? 'Refreshing last 7 days...' : 'Loading...', '');
       try {
-        // Was H2:L2000 (Encoded Name/DP/Payment/Notes/Date Encoded) — a column
-        // was inserted at H (a date-labeled tally/notes column), shifting that
-        // 5-column block one to the right.
-        const range = encodeURIComponent(`${GOOGLE_SHEET_TAB}!I2:M2000`);
-        const sheetResp = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}/values/${range}?key=${encodeURIComponent(googleKey)}`);
-        const sheetData = await sheetResp.json();
-        if (!sheetResp.ok) throw new Error(sheetData.error?.message || `HTTP ${sheetResp.status}`);
-
-        const archiveRows = (sheetData.values || [])
-          .map(row => ({ name: row[0] || '', dp: Number(row[1]) || 0, dateEncoded: otNormalizeDateEncoded(row[4]) }))
-          .filter(r => r.name && r.dateEncoded);
-
-        const invRecords = await otFetchRecords(airtableKey, INV_TABLE, PROOF_FB_NAME, INV_GRAND_TOTAL, INV_GRAND_TOTAL, null, []);
-        // Standalone souvenir orders (no linked Invitation) have no Invitation
-        // record at all, so they'd otherwise be invisible here — Invitation's
-        // "Total" field already folds in souvenirs that ARE linked, so only
-        // unlinked ones need adding separately to avoid double-counting.
-        const souRecords = await otFetchRecords(airtableKey, SOU_TABLE, SOU_FB_NAME, SOU_TOTAL, SOU_TOTAL, null, [SOU_INV_LINK]);
-        const souStandalone = souRecords.filter(rec => !(rec.fields?.[SOU_INV_LINK] || []).length);
-
-        // Cluster each name's Airtable records into "orders" by creation-date
-        // proximity (within 3 days of each other), summing totals within a
-        // cluster — this is what actually handles "additional order" child
-        // records correctly: their own Total is 0 (real value already rolled
-        // into the parent via Airtable's rollup), but the child isn't always
-        // created the same day as the parent (confirmed case: parent created
-        // Aug 3, its child created Aug 5 — an exact-same-day match caught
-        // only the ₱0 child and completely missed the ₱7,275 parent). A
-        // 3-day window catches that lag while still keeping a repeat
-        // client's old, never-archived order in its own separate cluster
-        // (confirmed case: a year-old ₱2,475 order must never combine with
-        // an unrelated new order).
-        const CLUSTER_WINDOW_MS = 3 * 24 * 3600 * 1000;
-        const recordsByName = new Map();
-        const addRecord = (nameRaw, totalRaw, createdTime) => {
-          const name = otNormalizeNameForMatch(nameRaw);
-          if (!name || !createdTime) return;
-          if (!recordsByName.has(name)) recordsByName.set(name, []);
-          recordsByName.get(name).push({ total: Number(totalRaw) || 0, time: new Date(createdTime).getTime() });
-        };
-        invRecords.forEach(rec => addRecord(rec.fields?.[PROOF_FB_NAME], rec.fields?.[INV_GRAND_TOTAL], rec.createdTime));
-        souStandalone.forEach(rec => addRecord(rec.fields?.[SOU_FB_NAME], rec.fields?.[SOU_TOTAL], rec.createdTime));
-
-        const clustersByName = new Map();
-        recordsByName.forEach((records, name) => {
-          records.sort((a, b) => a.time - b.time);
-          const clusters = [];
-          let current = null;
-          records.forEach(r => {
-            if (current && (r.time - current.lastTime) <= CLUSTER_WINDOW_MS) {
-              current.total += r.total;
-              current.lastTime = r.time;
-            } else {
-              current = { total: r.total, lastTime: r.time };
-              clusters.push(current);
-            }
-          });
-          clustersByName.set(name, clusters);
-        });
-
-        const byDate = new Map();
-        let unmatched = 0;
-        archiveRows.forEach(r => {
-          const key = r.dateEncoded;
-          if (!byDate.has(key)) byDate.set(key, { orders: 0, totalValue: 0, dpReceived: 0 });
-          const bucket = byDate.get(key);
-          bucket.orders++;
-          bucket.dpReceived += r.dp;
-          const exactClusters = clustersByName.get(otNormalizeNameForMatch(r.name));
-          if (exactClusters && exactClusters.length) {
-            const archiveTime = new Date(r.dateEncoded).getTime();
-            let bestIdx = 0, bestDiff = Infinity;
-            exactClusters.forEach((c, idx) => {
-              const diff = Math.abs(c.lastTime - archiveTime);
-              if (diff < bestDiff) { bestDiff = diff; bestIdx = idx; }
-            });
-            bucket.totalValue += exactClusters.splice(bestIdx, 1)[0].total;
-            return;
-          }
-          // No exact name match — fall back to fuzzy matching (small typos
-          // like "Jaby JA" vs "Jabby VA", "Shiela" vs "Sheila"), but only
-          // accept a candidate whose name is close AND whose order date is
-          // close, so two different clients with similar names on unrelated
-          // dates don't get mismatched.
-          const archiveTime = new Date(r.dateEncoded).getTime();
-          const archiveName = otNormalizeNameForMatch(r.name);
-          let best = null;
-          clustersByName.forEach((clusters, candidateName) => {
-            if (!clusters.length) return;
-            const nameDist = otLevenshteinDistance(archiveName, candidateName);
-            if (nameDist > FUZZY_MAX_NAME_DIST) return;
-            clusters.forEach((c, idx) => {
-              const dateDiffDays = Math.abs(c.lastTime - archiveTime) / 86400000;
-              if (dateDiffDays > FUZZY_MAX_DATE_DIFF_DAYS) return;
-              if (!best || nameDist < best.nameDist || (nameDist === best.nameDist && dateDiffDays < best.dateDiffDays)) {
-                best = { candidateName, idx, nameDist, dateDiffDays, total: c.total };
-              }
-            });
-          });
-          if (best) {
-            clustersByName.get(best.candidateName).splice(best.idx, 1);
-            bucket.totalValue += best.total;
-          } else {
-            unmatched++;
-          }
-        });
-
-        const rows = [...byDate.entries()]
-          .map(([date, v]) => ({ date, orders: v.orders, totalValue: v.totalValue, dpReceived: v.dpReceived, aov: v.orders ? v.totalValue / v.orders : 0 }))
-          .sort((a, b) => b.date.localeCompare(a.date));
-
-        summaryEl.textContent = `${archiveRows.length} archived order(s) across ${rows.length} date(s)${unmatched ? ` · ${unmatched} unmatched to Airtable` : ''}`;
+        const archiveRowsAll = await fetchArchiveRows(keys.googleKey);
+        if (!cached) {
+          // Nothing cached yet — no choice but a full fetch this once.
+          const { invRecords, souStandalone } = await fetchAirtableForSales(keys.airtableKey, null);
+          const { rows, unmatched } = computeSalesRows(archiveRowsAll, invRecords, souStandalone);
+          saveSalesCache(rows);
+          renderSalesRows(rows, unmatched ? ` · ${unmatched} unmatched to Airtable` : '');
+          setStatus('Loaded ✓', 'success');
+          return;
+        }
+        const cutoffKey = dateKeyDaysAgo(SALES_QUICK_REFRESH_DAYS);
+        const sinceKey = dateKeyDaysAgo(SALES_QUICK_REFRESH_DAYS + SALES_AIRTABLE_LOOKBACK_BUFFER_DAYS);
+        const recentArchiveRows = archiveRowsAll.filter(r => r.dateEncoded >= cutoffKey);
+        const { invRecords, souStandalone } = await fetchAirtableForSales(keys.airtableKey, sinceKey);
+        const { rows: freshRows, unmatched } = computeSalesRows(recentArchiveRows, invRecords, souStandalone);
+        const merged = [
+          ...cached.rows.filter(r => r.date < cutoffKey),
+          ...freshRows,
+        ].sort((a, b) => b.date.localeCompare(a.date));
+        saveSalesCache(merged);
+        renderSalesRows(merged, unmatched ? ` · ${unmatched} unmatched to Airtable (last 7 days)` : '');
         setStatus('Loaded ✓', 'success');
-        renderRows(rows);
-        renderAverages(computeAverageBases(rows));
+      } catch (err) {
+        setStatus(`Error: ${err.message}`, 'error');
+      }
+    }
+
+    async function refreshAllData() {
+      const keys = getKeys();
+      if (!keys) return;
+      setStatus('Refreshing all data — this can take a while...', '');
+      try {
+        const archiveRowsAll = await fetchArchiveRows(keys.googleKey);
+        const { invRecords, souStandalone } = await fetchAirtableForSales(keys.airtableKey, null);
+        const { rows, unmatched } = computeSalesRows(archiveRowsAll, invRecords, souStandalone);
+        saveSalesCache(rows);
+        renderSalesRows(rows, unmatched ? ` · ${unmatched} unmatched to Airtable` : '');
+        setStatus('All data refreshed ✓', 'success');
       } catch (err) {
         setStatus(`Error: ${err.message}`, 'error');
       }
@@ -3325,6 +3423,7 @@ Then extract:
     card.addEventListener('click', (e) => {
       const act = e.target.dataset.act;
       if (act === 'load') load();
+      else if (act === 'refreshAll') refreshAllData();
       else if (act === 'toggleConfig') configPanel.classList.toggle('open');
     });
 

@@ -3855,13 +3855,19 @@ Then extract:
     }
   }
 
+  // Returns true on success, false on failure — callers must check this
+  // before showing "Saved", instead of assuming success unconditionally
+  // (confirmed bug: tasks looked saved but silently failed and vanished on
+  // reload, because the status line said "Saved ✓" regardless of outcome).
   async function saveTasksData(onError) {
     const token = localStorage.getItem(TASKS_GITHUB_TOKEN_STORAGE) || '';
-    if (!token) return;
+    if (!token) { onError?.(new Error('No GitHub token set')); return false; }
     try {
       await ghSaveTasksData(token, tasksDataCache);
+      return true;
     } catch (err) {
       onError?.(err);
+      return false;
     }
   }
 
@@ -3929,8 +3935,8 @@ Then extract:
       taskInput.value = '';
       render();
       setStatus('Saving...', '');
-      await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
-      setStatus('Saved ✓', 'success');
+      const ok = await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
+      if (ok) setStatus('Saved ✓', 'success');
     }
 
     async function toggleTask(id) {
@@ -3939,16 +3945,16 @@ Then extract:
       t.done = !t.done;
       render();
       setStatus('Saving...', '');
-      await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
-      setStatus('Saved ✓', 'success');
+      const ok = await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
+      if (ok) setStatus('Saved ✓', 'success');
     }
 
     async function deleteTask(id) {
       tasksDataCache.dailyTasks = (tasksDataCache.dailyTasks || []).filter(x => x.id !== id);
       render();
       setStatus('Saving...', '');
-      await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
-      setStatus('Saved ✓', 'success');
+      const ok = await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
+      if (ok) setStatus('Saved ✓', 'success');
     }
 
     card.addEventListener('click', (e) => {
@@ -4061,8 +4067,8 @@ Then extract:
       notesInput.value = '';
       render();
       setStatus('Saving...', '');
-      await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
-      setStatus('Saved ✓', 'success');
+      const ok = await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
+      if (ok) setStatus('Saved ✓', 'success');
     }
 
     async function cycleStatus(id) {
@@ -4072,16 +4078,16 @@ Then extract:
       g.status = GOAL_STATUSES[(idx + 1) % GOAL_STATUSES.length].value;
       render();
       setStatus('Saving...', '');
-      await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
-      setStatus('Saved ✓', 'success');
+      const ok = await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
+      if (ok) setStatus('Saved ✓', 'success');
     }
 
     async function deleteGoal(id) {
       tasksDataCache.goals = (tasksDataCache.goals || []).filter(x => x.id !== id);
       render();
       setStatus('Saving...', '');
-      await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
-      setStatus('Saved ✓', 'success');
+      const ok = await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
+      if (ok) setStatus('Saved ✓', 'success');
     }
 
     card.addEventListener('click', (e) => {

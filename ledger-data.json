@@ -101,7 +101,9 @@
       "amount": 18500,
       "startKey": "2026-08",
       "endKey": "2027-07",
-      "paidMonths": {}
+      "paidMonths": {
+        "2026-08": true
+      }
     },
     {
       "id": "mb2edsgz",

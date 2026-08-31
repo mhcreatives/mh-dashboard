@@ -1,0 +1,406 @@
+{
+  "accounts": {
+    "Gcash 1": 229980,
+    "Gcash 2": 43295,
+    "Maya 1": 25870,
+    "Maya 2": 56175,
+    "Maya savings": 206702,
+    "UB": 166944,
+    "CBS": 84088,
+    "Loans": 89500,
+    "Others": 0
+  },
+  "liabilities": [
+    {
+      "id": "z62jhjdw",
+      "name": "Farm fund",
+      "amount": 46000
+    }
+  ],
+  "goals": [
+    {
+      "id": "l7mekper",
+      "name": "Fencing",
+      "amount": 200000
+    },
+    {
+      "id": "quq34osl",
+      "name": "Deep well",
+      "amount": 20000
+    },
+    {
+      "id": "bgf7urtf",
+      "name": "Office building",
+      "amount": 1500000
+    },
+    {
+      "id": "ehn72r5m",
+      "name": "Business fund",
+      "amount": 500000
+    },
+    {
+      "id": "4qodn92l",
+      "name": "Baby fund",
+      "amount": 200000
+    }
+  ],
+  "recurringExpenses": [
+    {
+      "id": "xn12916g",
+      "name": "Rent",
+      "amount": 9000,
+      "startKey": "2026-08",
+      "endKey": "2028-12"
+    },
+    {
+      "id": "b9603nem",
+      "name": "Internet",
+      "amount": 2649,
+      "startKey": "2026-08",
+      "endKey": "2028-12"
+    },
+    {
+      "id": "q9t3f1x9",
+      "name": "Food",
+      "amount": 18000,
+      "startKey": "2026-08",
+      "endKey": "2028-12"
+    },
+    {
+      "id": "pgshu701",
+      "name": "Car MA",
+      "amount": 11093,
+      "startKey": "2026-08",
+      "endKey": "2028-12"
+    },
+    {
+      "id": "hnsp9b50",
+      "name": "Gas",
+      "amount": 3000,
+      "startKey": "2026-08",
+      "endKey": "2028-12"
+    },
+    {
+      "id": "z5vdnwfs",
+      "name": "Maya Loan",
+      "amount": 18500,
+      "startKey": "2026-08",
+      "endKey": "2027-07"
+    }
+  ],
+  "months": {
+    "2026-08": {
+      "earned": 62242,
+      "expenses": [
+        {
+          "id": "zswfub85",
+          "name": "Salaries",
+          "amount": 50700
+        },
+        {
+          "id": "yg8z3qwo",
+          "name": "Atome",
+          "amount": 20405
+        }
+      ],
+      "fixed": {
+        "Salaries": 0,
+        "Materials": 0,
+        "Ads": 0,
+        "Electricity": 0
+      }
+    },
+    "2026-09": {
+      "earned": 800000,
+      "expenses": [
+        {
+          "id": "whcorsat",
+          "name": "Maya credit",
+          "amount": 21000
+        }
+      ],
+      "fixed": {
+        "Salaries": 105000,
+        "Materials": 120000,
+        "Ads": 168000,
+        "Electricity": 5000
+      }
+    },
+    "2026-10": {
+      "earned": 800000,
+      "expenses": [
+        {
+          "id": "28zlyv2p",
+          "name": "Tax",
+          "amount": 50000
+        }
+      ],
+      "fixed": {
+        "Salaries": 105000,
+        "Materials": 120000,
+        "Ads": 168000,
+        "Electricity": 5000
+      }
+    },
+    "2026-11": {
+      "earned": 800000,
+      "expenses": [],
+      "fixed": {
+        "Salaries": 105000,
+        "Materials": 120000,
+        "Ads": 168000,
+        "Electricity": 5000
+      }
+    },
+    "2026-12": {
+      "earned": 800000,
+      "expenses": [],
+      "fixed": {
+        "Salaries": 105000,
+        "Materials": 120000,
+        "Ads": 168000,
+        "Electricity": 5000
+      }
+    },
+    "2027-01": {
+      "earned": 0,
+      "expenses": [],
+      "fixed": {
+        "Salaries": 0,
+        "Materials": 0,
+        "Ads": 0,
+        "Electricity": 0
+      }
+    },
+    "2027-02": {
+      "earned": 0,
+      "expenses": [],
+      "fixed": {
+        "Salaries": 0,
+        "Materials": 0,
+        "Ads": 0,
+        "Electricity": 0
+      }
+    },
+    "2027-03": {
+      "earned": 0,
+      "expenses": [],
+      "fixed": {
+        "Salaries": 0,
+        "Materials": 0,
+        "Ads": 0,
+        "Electricity": 0
+      }
+    },
+    "2027-04": {
+      "earned": 0,
+      "expenses": [],
+      "fixed": {
+        "Salaries": 0,
+        "Materials": 0,
+        "Ads": 0,
+        "Electricity": 0
+      }
+    },
+    "2027-05": {
+      "earned": 0,
+      "expenses": [],
+      "fixed": {
+        "Salaries": 0,
+        "Materials": 0,
+        "Ads": 0,
+        "Electricity": 0
+      }
+    },
+    "2027-06": {
+      "earned": 0,
+      "expenses": [],
+      "fixed": {
+        "Salaries": 0,
+        "Materials": 0,
+        "Ads": 0,
+        "Electricity": 0
+      }
+    },
+    "2027-07": {
+      "earned": 0,
+      "expenses": [],
+      "fixed": {
+        "Salaries": 0,
+        "Materials": 0,
+        "Ads": 0,
+        "Electricity": 0
+      }
+    },
+    "2027-08": {
+      "earned": 0,
+      "expenses": [],
+      "fixed": {
+        "Salaries": 0,
+        "Materials": 0,
+        "Ads": 0,
+        "Electricity": 0
+      }
+    },
+    "2027-09": {
+      "earned": 0,
+      "expenses": [],
+      "fixed": {
+        "Salaries": 0,
+        "Materials": 0,
+        "Ads": 0,
+        "Electricity": 0
+      }
+    },
+    "2027-10": {
+      "earned": 0,
+      "expenses": [],
+      "fixed": {
+        "Salaries": 0,
+        "Materials": 0,
+        "Ads": 0,
+        "Electricity": 0
+      }
+    },
+    "2027-11": {
+      "earned": 0,
+      "expenses": [],
+      "fixed": {
+        "Salaries": 0,
+        "Materials": 0,
+        "Ads": 0,
+        "Electricity": 0
+      }
+    },
+    "2027-12": {
+      "earned": 0,
+      "expenses": [],
+      "fixed": {
+        "Salaries": 0,
+        "Materials": 0,
+        "Ads": 0,
+        "Electricity": 0
+      }
+    },
+    "2028-01": {
+      "earned": 0,
+      "expenses": [],
+      "fixed": {
+        "Salaries": 0,
+        "Materials": 0,
+        "Ads": 0,
+        "Electricity": 0
+      }
+    },
+    "2028-02": {
+      "earned": 0,
+      "expenses": [],
+      "fixed": {
+        "Salaries": 0,
+        "Materials": 0,
+        "Ads": 0,
+        "Electricity": 0
+      }
+    },
+    "2028-03": {
+      "earned": 0,
+      "expenses": [],
+      "fixed": {
+        "Salaries": 0,
+        "Materials": 0,
+        "Ads": 0,
+        "Electricity": 0
+      }
+    },
+    "2028-04": {
+      "earned": 0,
+      "expenses": [],
+      "fixed": {
+        "Salaries": 0,
+        "Materials": 0,
+        "Ads": 0,
+        "Electricity": 0
+      }
+    },
+    "2028-05": {
+      "earned": 0,
+      "expenses": [],
+      "fixed": {
+        "Salaries": 0,
+        "Materials": 0,
+        "Ads": 0,
+        "Electricity": 0
+      }
+    },
+    "2028-06": {
+      "earned": 0,
+      "expenses": [],
+      "fixed": {
+        "Salaries": 0,
+        "Materials": 0,
+        "Ads": 0,
+        "Electricity": 0
+      }
+    },
+    "2028-07": {
+      "earned": 0,
+      "expenses": [],
+      "fixed": {
+        "Salaries": 0,
+        "Materials": 0,
+        "Ads": 0,
+        "Electricity": 0
+      }
+    },
+    "2028-08": {
+      "earned": 0,
+      "expenses": [],
+      "fixed": {
+        "Salaries": 0,
+        "Materials": 0,
+        "Ads": 0,
+        "Electricity": 0
+      }
+    },
+    "2028-09": {
+      "earned": 0,
+      "expenses": [],
+      "fixed": {
+        "Salaries": 0,
+        "Materials": 0,
+        "Ads": 0,
+        "Electricity": 0
+      }
+    },
+    "2028-10": {
+      "earned": 0,
+      "expenses": [],
+      "fixed": {
+        "Salaries": 0,
+        "Materials": 0,
+        "Ads": 0,
+        "Electricity": 0
+      }
+    },
+    "2028-11": {
+      "earned": 0,
+      "expenses": [],
+      "fixed": {
+        "Salaries": 0,
+        "Materials": 0,
+        "Ads": 0,
+        "Electricity": 0
+      }
+    },
+    "2028-12": {
+      "earned": 0,
+      "expenses": [],
+      "fixed": {
+        "Salaries": 0,
+        "Materials": 0,
+        "Ads": 0,
+        "Electricity": 0
+      }
+    }
+  }
+}

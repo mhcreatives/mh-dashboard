@@ -86,6 +86,13 @@
       "amount": 18500,
       "startKey": "2026-08",
       "endKey": "2027-07"
+    },
+    {
+      "id": "mb2edsgz",
+      "name": "Unobank loan",
+      "amount": 6350,
+      "startKey": "2026-08",
+      "endKey": "2026-12"
     }
   ],
   "months": {

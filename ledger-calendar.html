@@ -898,14 +898,23 @@
 
   function scheduleGithubSave(){
     var token = ghToken();
-    if (!token) return;
+    if (!token){
+      // saved to this browser only — say so plainly instead of leaving
+      // the generic "saved" text up, which looked identical to an actual
+      // cross-device sync and made a missing token easy to miss.
+      var t = document.getElementById("saveText");
+      if (t) t.textContent = "saved on this device only — set GitHub sync ↓";
+      return;
+    }
     if (ghSaveTimer) clearTimeout(ghSaveTimer);
     ghSaveTimer = setTimeout(function(){
       var text = document.getElementById("saveText");
       ghSyncing = true;
       ghSaveLedgerData(token, state).then(function(){
         ghSyncing = false;
-        flashSaved();
+        var dot = document.getElementById("saveDot");
+        if (dot) dot.style.opacity = "1";
+        if (text) text.textContent = "synced to GitHub";
       }).catch(function(e){
         ghSyncing = false;
         if (text) text.textContent = "sync failed";

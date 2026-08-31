@@ -51,7 +51,9 @@
       "amount": 9000,
       "startKey": "2026-08",
       "endKey": "2028-12",
-      "paidMonths": {}
+      "paidMonths": {
+        "2026-08": true
+      }
     },
     {
       "id": "b9603nem",
@@ -59,7 +61,9 @@
       "amount": 2649,
       "startKey": "2026-08",
       "endKey": "2028-12",
-      "paidMonths": {}
+      "paidMonths": {
+        "2026-08": true
+      }
     },
     {
       "id": "q9t3f1x9",
@@ -67,7 +71,9 @@
       "amount": 18000,
       "startKey": "2026-08",
       "endKey": "2028-12",
-      "paidMonths": {}
+      "paidMonths": {
+        "2026-08": true
+      }
     },
     {
       "id": "pgshu701",

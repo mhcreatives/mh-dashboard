@@ -26,8 +26,10 @@
     },
     {
       "id": "mtfl6vfp56wvpk",
-      "text": "Printing",
-      "done": false
+      "text": "Printing for tuesday",
+      "done": false,
+      "priority": "none",
+      "dueDate": null
     }
   ],
   "goals": [

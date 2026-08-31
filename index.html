@@ -833,11 +833,14 @@
       setStatus('Scanning souvenir records...', '');
 
       try {
-        const forPostingInv = await otFetchRecords(apiKey, INV_TABLE, INV_STATUS, INV_TOTAL, INV_DATE_SHIPPED, `{Status}="For posting"`);
-        const invDateMap = {};
-        forPostingInv.forEach(r => { invDateMap[r.id] = r.fields?.[INV_DATE_SHIPPED]; });
+        const forPostingInv = await otFetchRecords(apiKey, INV_TABLE, INV_STATUS, INV_TOTAL, INV_DATE_SHIPPED, `{Status}="For posting"`, [INV_DATE_FINISHED]);
+        const invDateMap = {}, invFinishedMap = {};
+        forPostingInv.forEach(r => {
+          invDateMap[r.id] = r.fields?.[INV_DATE_SHIPPED];
+          invFinishedMap[r.id] = r.fields?.[INV_DATE_FINISHED];
+        });
 
-        const souRecords = await otFetchRecords(apiKey, SOU_TABLE, SOU_STATUS, SOU_TOTAL, SOU_DATE_SHIPPED, null, [SOU_INV_LINK]);
+        const souRecords = await otFetchRecords(apiKey, SOU_TABLE, SOU_STATUS, SOU_TOTAL, SOU_DATE_SHIPPED, null, [SOU_INV_LINK, SOU_DATE_FINISHED]);
 
         const updates = [];
         souRecords.forEach(r => {
@@ -847,9 +850,13 @@
           if (!matchedInvId) return;
           const shippedDate = invDateMap[matchedInvId];
           if (!shippedDate) return;
-          const alreadySynced = r.fields?.[SOU_DATE_SHIPPED] === shippedDate && r.fields?.[SOU_STATUS] === 'Done';
+          const finishedDate = invFinishedMap[matchedInvId];
+          const alreadySynced = r.fields?.[SOU_DATE_SHIPPED] === shippedDate && r.fields?.[SOU_STATUS] === 'Done'
+            && (!finishedDate || r.fields?.[SOU_DATE_FINISHED] === finishedDate);
           if (alreadySynced) return;
-          updates.push({ id: r.id, fields: { 'Date shipped': shippedDate, 'Status': 'Done' } });
+          const fields = { 'Date shipped': shippedDate, 'Status': 'Done' };
+          if (finishedDate) fields['Date finished'] = finishedDate;
+          updates.push({ id: r.id, fields });
         });
 
         if (updates.length === 0) {

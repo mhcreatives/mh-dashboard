@@ -370,25 +370,35 @@
     grid-template-columns:1fr 1fr;
     gap:6px;
   }
-  .recur-paid{
+  .month-recur-left{
     display:flex;
     align-items:center;
-    gap:6px;
-    margin-top:8px;
-    font-size:12px;
-    color:var(--text-muted);
-    cursor:pointer;
+    gap:8px;
+    min-width:0;
   }
-  .recur-paid input[type="checkbox"]{
+  .month-recur-paid{
+    display:flex;
+    align-items:center;
+    gap:5px;
+    cursor:pointer;
+    flex-shrink:0;
+  }
+  .month-recur-paid input[type="checkbox"]{
     accent-color:var(--positive);
-    width:14px;height:14px;
+    width:12px;height:12px;
     cursor:pointer;
   }
-  .recur-row.is-paid .item-row input[type="text"]{
+  .month-recur-paid span{
+    font-size:10px;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+    color:var(--text-faint);
+  }
+  .stat-line.recur-is-paid .lbl{
     text-decoration:line-through;
     color:var(--text-faint);
   }
-  .recur-row.is-paid .recur-paid{ color:var(--positive); }
+  .stat-line.recur-is-paid .month-recur-paid span{ color:var(--positive); }
   .range-field{
     display:flex;
     flex-direction:column;
@@ -815,7 +825,10 @@
           amount: Number(r.amount) || 0,
           startKey: (r.startKey && MONTH_KEYS.indexOf(r.startKey) > -1) ? r.startKey : MONTH_KEYS[0],
           endKey: (r.endKey && MONTH_KEYS.indexOf(r.endKey) > -1) ? r.endKey : MONTH_KEYS[MONTH_KEYS.length-1],
-          paid: !!r.paid
+          // which months this recurring fee has been marked paid for —
+          // per-month, not a single flag, since the same fee recurs and
+          // needs its own paid/unpaid status each month it's active.
+          paidMonths: (r.paidMonths && typeof r.paidMonths === "object") ? r.paidMonths : {}
         };
       });
       if (parsed.months){
@@ -1210,23 +1223,6 @@
       mainLine.appendChild(rm);
       row.appendChild(mainLine);
 
-      var paidLine = document.createElement("label");
-      paidLine.className = "recur-paid";
-      var paidBox = document.createElement("input");
-      paidBox.type = "checkbox";
-      paidBox.checked = !!item.paid;
-      paidBox.addEventListener("change", function(){
-        item.paid = paidBox.checked;
-        row.classList.toggle("is-paid", item.paid);
-        scheduleSave();
-      });
-      var paidText = document.createElement("span");
-      paidText.textContent = "Already paid";
-      paidLine.appendChild(paidBox);
-      paidLine.appendChild(paidText);
-      row.appendChild(paidLine);
-      if (item.paid) row.classList.add("is-paid");
-
       var rangeLine = document.createElement("div");
       rangeLine.className = "range-row";
 
@@ -1336,7 +1332,8 @@
     state.recurringExpenses.push({
       id: uid(), name: "", amount: 0,
       startKey: currentMonthKey(),
-      endKey: MONTH_KEYS[MONTH_KEYS.length-1]
+      endKey: MONTH_KEYS[MONTH_KEYS.length-1],
+      paidMonths: {}
     });
     recurIndex = state.recurringExpenses.length - 1; // jump to the new item
     renderRecurring();
@@ -1498,13 +1495,37 @@
           activeRecur.forEach(function(r){
             var rRow = document.createElement("div");
             rRow.className = "stat-line";
+            if (r.paidMonths && r.paidMonths[key]) rRow.classList.add("recur-is-paid");
+
+            var rLeft = document.createElement("span");
+            rLeft.className = "month-recur-left";
             var rName = document.createElement("span");
             rName.className = "lbl";
             rName.textContent = r.name || "Untitled";
+            rLeft.appendChild(rName);
+
+            var paidLbl = document.createElement("label");
+            paidLbl.className = "month-recur-paid";
+            var paidBox = document.createElement("input");
+            paidBox.type = "checkbox";
+            paidBox.checked = !!(r.paidMonths && r.paidMonths[key]);
+            paidBox.addEventListener("change", function(){
+              if (!r.paidMonths) r.paidMonths = {};
+              if (paidBox.checked) r.paidMonths[key] = true;
+              else delete r.paidMonths[key];
+              rRow.classList.toggle("recur-is-paid", paidBox.checked);
+              scheduleSave();
+            });
+            var paidText = document.createElement("span");
+            paidText.textContent = "Paid";
+            paidLbl.appendChild(paidBox);
+            paidLbl.appendChild(paidText);
+            rLeft.appendChild(paidLbl);
+
             var rAmt = document.createElement("span");
             rAmt.className = "val num";
             rAmt.textContent = fmt(Number(r.amount) || 0);
-            rRow.appendChild(rName);
+            rRow.appendChild(rLeft);
             rRow.appendChild(rAmt);
             recurSection.appendChild(rRow);
           });

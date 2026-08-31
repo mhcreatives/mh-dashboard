@@ -86,6 +86,13 @@
       "amount": 18500,
       "startKey": "2026-08",
       "endKey": "2027-07"
+    },
+    {
+      "id": "mb2edsgz",
+      "name": "",
+      "amount": 0,
+      "startKey": "2026-08",
+      "endKey": "2028-12"
     }
   ],
   "months": {

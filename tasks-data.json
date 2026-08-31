@@ -1,6 +1,13 @@
 {
   "dailyTasks": [
     {
+      "id": "mthcbka5v2sorm",
+      "text": "archive for balance",
+      "done": false,
+      "priority": "none",
+      "dueDate": null
+    },
+    {
       "id": "mtgkramumn97fc",
       "text": "Cutting for tuesday",
       "done": false,

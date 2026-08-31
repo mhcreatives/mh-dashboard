@@ -1,0 +1,47 @@
+{
+  "dailyTasks": [
+    {
+      "id": "mtfl7kz7sdwphu",
+      "text": "Inserts cutting",
+      "done": false
+    },
+    {
+      "id": "mtfl7hu6h992wy",
+      "text": "Inserts cutting template",
+      "done": false
+    },
+    {
+      "id": "mtfl6yez5j55t4",
+      "text": "Packaging",
+      "done": false
+    },
+    {
+      "id": "mtfl6vfp56wvpk",
+      "text": "Printing",
+      "done": false
+    }
+  ],
+  "goals": [
+    {
+      "id": "mtfl5jl5w6smju",
+      "title": "House",
+      "timeframe": "Long-term",
+      "status": "not_started",
+      "notes": ""
+    },
+    {
+      "id": "mtfl5qpxmzq3tp",
+      "title": "Office",
+      "timeframe": "1 year",
+      "status": "not_started",
+      "notes": ""
+    },
+    {
+      "id": "mtfl63dq7f6cam",
+      "title": "Pickup truck",
+      "timeframe": "1 year",
+      "status": "not_started",
+      "notes": "Used in business"
+    }
+  ]
+}

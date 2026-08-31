@@ -20,18 +20,18 @@
 
   .wrap { width: 100%; max-width: 1240px; }
 
-  #cards, #cards-data {
+  #cards, #cards-data, #cards-tasks {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
     gap: 14px;
   }
 
   @media (max-width: 1080px) {
-    #cards, #cards-data { grid-template-columns: 1fr 1fr; }
+    #cards, #cards-data, #cards-tasks { grid-template-columns: 1fr 1fr; }
   }
 
   @media (max-width: 720px) {
-    #cards, #cards-data { grid-template-columns: 1fr; }
+    #cards, #cards-data, #cards-tasks { grid-template-columns: 1fr; }
   }
 
   .header {
@@ -153,6 +153,125 @@
   input:focus { border-color: #ff6b35; }
   input::placeholder { color: #333; }
 
+  select {
+    padding: 8px 11px;
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 6px;
+    color: #f0f0f0;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    outline: none;
+  }
+  select:focus { border-color: #ff6b35; }
+
+  /* Quick-add bar — modeled on Microsoft To Do's "+ task" row: a plain
+     inline input (no boxed border look) with icon-only actions on the
+     right, each opening a small dropdown menu instead of a full-width
+     select/date field. */
+  .qa-bar {
+    display: flex; align-items: center; gap: 10px;
+    background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px;
+    padding: 8px 12px;
+  }
+  .qa-plus {
+    flex: none; width: 20px; height: 20px; border-radius: 50%;
+    border: none; background: #2a2a2a; color: #ccc;
+    font-size: 14px; line-height: 1; cursor: pointer;
+    display: grid; place-content: center;
+  }
+  .qa-plus:hover { background: #ff6b35; color: #fff; }
+  .qa-input {
+    flex: 1; background: transparent; border: none; padding: 0;
+    font-family: 'DM Sans', sans-serif; font-size: 13px; color: #f0f0f0;
+  }
+  .qa-input:focus { border: none; }
+  .qa-icons { display: flex; gap: 4px; flex: none; }
+  .qa-icon-btn {
+    background: none; border: none; cursor: pointer; font-size: 14px;
+    padding: 4px 6px; border-radius: 6px; opacity: 0.7; transition: all 0.15s;
+  }
+  .qa-icon-btn:hover, .qa-icon-btn.active { opacity: 1; background: #2a2a2a; }
+  .qa-menu {
+    position: relative; margin-top: 4px; background: #1e1e1e; border: 1px solid #2a2a2a;
+    border-radius: 8px; padding: 4px; display: flex; flex-direction: column;
+    max-width: 260px;
+  }
+  /* Without this, the class rule's display:flex above always beats the
+     browser's default [hidden]{display:none} at equal specificity — the
+     two menus stayed permanently visible together, toggling `hidden` did
+     nothing (confirmed by screenshot). */
+  .qa-menu[hidden] { display: none; }
+  .qa-menu-item {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    background: none; border: none; text-align: left; cursor: pointer;
+    padding: 7px 10px; border-radius: 6px; font-size: 12px; color: #f0f0f0;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .qa-menu-item:hover { background: #2a2a2a; }
+  .qa-menu-item .qa-menu-day { color: #888; font-size: 11px; }
+  .qa-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .qa-chip {
+    display: flex; align-items: center; gap: 5px; font-size: 10px;
+    background: #1e1e1e; border: 1px solid #2a2a2a; border-radius: 999px;
+    padding: 3px 9px; color: #ccc;
+  }
+  .qa-chip button { background: none; border: none; color: #666; cursor: pointer; font-size: 11px; padding: 0; }
+  .qa-chip button:hover { color: #f87171; }
+  .task-row { display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-bottom: 1px solid #1e1e1e; border-radius: 6px; transition: background 0.15s; }
+  .task-row:last-child { border-bottom: none; }
+  .task-row:hover { background: #161616; }
+
+  /* Todoist-style round checkbox — color-coded by priority when open,
+     fills solid with a checkmark once done, regardless of priority.
+     padding/margin explicitly zeroed: the global `input` rule's
+     padding:8px 11px otherwise distorts an appearance:none checkbox into
+     an oval instead of a circle (confirmed on Safari/mobile). */
+  .task-row input[type="checkbox"] {
+    appearance: none; -webkit-appearance: none;
+    width: 15px; height: 15px; flex: none;
+    padding: 0; margin: 0;
+    box-sizing: border-box;
+    border-radius: 50%;
+    border: 2px solid var(--task-priority-color, #444);
+    background: transparent;
+    cursor: pointer;
+    position: relative;
+    display: inline-grid; place-content: center;
+    transition: all 0.15s;
+  }
+  .task-row input[type="checkbox"]:hover { border-color: #ff6b35; box-shadow: 0 0 0 3px rgba(255,107,53,0.15); }
+  .task-row input[type="checkbox"]:checked {
+    background: #ff6b35; border-color: #ff6b35;
+  }
+  .task-row input[type="checkbox"]:checked::after {
+    content: '✓';
+    color: #0a0a0a; font-size: 9px; font-weight: 700; line-height: 1;
+  }
+
+  .task-text { flex: 1; font-size: 12px; color: #f0f0f0; cursor: pointer; }
+  .task-text.done { color: #555; text-decoration: line-through; }
+  .task-row .task-del { opacity: 0; transition: opacity 0.15s; }
+  .task-row:hover .task-del { opacity: 1; }
+  .task-del { background: none; border: none; color: #555; cursor: pointer; font-size: 13px; padding: 2px 6px; flex: none; }
+  .task-del:hover { color: #f87171; }
+
+  .goal-group-label { font-size: 10px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin: 14px 0 6px; padding-left: 8px; border-left: 3px solid #444; }
+  .goal-group-label:first-child { margin-top: 0; }
+  .goal-group-label.tf-0 { border-left-color: #5b9bd5; }
+  .goal-group-label.tf-1 { border-left-color: #6fb37a; }
+  .goal-group-label.tf-2 { border-left-color: #f5a524; }
+  .goal-group-label.tf-3 { border-left-color: #c77adf; }
+
+  .task-card-accent { border-top: 3px solid var(--task-accent-color, #ff6b35); }
+  .goal-status {
+    font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 10px; border: none; cursor: pointer;
+    font-family: 'DM Sans', sans-serif; text-transform: uppercase; letter-spacing: 0.3px; flex: none;
+  }
+  .goal-status.not_started { background: #2a2a2a; color: #999; }
+  .goal-status.in_progress { background: #3a2a10; color: #f5a524; }
+  .goal-status.done { background: #10301c; color: #4ade80; }
+
   .save-btn {
     padding: 8px 14px;
     background: #1e1e1e;
@@ -265,6 +384,8 @@
     <button class="page-tab-btn active" data-page="operations">Operations</button>
     <button class="page-tab-btn" data-page="data">Data</button>
     <button class="page-tab-btn" data-page="assign">Assign</button>
+    <button class="page-tab-btn" data-page="tasks">Tasks</button>
+    <button class="page-tab-btn" data-page="ledger">Ledger</button>
   </div>
 
   <div id="page-operations" class="page-panel active"><div id="cards"></div></div>
@@ -272,21 +393,38 @@
   <div id="page-assign" class="page-panel">
     <iframe src="https://mhcreatives.github.io/mh-assign-dasboard/" class="assign-frame" title="Assign Dashboard"></iframe>
   </div>
+  <div id="page-tasks" class="page-panel"><div id="cards-tasks"></div></div>
+  <div id="page-ledger" class="page-panel">
+    <iframe src="ledger-calendar.html" class="assign-frame" title="Ledger Calendar"></iframe>
+  </div>
 
 </div>
 
 <script>
+  const ACTIVE_TAB_STORAGE = 'mh_active_page_tab';
+
+  function activatePageTab(page) {
+    const btn = document.querySelector(`.page-tab-btn[data-page="${page}"]`);
+    const panel = document.getElementById(`page-${page}`);
+    if (!btn || !panel) return false;
+    document.querySelectorAll('.page-tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.page-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    panel.classList.add('active');
+    localStorage.setItem(ACTIVE_TAB_STORAGE, page);
+    return true;
+  }
+
   document.querySelectorAll('.page-tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.page-tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.page-panel').forEach(p => p.classList.remove('active'));
-      btn.classList.add('active');
-      document.getElementById(`page-${btn.dataset.page}`).classList.add('active');
-    });
+    btn.addEventListener('click', () => activatePageTab(btn.dataset.page));
   });
+
+  const savedTab = localStorage.getItem(ACTIVE_TAB_STORAGE);
+  if (savedTab) activatePageTab(savedTab);
 
   const cardsRoot = document.getElementById('cards');
   const cardsDataRoot = document.getElementById('cards-data');
+  const cardsTasksRoot = document.getElementById('cards-tasks');
 
   const PROOF_EXT_ID_STORAGE = 'mh_ext_id_proof';
 
@@ -2774,6 +2912,7 @@ Then extract:
         <div class="tool-name">📝 Updates</div>
         <div class="tool-actions">
           <button class="icon-btn" data-act="load">↻ Refresh</button>
+          <button class="icon-btn" data-act="deleteAll" style="color:#f87171;">🗑 Delete all</button>
         </div>
       </div>
       <div class="tool-desc">Live view of the "Updates" sheet — client order breakdowns.</div>
@@ -2799,6 +2938,8 @@ Then extract:
     const resultsEl = el('results');
     const configPanel = el('configPanel');
     const apiKeyInput = el('apiKeyInput');
+
+    let lastRows = [];
 
     function setStatus(text, cls) {
       statusEl.className = `status-line ${cls || ''}`;
@@ -2840,6 +2981,7 @@ Then extract:
           .map((row, i) => ({ sheetRow: i + 1, name: row[0] || '', breakdown: row[1] || '' }))
           .filter(r => r.name);
 
+        lastRows = rows;
         summaryEl.textContent = `${rows.length} update(s)`;
         setStatus('Loaded ✓', 'success');
         renderRows(rows);
@@ -2865,6 +3007,35 @@ Then extract:
       }
     }
 
+    async function deleteAll() {
+      if (lastRows.length === 0) return;
+      const ok = confirm(`Delete all ${lastRows.length} pending update(s)? This can't be undone.`);
+      if (!ok) return;
+
+      // Delete bottom-up (highest sheet row first) — deleting a row shifts
+      // every row below it up by one, so working from the bottom keeps the
+      // remaining rows' sheetRow numbers valid for the rest of the loop.
+      const toDelete = lastRows.slice().sort((a, b) => b.sheetRow - a.sheetRow);
+      let done = 0, failed = 0;
+      for (const r of toDelete) {
+        setStatus(`Deleting ${done + failed + 1}/${toDelete.length}: ${r.name}...`, '');
+        try {
+          const resp = await fetch(NO_APPS_SCRIPT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ action: 'delete', tab: UPDATES_SHEET_TAB, row: r.sheetRow }),
+          });
+          const data = await resp.json();
+          if (!data.ok) throw new Error(data.error || 'Delete failed');
+          done++;
+        } catch (err) {
+          failed++;
+        }
+      }
+      setStatus(`Deleted ${done}${failed ? `, ${failed} failed` : ''} ✓`, failed ? 'error' : 'success');
+      load();
+    }
+
     card.addEventListener('click', (e) => {
       const act = e.target.dataset.act;
       if (act === 'load') load();
@@ -2879,6 +3050,8 @@ Then extract:
         const row = Number(e.target.dataset.row);
         const name = e.target.closest('.proof-item')?.querySelector('.proof-name')?.textContent || 'this entry';
         deleteRow(row, name);
+      } else if (act === 'deleteAll') {
+        deleteAll();
       }
     });
 
@@ -2951,9 +3124,10 @@ Then extract:
         <div class="tool-name">💵 Sales</div>
         <div class="tool-actions">
           <button class="icon-btn" data-act="load">↻ Refresh</button>
+          <button class="icon-btn" data-act="refreshAll">⟳ Refresh all data</button>
         </div>
       </div>
-      <div class="tool-desc">Order counts + DP received from the "New orders" archive (columns H–L), order value from Airtable's Total field, matched by client name.</div>
+      <div class="tool-desc">Order counts + DP received from the "New orders" archive (columns H–L), order value from Airtable's Total field, matched by client name. "Refresh" only re-fetches the last 7 days (fast) and reuses cached older data — use "Refresh all data" to fully resync everything.</div>
       <div class="status-line" data-el="status"></div>
       <div class="proof-summary" data-el="summary"></div>
       <div class="no-wrap"><table class="no-table" data-el="table"></table></div>
@@ -3027,130 +3201,227 @@ Then extract:
       `;
     }
 
-    async function load() {
+    // Full-history recomputation is the slow part of this card (matching
+    // clusters requires Airtable data going back as far as the archive
+    // does), and that history only grows over time. So: cache the final
+    // per-date rows in localStorage, and on a normal "Refresh" only
+    // re-fetch/recompute the last SALES_QUICK_REFRESH_DAYS days — cheap,
+    // since it's a small Airtable creation-date-filtered fetch instead of
+    // the entire table — then merge with everything older from cache
+    // (which doesn't change once archived, so re-fetching it every time
+    // was pure waste). "Refresh all data" bypasses the cache entirely and
+    // recomputes everything, for whenever older data needs correcting.
+    const SALES_CACHE_STORAGE = 'mh_sales_rows_cache_v1';
+    const SALES_QUICK_REFRESH_DAYS = 7;
+    // Extra lookback on top of the 7-day window when fetching Airtable
+    // records for a quick refresh — generous relative to the clustering
+    // window (3 days) and fuzzy-match window (5 days) above, so a parent
+    // record just outside the 7-day cutoff is still included when its
+    // child (or a fuzzy-matched sibling) falls inside it. Not a hard
+    // guarantee for the rare record even older than this, which is exactly
+    // what "Refresh all data" exists to fully correct.
+    const SALES_AIRTABLE_LOOKBACK_BUFFER_DAYS = 21;
+
+    function dateKeyDaysAgo(days) {
+      const d = new Date();
+      d.setDate(d.getDate() - days);
+      return d.toISOString().slice(0, 10);
+    }
+
+    function loadSalesCache() {
+      try {
+        const raw = localStorage.getItem(SALES_CACHE_STORAGE);
+        return raw ? JSON.parse(raw) : null;
+      } catch { return null; }
+    }
+    function saveSalesCache(rows) {
+      try { localStorage.setItem(SALES_CACHE_STORAGE, JSON.stringify({ rows, cachedAt: Date.now() })); } catch { /* storage full/unavailable — cache is best-effort */ }
+    }
+
+    async function fetchArchiveRows(googleKey) {
+      // Was H2:L2000 (Encoded Name/DP/Payment/Notes/Date Encoded) — a column
+      // was inserted at H (a date-labeled tally/notes column), shifting that
+      // 5-column block one to the right.
+      const range = encodeURIComponent(`${GOOGLE_SHEET_TAB}!I2:M2000`);
+      const sheetResp = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}/values/${range}?key=${encodeURIComponent(googleKey)}`);
+      const sheetData = await sheetResp.json();
+      if (!sheetResp.ok) throw new Error(sheetData.error?.message || `HTTP ${sheetResp.status}`);
+      return (sheetData.values || [])
+        .map(row => ({ name: row[0] || '', dp: Number(row[1]) || 0, dateEncoded: otNormalizeDateEncoded(row[4]) }))
+        .filter(r => r.name && r.dateEncoded);
+    }
+
+    async function fetchAirtableForSales(airtableKey, sinceDateKey) {
+      const filter = sinceDateKey ? `IS_AFTER(CREATED_TIME(), DATETIME_PARSE("${sinceDateKey}"))` : null;
+      const invRecords = await otFetchRecords(airtableKey, INV_TABLE, PROOF_FB_NAME, INV_GRAND_TOTAL, INV_GRAND_TOTAL, filter, []);
+      // Standalone souvenir orders (no linked Invitation) have no Invitation
+      // record at all, so they'd otherwise be invisible here — Invitation's
+      // "Total" field already folds in souvenirs that ARE linked, so only
+      // unlinked ones need adding separately to avoid double-counting.
+      const souRecords = await otFetchRecords(airtableKey, SOU_TABLE, SOU_FB_NAME, SOU_TOTAL, SOU_TOTAL, filter, [SOU_INV_LINK]);
+      const souStandalone = souRecords.filter(rec => !(rec.fields?.[SOU_INV_LINK] || []).length);
+      return { invRecords, souStandalone };
+    }
+
+    // Turns a set of archive rows + Airtable records into per-date rows.
+    // Pure function of its inputs — used by both the quick (date-limited)
+    // and full refresh paths.
+    function computeSalesRows(archiveRows, invRecords, souStandalone) {
+      // Cluster each name's Airtable records into "orders" by creation-date
+      // proximity (within 3 days of each other), summing totals within a
+      // cluster — this is what actually handles "additional order" child
+      // records correctly: their own Total is 0 (real value already rolled
+      // into the parent via Airtable's rollup), but the child isn't always
+      // created the same day as the parent (confirmed case: parent created
+      // Aug 3, its child created Aug 5 — an exact-same-day match caught
+      // only the ₱0 child and completely missed the ₱7,275 parent). A
+      // 3-day window catches that lag while still keeping a repeat
+      // client's old, never-archived order in its own separate cluster
+      // (confirmed case: a year-old ₱2,475 order must never combine with
+      // an unrelated new order).
+      const CLUSTER_WINDOW_MS = 3 * 24 * 3600 * 1000;
+      const recordsByName = new Map();
+      const addRecord = (nameRaw, totalRaw, createdTime) => {
+        const name = otNormalizeNameForMatch(nameRaw);
+        if (!name || !createdTime) return;
+        if (!recordsByName.has(name)) recordsByName.set(name, []);
+        recordsByName.get(name).push({ total: Number(totalRaw) || 0, time: new Date(createdTime).getTime() });
+      };
+      invRecords.forEach(rec => addRecord(rec.fields?.[PROOF_FB_NAME], rec.fields?.[INV_GRAND_TOTAL], rec.createdTime));
+      souStandalone.forEach(rec => addRecord(rec.fields?.[SOU_FB_NAME], rec.fields?.[SOU_TOTAL], rec.createdTime));
+
+      const clustersByName = new Map();
+      recordsByName.forEach((records, name) => {
+        records.sort((a, b) => a.time - b.time);
+        const clusters = [];
+        let current = null;
+        records.forEach(r => {
+          if (current && (r.time - current.lastTime) <= CLUSTER_WINDOW_MS) {
+            current.total += r.total;
+            current.lastTime = r.time;
+          } else {
+            current = { total: r.total, lastTime: r.time };
+            clusters.push(current);
+          }
+        });
+        clustersByName.set(name, clusters);
+      });
+
+      const byDate = new Map();
+      let unmatched = 0;
+      archiveRows.forEach(r => {
+        const key = r.dateEncoded;
+        if (!byDate.has(key)) byDate.set(key, { orders: 0, totalValue: 0, dpReceived: 0 });
+        const bucket = byDate.get(key);
+        bucket.orders++;
+        bucket.dpReceived += r.dp;
+        const exactClusters = clustersByName.get(otNormalizeNameForMatch(r.name));
+        if (exactClusters && exactClusters.length) {
+          const archiveTime = new Date(r.dateEncoded).getTime();
+          let bestIdx = 0, bestDiff = Infinity;
+          exactClusters.forEach((c, idx) => {
+            const diff = Math.abs(c.lastTime - archiveTime);
+            if (diff < bestDiff) { bestDiff = diff; bestIdx = idx; }
+          });
+          bucket.totalValue += exactClusters.splice(bestIdx, 1)[0].total;
+          return;
+        }
+        // No exact name match — fall back to fuzzy matching (small typos
+        // like "Jaby JA" vs "Jabby VA", "Shiela" vs "Sheila"), but only
+        // accept a candidate whose name is close AND whose order date is
+        // close, so two different clients with similar names on unrelated
+        // dates don't get mismatched.
+        const archiveTime = new Date(r.dateEncoded).getTime();
+        const archiveName = otNormalizeNameForMatch(r.name);
+        let best = null;
+        clustersByName.forEach((clusters, candidateName) => {
+          if (!clusters.length) return;
+          const nameDist = otLevenshteinDistance(archiveName, candidateName);
+          if (nameDist > FUZZY_MAX_NAME_DIST) return;
+          clusters.forEach((c, idx) => {
+            const dateDiffDays = Math.abs(c.lastTime - archiveTime) / 86400000;
+            if (dateDiffDays > FUZZY_MAX_DATE_DIFF_DAYS) return;
+            if (!best || nameDist < best.nameDist || (nameDist === best.nameDist && dateDiffDays < best.dateDiffDays)) {
+              best = { candidateName, idx, nameDist, dateDiffDays, total: c.total };
+            }
+          });
+        });
+        if (best) {
+          clustersByName.get(best.candidateName).splice(best.idx, 1);
+          bucket.totalValue += best.total;
+        } else {
+          unmatched++;
+        }
+      });
+
+      const rows = [...byDate.entries()]
+        .map(([date, v]) => ({ date, orders: v.orders, totalValue: v.totalValue, dpReceived: v.dpReceived, aov: v.orders ? v.totalValue / v.orders : 0 }))
+        .sort((a, b) => b.date.localeCompare(a.date));
+      return { rows, unmatched };
+    }
+
+    function renderSalesRows(rows, note) {
+      const totalOrders = rows.reduce((sum, r) => sum + r.orders, 0);
+      summaryEl.textContent = `${totalOrders} archived order(s) across ${rows.length} date(s)${note || ''}`;
+      renderRows(rows);
+      renderAverages(computeAverageBases(rows));
+    }
+
+    function getKeys() {
       const googleKey = localStorage.getItem(GOOGLE_API_KEY_STORAGE) || '';
       const airtableKey = localStorage.getItem(OT_KEY_STORAGE) || '';
       if (!googleKey || !airtableKey) {
         setStatus('Set Google Sheets API key (New Orders card) and Airtable API key (Order Tracker card) first', 'error');
-        return;
+        return null;
       }
-      setStatus('Loading...', '');
+      return { googleKey, airtableKey };
+    }
+
+    async function load() {
+      const keys = getKeys();
+      if (!keys) return;
+      const cached = loadSalesCache();
+      if (cached?.rows?.length) renderSalesRows(cached.rows, ' (cached, refreshing last 7 days...)');
+      setStatus(cached ? 'Refreshing last 7 days...' : 'Loading...', '');
       try {
-        // Was H2:L2000 (Encoded Name/DP/Payment/Notes/Date Encoded) — a column
-        // was inserted at H (a date-labeled tally/notes column), shifting that
-        // 5-column block one to the right.
-        const range = encodeURIComponent(`${GOOGLE_SHEET_TAB}!I2:M2000`);
-        const sheetResp = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}/values/${range}?key=${encodeURIComponent(googleKey)}`);
-        const sheetData = await sheetResp.json();
-        if (!sheetResp.ok) throw new Error(sheetData.error?.message || `HTTP ${sheetResp.status}`);
-
-        const archiveRows = (sheetData.values || [])
-          .map(row => ({ name: row[0] || '', dp: Number(row[1]) || 0, dateEncoded: otNormalizeDateEncoded(row[4]) }))
-          .filter(r => r.name && r.dateEncoded);
-
-        const invRecords = await otFetchRecords(airtableKey, INV_TABLE, PROOF_FB_NAME, INV_GRAND_TOTAL, INV_GRAND_TOTAL, null, []);
-        // Standalone souvenir orders (no linked Invitation) have no Invitation
-        // record at all, so they'd otherwise be invisible here — Invitation's
-        // "Total" field already folds in souvenirs that ARE linked, so only
-        // unlinked ones need adding separately to avoid double-counting.
-        const souRecords = await otFetchRecords(airtableKey, SOU_TABLE, SOU_FB_NAME, SOU_TOTAL, SOU_TOTAL, null, [SOU_INV_LINK]);
-        const souStandalone = souRecords.filter(rec => !(rec.fields?.[SOU_INV_LINK] || []).length);
-
-        // Cluster each name's Airtable records into "orders" by creation-date
-        // proximity (within 3 days of each other), summing totals within a
-        // cluster — this is what actually handles "additional order" child
-        // records correctly: their own Total is 0 (real value already rolled
-        // into the parent via Airtable's rollup), but the child isn't always
-        // created the same day as the parent (confirmed case: parent created
-        // Aug 3, its child created Aug 5 — an exact-same-day match caught
-        // only the ₱0 child and completely missed the ₱7,275 parent). A
-        // 3-day window catches that lag while still keeping a repeat
-        // client's old, never-archived order in its own separate cluster
-        // (confirmed case: a year-old ₱2,475 order must never combine with
-        // an unrelated new order).
-        const CLUSTER_WINDOW_MS = 3 * 24 * 3600 * 1000;
-        const recordsByName = new Map();
-        const addRecord = (nameRaw, totalRaw, createdTime) => {
-          const name = otNormalizeNameForMatch(nameRaw);
-          if (!name || !createdTime) return;
-          if (!recordsByName.has(name)) recordsByName.set(name, []);
-          recordsByName.get(name).push({ total: Number(totalRaw) || 0, time: new Date(createdTime).getTime() });
-        };
-        invRecords.forEach(rec => addRecord(rec.fields?.[PROOF_FB_NAME], rec.fields?.[INV_GRAND_TOTAL], rec.createdTime));
-        souStandalone.forEach(rec => addRecord(rec.fields?.[SOU_FB_NAME], rec.fields?.[SOU_TOTAL], rec.createdTime));
-
-        const clustersByName = new Map();
-        recordsByName.forEach((records, name) => {
-          records.sort((a, b) => a.time - b.time);
-          const clusters = [];
-          let current = null;
-          records.forEach(r => {
-            if (current && (r.time - current.lastTime) <= CLUSTER_WINDOW_MS) {
-              current.total += r.total;
-              current.lastTime = r.time;
-            } else {
-              current = { total: r.total, lastTime: r.time };
-              clusters.push(current);
-            }
-          });
-          clustersByName.set(name, clusters);
-        });
-
-        const byDate = new Map();
-        let unmatched = 0;
-        archiveRows.forEach(r => {
-          const key = r.dateEncoded;
-          if (!byDate.has(key)) byDate.set(key, { orders: 0, totalValue: 0, dpReceived: 0 });
-          const bucket = byDate.get(key);
-          bucket.orders++;
-          bucket.dpReceived += r.dp;
-          const exactClusters = clustersByName.get(otNormalizeNameForMatch(r.name));
-          if (exactClusters && exactClusters.length) {
-            const archiveTime = new Date(r.dateEncoded).getTime();
-            let bestIdx = 0, bestDiff = Infinity;
-            exactClusters.forEach((c, idx) => {
-              const diff = Math.abs(c.lastTime - archiveTime);
-              if (diff < bestDiff) { bestDiff = diff; bestIdx = idx; }
-            });
-            bucket.totalValue += exactClusters.splice(bestIdx, 1)[0].total;
-            return;
-          }
-          // No exact name match — fall back to fuzzy matching (small typos
-          // like "Jaby JA" vs "Jabby VA", "Shiela" vs "Sheila"), but only
-          // accept a candidate whose name is close AND whose order date is
-          // close, so two different clients with similar names on unrelated
-          // dates don't get mismatched.
-          const archiveTime = new Date(r.dateEncoded).getTime();
-          const archiveName = otNormalizeNameForMatch(r.name);
-          let best = null;
-          clustersByName.forEach((clusters, candidateName) => {
-            if (!clusters.length) return;
-            const nameDist = otLevenshteinDistance(archiveName, candidateName);
-            if (nameDist > FUZZY_MAX_NAME_DIST) return;
-            clusters.forEach((c, idx) => {
-              const dateDiffDays = Math.abs(c.lastTime - archiveTime) / 86400000;
-              if (dateDiffDays > FUZZY_MAX_DATE_DIFF_DAYS) return;
-              if (!best || nameDist < best.nameDist || (nameDist === best.nameDist && dateDiffDays < best.dateDiffDays)) {
-                best = { candidateName, idx, nameDist, dateDiffDays, total: c.total };
-              }
-            });
-          });
-          if (best) {
-            clustersByName.get(best.candidateName).splice(best.idx, 1);
-            bucket.totalValue += best.total;
-          } else {
-            unmatched++;
-          }
-        });
-
-        const rows = [...byDate.entries()]
-          .map(([date, v]) => ({ date, orders: v.orders, totalValue: v.totalValue, dpReceived: v.dpReceived, aov: v.orders ? v.totalValue / v.orders : 0 }))
-          .sort((a, b) => b.date.localeCompare(a.date));
-
-        summaryEl.textContent = `${archiveRows.length} archived order(s) across ${rows.length} date(s)${unmatched ? ` · ${unmatched} unmatched to Airtable` : ''}`;
+        const archiveRowsAll = await fetchArchiveRows(keys.googleKey);
+        if (!cached) {
+          // Nothing cached yet — no choice but a full fetch this once.
+          const { invRecords, souStandalone } = await fetchAirtableForSales(keys.airtableKey, null);
+          const { rows, unmatched } = computeSalesRows(archiveRowsAll, invRecords, souStandalone);
+          saveSalesCache(rows);
+          renderSalesRows(rows, unmatched ? ` · ${unmatched} unmatched to Airtable` : '');
+          setStatus('Loaded ✓', 'success');
+          return;
+        }
+        const cutoffKey = dateKeyDaysAgo(SALES_QUICK_REFRESH_DAYS);
+        const sinceKey = dateKeyDaysAgo(SALES_QUICK_REFRESH_DAYS + SALES_AIRTABLE_LOOKBACK_BUFFER_DAYS);
+        const recentArchiveRows = archiveRowsAll.filter(r => r.dateEncoded >= cutoffKey);
+        const { invRecords, souStandalone } = await fetchAirtableForSales(keys.airtableKey, sinceKey);
+        const { rows: freshRows, unmatched } = computeSalesRows(recentArchiveRows, invRecords, souStandalone);
+        const merged = [
+          ...cached.rows.filter(r => r.date < cutoffKey),
+          ...freshRows,
+        ].sort((a, b) => b.date.localeCompare(a.date));
+        saveSalesCache(merged);
+        renderSalesRows(merged, unmatched ? ` · ${unmatched} unmatched to Airtable (last 7 days)` : '');
         setStatus('Loaded ✓', 'success');
-        renderRows(rows);
-        renderAverages(computeAverageBases(rows));
+      } catch (err) {
+        setStatus(`Error: ${err.message}`, 'error');
+      }
+    }
+
+    async function refreshAllData() {
+      const keys = getKeys();
+      if (!keys) return;
+      setStatus('Refreshing all data — this can take a while...', '');
+      try {
+        const archiveRowsAll = await fetchArchiveRows(keys.googleKey);
+        const { invRecords, souStandalone } = await fetchAirtableForSales(keys.airtableKey, null);
+        const { rows, unmatched } = computeSalesRows(archiveRowsAll, invRecords, souStandalone);
+        saveSalesCache(rows);
+        renderSalesRows(rows, unmatched ? ` · ${unmatched} unmatched to Airtable` : '');
+        setStatus('All data refreshed ✓', 'success');
       } catch (err) {
         setStatus(`Error: ${err.message}`, 'error');
       }
@@ -3209,6 +3480,7 @@ Then extract:
     card.addEventListener('click', (e) => {
       const act = e.target.dataset.act;
       if (act === 'load') load();
+      else if (act === 'refreshAll') refreshAllData();
       else if (act === 'toggleConfig') configPanel.classList.toggle('open');
     });
 
@@ -3460,14 +3732,15 @@ Then extract:
   const ADS_MESSAGE_ACTION_TYPES = ['onsite_conversion.messaging_conversation_started_7d'];
   const ADS_PURCHASE_ACTION_TYPES = ['omni_purchase', 'purchase', 'offsite_conversion.fb_pixel_purchase'];
 
-  async function adsFetchDailyInsights(token, accountId) {
+  async function adsFetchInsights(token, accountId, datePreset) {
     const acct = accountId.trim().replace(/^act_/, '');
     const fields = 'spend,reach,actions';
-    // Facebook's default page size for a daily-broken-down last_30d query is
-    // smaller than 30 rows and returns oldest-first, so reading only the
-    // first page silently cut off the most recent days (confirmed: a 30-day
-    // window was only showing up through day ~25). Follow pagination fully.
-    let url = `https://graph.facebook.com/${ADS_GRAPH_VERSION}/act_${encodeURIComponent(acct)}/insights?fields=${fields}&date_preset=${ADS_DATE_PRESET}&time_increment=1&limit=100&access_token=${encodeURIComponent(token)}`;
+    // Facebook's default page size for a daily-broken-down query is smaller
+    // than the requested window and returns oldest-first, so reading only
+    // the first page silently cut off the most recent days (confirmed: a
+    // 30-day window was only showing up through day ~25). Follow pagination
+    // fully.
+    let url = `https://graph.facebook.com/${ADS_GRAPH_VERSION}/act_${encodeURIComponent(acct)}/insights?fields=${fields}&date_preset=${datePreset}&time_increment=1&limit=100&access_token=${encodeURIComponent(token)}`;
     const rows = [];
     let pages = 0;
     while (url && pages < 10) {
@@ -3638,8 +3911,20 @@ Then extract:
       }
       setStatus('Loading…', 'loading');
       try {
-        const daily = await adsFetchDailyInsights(token, accountId);
-        const rows = daily
+        // last_30d treats today as not-yet-final and often omits it (or
+        // returns a stale/empty row), so fetch it separately and merge it
+        // in — the table then shows today's running spend even though the
+        // averages below still exclude it as an unfinished day.
+        const [daily, todayRows] = await Promise.all([
+          adsFetchInsights(token, accountId, ADS_DATE_PRESET),
+          adsFetchInsights(token, accountId, 'today'),
+        ]);
+        const merged = [...daily];
+        todayRows.forEach(t => {
+          const idx = merged.findIndex(d => d.date_start === t.date_start);
+          if (idx >= 0) merged[idx] = t; else merged.push(t);
+        });
+        const rows = merged
           .map(d => {
             const spend = Number(d.spend) || 0;
             const messages = adsCountActions(d, ADS_MESSAGE_ACTION_TYPES);
@@ -3694,6 +3979,635 @@ Then extract:
 
   cardsDataRoot.appendChild(buildSalesCard());
   cardsDataRoot.appendChild(buildAdsCard());
+
+  // ─── Tasks & Goals (stored as a JSON file in this GitHub repo) ──────────
+  // No spreadsheet, no third-party backend — the data lives in a single
+  // committed file (tasks-data.json) read/written via the GitHub Contents
+  // API, so it's the same on every device without needing Google Sheets.
+  // Every save is a small commit to the repo; acceptable tradeoff for a
+  // personal task list, but worth knowing before this gets heavy daily use.
+
+  const TASKS_REPO_OWNER = 'mhcreatives';
+  const TASKS_REPO_NAME = 'mh-dashboard';
+  const TASKS_DATA_PATH = 'tasks-data.json';
+  const TASKS_GITHUB_TOKEN_STORAGE = 'mh_tasks_github_token';
+
+  function utf8ToBase64(str) {
+    const bytes = new TextEncoder().encode(str);
+    let binary = '';
+    bytes.forEach(b => { binary += String.fromCharCode(b); });
+    return btoa(binary);
+  }
+  function base64ToUtf8(b64) {
+    const binary = atob(b64.replace(/\n/g, ''));
+    const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
+    return new TextDecoder().decode(bytes);
+  }
+  function tasksNewId() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+
+  let tasksDataCache = { dailyTasks: [], goals: [] };
+  let tasksDataSha = null; // null = file doesn't exist in the repo yet
+
+  async function ghFetchTasksData(token) {
+    const url = `https://api.github.com/repos/${TASKS_REPO_OWNER}/${TASKS_REPO_NAME}/contents/${TASKS_DATA_PATH}`;
+    const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' } });
+    if (resp.status === 404) { tasksDataSha = null; return { dailyTasks: [], goals: [] }; }
+    const json = await resp.json();
+    if (!resp.ok) throw new Error(json.message || `GitHub API error ${resp.status}`);
+    tasksDataSha = json.sha;
+    try {
+      const parsed = JSON.parse(base64ToUtf8(json.content));
+      return { dailyTasks: parsed.dailyTasks || [], goals: parsed.goals || [] };
+    } catch {
+      return { dailyTasks: [], goals: [] };
+    }
+  }
+
+  async function ghSaveTasksData(token, data) {
+    const url = `https://api.github.com/repos/${TASKS_REPO_OWNER}/${TASKS_REPO_NAME}/contents/${TASKS_DATA_PATH}`;
+    const doPut = () => {
+      const body = { message: 'Update tasks/goals data', content: utf8ToBase64(JSON.stringify(data, null, 2)) };
+      if (tasksDataSha) body.sha = tasksDataSha;
+      return fetch(url, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    };
+    let resp = await doPut();
+    if (resp.status === 409) {
+      // sha is stale (file changed elsewhere since we last loaded it) —
+      // refetch to get the current sha, then retry once with our data
+      // (last-write-wins; fine for a personal single-user task list).
+      await ghFetchTasksData(token);
+      resp = await doPut();
+    }
+    const json = await resp.json();
+    if (!resp.ok) throw new Error(json.message || `GitHub API error ${resp.status}`);
+    tasksDataSha = json.content.sha;
+  }
+
+  let renderDailyTasksList = () => {};
+  let renderGoalsList = () => {};
+  let setDailyTasksStatus = () => {};
+  let setGoalsStatus = () => {};
+
+  async function initTasksData() {
+    const token = localStorage.getItem(TASKS_GITHUB_TOKEN_STORAGE) || '';
+    if (!token) {
+      setDailyTasksStatus('Set GitHub token first ↓', 'error');
+      setGoalsStatus('Set GitHub token in Daily Tasks card ↓', 'error');
+      return;
+    }
+    setDailyTasksStatus('Loading...', '');
+    setGoalsStatus('Loading...', '');
+    try {
+      tasksDataCache = await ghFetchTasksData(token);
+      setDailyTasksStatus('Loaded ✓', 'success');
+      setGoalsStatus('Loaded ✓', 'success');
+      renderDailyTasksList();
+      renderGoalsList();
+    } catch (err) {
+      setDailyTasksStatus(`Error: ${err.message}`, 'error');
+      setGoalsStatus(`Error: ${err.message}`, 'error');
+    }
+  }
+
+  // Returns true on success, false on failure — callers must check this
+  // before showing "Saved", instead of assuming success unconditionally
+  // (confirmed bug: tasks looked saved but silently failed and vanished on
+  // reload, because the status line said "Saved ✓" regardless of outcome).
+  async function saveTasksData(onError) {
+    const token = localStorage.getItem(TASKS_GITHUB_TOKEN_STORAGE) || '';
+    if (!token) { onError?.(new Error('No GitHub token set')); return false; }
+    try {
+      await ghSaveTasksData(token, tasksDataCache);
+      return true;
+    } catch (err) {
+      onError?.(err);
+      return false;
+    }
+  }
+
+  function buildDailyTasksCard() {
+    const card = document.createElement('div');
+    card.className = 'tool-card task-card-accent';
+    card.style.setProperty('--task-accent-color', '#5b9bd5');
+    card.innerHTML = `
+      <div class="tool-hd">
+        <div class="tool-name">✅ Daily Tasks</div>
+        <div class="tool-actions">
+          <button class="icon-btn" data-act="refresh">↻ Refresh</button>
+        </div>
+      </div>
+      <div class="tool-desc">A running checklist — nothing auto-clears, check things off as you go.</div>
+      <div class="status-line" data-el="status"></div>
+      <div class="qa-bar" style="margin-bottom:2px;">
+        <button class="qa-plus" data-act="add" title="Add task">+</button>
+        <input type="text" data-el="taskInput" class="qa-input" placeholder="Add a task" autocomplete="off" spellcheck="false" />
+        <div class="qa-icons">
+          <button class="qa-icon-btn" data-act="toggleDueMenu" data-el="dueBtn" title="Due date">📅</button>
+          <button class="qa-icon-btn" data-act="togglePriorityMenu" data-el="priorityBtn" title="Priority">🚩</button>
+        </div>
+      </div>
+      <div class="qa-chips" data-el="chips"></div>
+      <div class="qa-menu" data-el="dueMenu" hidden></div>
+      <div class="qa-menu" data-el="priorityMenu" hidden>
+        <button class="qa-menu-item" data-act="setPriority" data-value="none"><span>⚪</span> No priority</button>
+        <button class="qa-menu-item" data-act="setPriority" data-value="low"><span style="color:#5b9bd5;">🚩</span> Low</button>
+        <button class="qa-menu-item" data-act="setPriority" data-value="med"><span style="color:#f5a524;">🚩</span> Medium</button>
+        <button class="qa-menu-item" data-act="setPriority" data-value="high"><span style="color:#f87171;">🚩</span> High</button>
+      </div>
+      <input type="date" data-el="dueDateInput" style="display:none;" />
+      <div class="proof-summary" data-el="summary" style="display:flex; align-items:center; justify-content:space-between; margin-top:8px;"></div>
+      <div data-el="list"></div>
+
+      <div class="config-toggle" data-act="toggleConfig">⚙ set GitHub token</div>
+      <div class="config-panel" data-el="configPanel">
+        <div class="config-hint">
+          A GitHub personal access token (fine-grained, scoped to just this repo, with Contents read/write) — used by both the Daily Tasks and Goals cards. Stored locally in this browser only.
+        </div>
+        <div class="id-row">
+          <input type="password" data-el="tokenInput" placeholder="GitHub personal access token" autocomplete="off" spellcheck="false" />
+          <button class="save-btn" data-act="saveToken">Save</button>
+        </div>
+      </div>
+    `;
+
+    const el = sel => card.querySelector(`[data-el="${sel}"]`);
+    const statusEl = el('status');
+    const taskInput = el('taskInput');
+    const dueDateInput = el('dueDateInput');
+    const dueBtn = el('dueBtn');
+    const priorityBtn = el('priorityBtn');
+    const dueMenu = el('dueMenu');
+    const priorityMenu = el('priorityMenu');
+    const chipsEl = el('chips');
+    const summaryEl = el('summary');
+    const listEl = el('list');
+    const configPanel = el('configPanel');
+    const tokenInput = el('tokenInput');
+
+    const PRIORITY_LABELS = { none: '', low: 'Low', med: 'Medium', high: 'High' };
+    const PRIORITY_COLORS = { none: '#444', low: '#5b9bd5', med: '#f5a524', high: '#f87171' };
+
+    function todayKeyLocal() {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+    function dateKeyFrom(d) {
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+    function formatDueDate(dateStr) {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+    function weekdayAbbrev(d) {
+      return d.toLocaleDateString('en-US', { weekday: 'short' });
+    }
+
+    // Pending due date/priority for the task about to be added — set via
+    // the quick-add bar's icon menus (Microsoft To Do style), cleared once
+    // the task is actually added.
+    let pendingDueDate = null;
+    let pendingPriority = 'none';
+
+    function renderDueMenu() {
+      const today = new Date();
+      const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+      const daysUntilNextMonday = (8 - today.getDay()) % 7 || 7;
+      const nextWeek = new Date(today); nextWeek.setDate(nextWeek.getDate() + daysUntilNextMonday);
+      const options = [
+        { label: 'Today', icon: '📅', date: today },
+        { label: 'Tomorrow', icon: '📆', date: tomorrow },
+        { label: 'Next week', icon: '📅', date: nextWeek },
+      ];
+      dueMenu.innerHTML = options.map(o => `
+        <button class="qa-menu-item" data-act="setDue" data-value="${dateKeyFrom(o.date)}"><span>${o.icon} ${o.label}</span><span class="qa-menu-day">${weekdayAbbrev(o.date)}</span></button>
+      `).join('') + `
+        <button class="qa-menu-item" data-act="pickDate"><span>🗓️ Pick a date</span></button>
+      `;
+    }
+    renderDueMenu();
+
+    function closeMenus() {
+      dueMenu.hidden = true;
+      priorityMenu.hidden = true;
+      dueBtn.classList.remove('active');
+      priorityBtn.classList.remove('active');
+    }
+
+    function renderChips() {
+      const chips = [];
+      if (pendingDueDate) {
+        chips.push(`<div class="qa-chip">📅 ${formatDueDate(pendingDueDate)}<button data-act="clearDue">✕</button></div>`);
+      }
+      if (pendingPriority !== 'none') {
+        chips.push(`<div class="qa-chip">🚩 ${PRIORITY_LABELS[pendingPriority]}<button data-act="clearPriority">✕</button></div>`);
+      }
+      chipsEl.innerHTML = chips.join('');
+    }
+
+    function setStatus(text, cls) {
+      statusEl.className = `status-line ${cls || ''}`;
+      statusEl.innerHTML = text ? `<span class="status-dot ${cls || ''}"></span>${text}` : '';
+    }
+    setDailyTasksStatus = setStatus;
+
+    let editingTaskId = null;
+
+    function render() {
+      const allTasks = tasksDataCache.dailyTasks || [];
+      const openCount = allTasks.filter(t => !t.done).length;
+      const doneCount = allTasks.length - openCount;
+      summaryEl.innerHTML = allTasks.length === 0 ? '' : `
+        <span>${openCount} open · ${doneCount} done</span>
+        ${doneCount > 0 ? `<button class="icon-btn" data-act="clearCompleted">Clear completed</button>` : ''}
+      `;
+      if (allTasks.length === 0) { listEl.innerHTML = ''; return; }
+      const today = todayKeyLocal();
+      // Done tasks sink to the bottom, but keep each group's own relative
+      // order (a stable partition, not a re-sort within each group).
+      const tasks = [...allTasks.filter(t => !t.done), ...allTasks.filter(t => t.done)];
+      listEl.innerHTML = tasks.map(t => {
+        const priority = t.priority || 'none';
+        const checkboxColorVar = `--task-priority-color: ${PRIORITY_COLORS[priority]};`;
+        if (t.id === editingTaskId) {
+          return `
+            <div class="task-row" style="flex-wrap:wrap;">
+              <input type="checkbox" data-id="${t.id}" ${t.done ? 'checked' : ''} style="${checkboxColorVar}" />
+              <input type="text" class="task-edit-input" data-id="${t.id}" value="${t.text.replace(/"/g, '&quot;')}" autocomplete="off" spellcheck="false" style="flex:1;" />
+              <button class="task-del" data-act="saveEdit" data-id="${t.id}" style="color:#4ade80; opacity:1;">✓</button>
+              <button class="task-del" data-act="cancelEdit" style="opacity:1;">✕</button>
+              <select class="task-edit-priority" data-id="${t.id}" style="margin-left:23px;">
+                ${Object.keys(PRIORITY_LABELS).map(p => `<option value="${p}" ${p === priority ? 'selected' : ''}>${p === 'none' ? 'No priority' : PRIORITY_LABELS[p]}</option>`).join('')}
+              </select>
+              <input type="date" class="task-edit-duedate" data-id="${t.id}" value="${t.dueDate || ''}" style="color-scheme: dark; flex: none; width: 128px;" />
+            </div>
+          `;
+        }
+        const dueBadge = t.dueDate && !t.done
+          ? `<span style="font-size:10px; margin-left:6px; padding:1px 6px; border-radius:8px; ${t.dueDate < today ? 'color:#f87171; background:#3a1e1e;' : 'color:#888; background:#1e1e1e;'}">${formatDueDate(t.dueDate)}</span>`
+          : '';
+        return `
+        <div class="task-row">
+          <input type="checkbox" data-id="${t.id}" ${t.done ? 'checked' : ''} style="${checkboxColorVar}" />
+          <div class="task-text${t.done ? ' done' : ''}" data-act="startEdit" data-id="${t.id}">${t.text.replace(/</g, '&lt;')}${dueBadge}</div>
+          <button class="task-del" data-act="startEdit" data-id="${t.id}">✎</button>
+          <button class="task-del" data-act="delete" data-id="${t.id}">✕</button>
+        </div>
+      `;
+      }).join('');
+      if (editingTaskId) {
+        const input = listEl.querySelector('.task-edit-input');
+        if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
+      }
+    }
+    renderDailyTasksList = render;
+
+    function startEditTask(id) {
+      editingTaskId = id;
+      render();
+    }
+
+    function cancelEditTask() {
+      editingTaskId = null;
+      render();
+    }
+
+    async function saveEditTask(id) {
+      const input = listEl.querySelector(`.task-edit-input[data-id="${id}"]`);
+      const priorityEl = listEl.querySelector(`.task-edit-priority[data-id="${id}"]`);
+      const dueDateEl = listEl.querySelector(`.task-edit-duedate[data-id="${id}"]`);
+      const text = input ? input.value.trim() : '';
+      editingTaskId = null;
+      if (!text) { render(); return; }
+      const t = (tasksDataCache.dailyTasks || []).find(x => x.id === id);
+      if (!t) { render(); return; }
+      const newPriority = priorityEl ? priorityEl.value : (t.priority || 'none');
+      const newDueDate = dueDateEl ? (dueDateEl.value || null) : (t.dueDate || null);
+      if (t.text === text && (t.priority || 'none') === newPriority && (t.dueDate || null) === newDueDate) { render(); return; }
+      t.text = text;
+      t.priority = newPriority;
+      t.dueDate = newDueDate;
+      render();
+      setStatus('Saving...', '');
+      const ok = await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
+      if (ok) setStatus('Saved ✓', 'success');
+    }
+
+    async function addTask() {
+      const text = taskInput.value.trim();
+      if (!text) return;
+      tasksDataCache.dailyTasks = tasksDataCache.dailyTasks || [];
+      tasksDataCache.dailyTasks.unshift({
+        id: tasksNewId(), text, done: false,
+        priority: pendingPriority,
+        dueDate: pendingDueDate,
+      });
+      taskInput.value = '';
+      pendingPriority = 'none';
+      pendingDueDate = null;
+      dueDateInput.value = '';
+      renderChips();
+      render();
+      setStatus('Saving...', '');
+      const ok = await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
+      if (ok) setStatus('Saved ✓', 'success');
+    }
+
+    async function clearCompletedTasks() {
+      tasksDataCache.dailyTasks = (tasksDataCache.dailyTasks || []).filter(x => !x.done);
+      render();
+      setStatus('Saving...', '');
+      const ok = await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
+      if (ok) setStatus('Saved ✓', 'success');
+    }
+
+    async function toggleTask(id) {
+      const t = (tasksDataCache.dailyTasks || []).find(x => x.id === id);
+      if (!t) return;
+      t.done = !t.done;
+      render();
+      setStatus('Saving...', '');
+      const ok = await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
+      if (ok) setStatus('Saved ✓', 'success');
+    }
+
+    async function deleteTask(id) {
+      tasksDataCache.dailyTasks = (tasksDataCache.dailyTasks || []).filter(x => x.id !== id);
+      render();
+      setStatus('Saving...', '');
+      const ok = await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
+      if (ok) setStatus('Saved ✓', 'success');
+    }
+
+    card.addEventListener('click', (e) => {
+      const target = e.target.closest('[data-act]');
+      const act = target?.dataset.act;
+      if (act === 'add') addTask();
+      else if (act === 'refresh') initTasksData();
+      else if (act === 'toggleConfig') configPanel.classList.toggle('open');
+      else if (act === 'delete') deleteTask(target.dataset.id);
+      else if (act === 'startEdit') startEditTask(target.dataset.id);
+      else if (act === 'saveEdit') saveEditTask(target.dataset.id);
+      else if (act === 'cancelEdit') cancelEditTask();
+      else if (act === 'clearCompleted') clearCompletedTasks();
+      else if (act === 'toggleDueMenu') {
+        const willOpen = dueMenu.hidden;
+        closeMenus();
+        if (willOpen) { dueMenu.hidden = false; dueBtn.classList.add('active'); }
+        e.stopPropagation();
+      }
+      else if (act === 'togglePriorityMenu') {
+        const willOpen = priorityMenu.hidden;
+        closeMenus();
+        if (willOpen) { priorityMenu.hidden = false; priorityBtn.classList.add('active'); }
+        e.stopPropagation();
+      }
+      else if (act === 'setDue') {
+        pendingDueDate = target.dataset.value;
+        closeMenus();
+        renderChips();
+      }
+      else if (act === 'pickDate') {
+        closeMenus();
+        dueDateInput.style.display = '';
+        if (dueDateInput.showPicker) dueDateInput.showPicker(); else dueDateInput.focus();
+      }
+      else if (act === 'setPriority') {
+        pendingPriority = target.dataset.value;
+        closeMenus();
+        renderChips();
+      }
+      else if (act === 'clearDue') { pendingDueDate = null; renderChips(); }
+      else if (act === 'clearPriority') { pendingPriority = 'none'; renderChips(); }
+      else if (act === 'saveToken') {
+        const val = tokenInput.value.trim();
+        if (!val) return;
+        localStorage.setItem(TASKS_GITHUB_TOKEN_STORAGE, val);
+        setStatus('Token saved ✓', 'success');
+        initTasksData();
+      }
+    });
+    document.addEventListener('click', (e) => {
+      if (!card.contains(e.target)) closeMenus();
+    });
+    dueDateInput.addEventListener('change', () => {
+      pendingDueDate = dueDateInput.value || null;
+      dueDateInput.style.display = 'none';
+      renderChips();
+    });
+    card.addEventListener('change', (e) => {
+      if (e.target.matches('input[type="checkbox"][data-id]')) toggleTask(e.target.dataset.id);
+    });
+    card.addEventListener('keydown', (e) => {
+      if (!e.target.matches('.task-edit-input')) return;
+      if (e.key === 'Enter') saveEditTask(e.target.dataset.id);
+      else if (e.key === 'Escape') cancelEditTask();
+    });
+    taskInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addTask(); });
+
+    const savedToken = localStorage.getItem(TASKS_GITHUB_TOKEN_STORAGE) || '';
+    if (savedToken) tokenInput.value = savedToken;
+    else configPanel.classList.add('open');
+
+    return card;
+  }
+
+  const GOAL_TIMEFRAMES = ['3 months', '6 months', '1 year', 'Long-term'];
+  const GOAL_STATUSES = [
+    { value: 'not_started', label: 'Not started' },
+    { value: 'in_progress', label: 'In progress' },
+    { value: 'done', label: 'Done' },
+  ];
+
+  function buildGoalsCard() {
+    const card = document.createElement('div');
+    card.className = 'tool-card task-card-accent';
+    card.style.setProperty('--task-accent-color', '#c77adf');
+    card.innerHTML = `
+      <div class="tool-hd">
+        <div class="tool-name">🎯 Goals</div>
+        <div class="tool-actions">
+          <button class="icon-btn" data-act="refresh">↻ Refresh</button>
+        </div>
+      </div>
+      <div class="tool-desc">Your goal board — grouped by timeframe. Uses the same GitHub token as Daily Tasks.</div>
+      <div class="status-line" data-el="status"></div>
+      <div class="id-row" style="margin-bottom:8px;">
+        <input type="text" data-el="titleInput" placeholder="Goal title..." autocomplete="off" spellcheck="false" />
+      </div>
+      <div class="id-row" style="margin-bottom:8px;">
+        <select data-el="timeframeInput">${GOAL_TIMEFRAMES.map(t => `<option value="${t}">${t}</option>`).join('')}</select>
+        <select data-el="statusInput">${GOAL_STATUSES.map(s => `<option value="${s.value}">${s.label}</option>`).join('')}</select>
+      </div>
+      <div class="id-row" style="margin-bottom:8px;">
+        <input type="text" data-el="notesInput" placeholder="Notes (optional)" autocomplete="off" spellcheck="false" />
+        <button class="save-btn" data-act="add">Add goal</button>
+      </div>
+      <div data-el="list"></div>
+    `;
+
+    const el = sel => card.querySelector(`[data-el="${sel}"]`);
+    const statusEl = el('status');
+    const titleInput = el('titleInput');
+    const timeframeInput = el('timeframeInput');
+    const statusInput = el('statusInput');
+    const notesInput = el('notesInput');
+    const listEl = el('list');
+
+    function setStatus(text, cls) {
+      statusEl.className = `status-line ${cls || ''}`;
+      statusEl.innerHTML = text ? `<span class="status-dot ${cls || ''}"></span>${text}` : '';
+    }
+    setGoalsStatus = setStatus;
+
+    let editingGoalId = null;
+
+    function render() {
+      const goals = tasksDataCache.goals || [];
+      if (goals.length === 0) { listEl.innerHTML = ''; return; }
+      const statusLabel = v => GOAL_STATUSES.find(s => s.value === v)?.label || v;
+      listEl.innerHTML = GOAL_TIMEFRAMES
+        .map((tf, tfIndex) => {
+          const inGroup = goals.filter(g => g.timeframe === tf);
+          // Done goals sink to the bottom of their timeframe group, same
+          // as Daily Tasks — stable partition, not a re-sort within groups.
+          const items = [...inGroup.filter(g => g.status !== 'done'), ...inGroup.filter(g => g.status === 'done')];
+          return { tf, tfIndex, items };
+        })
+        .filter(g => g.items.length > 0)
+        .map(({ tf, tfIndex, items }) => `
+          <div class="goal-group-label tf-${tfIndex}">${tf}</div>
+          ${items.map(g => {
+            if (g.id === editingGoalId) {
+              return `
+                <div class="proof-item" style="margin-bottom:8px;">
+                  <div class="id-row" style="margin-bottom:6px;">
+                    <input type="text" class="goal-edit-title" data-id="${g.id}" value="${g.title.replace(/"/g, '&quot;')}" autocomplete="off" spellcheck="false" />
+                  </div>
+                  <div class="id-row" style="margin-bottom:6px;">
+                    <select class="goal-edit-timeframe" data-id="${g.id}">${GOAL_TIMEFRAMES.map(t => `<option value="${t}" ${t === g.timeframe ? 'selected' : ''}>${t}</option>`).join('')}</select>
+                  </div>
+                  <div class="id-row" style="margin-bottom:6px;">
+                    <input type="text" class="goal-edit-notes" data-id="${g.id}" value="${(g.notes || '').replace(/"/g, '&quot;')}" placeholder="Notes (optional)" autocomplete="off" spellcheck="false" />
+                  </div>
+                  <div class="id-row">
+                    <button class="save-btn" data-act="saveEditGoal" data-id="${g.id}">✓ Save</button>
+                    <button class="save-btn" data-act="cancelEditGoal">✕ Cancel</button>
+                  </div>
+                </div>
+              `;
+            }
+            return `
+            <div class="proof-item" style="margin-bottom:8px;">
+              <div class="proof-name" style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                <span data-act="startEditGoal" data-id="${g.id}" style="cursor:pointer;">${g.title.replace(/</g, '&lt;')}</span>
+                <button class="goal-status ${g.status}" data-act="cycleStatus" data-id="${g.id}">${statusLabel(g.status)}</button>
+              </div>
+              ${g.notes ? `<div class="proof-diff" style="margin-top:4px;">${g.notes.replace(/</g, '&lt;')}</div>` : ''}
+              <div style="display:flex; gap:12px; margin-top:4px;">
+                <button class="task-del" data-act="startEditGoal" data-id="${g.id}">✎ Edit</button>
+                <button class="task-del" data-act="delete" data-id="${g.id}">🗑 Delete</button>
+              </div>
+            </div>
+          `;
+          }).join('')}
+        `).join('');
+    }
+    renderGoalsList = render;
+
+    function startEditGoal(id) {
+      editingGoalId = id;
+      render();
+    }
+
+    function cancelEditGoal() {
+      editingGoalId = null;
+      render();
+    }
+
+    async function saveEditGoal(id) {
+      const titleInputEl = listEl.querySelector(`.goal-edit-title[data-id="${id}"]`);
+      const timeframeInputEl = listEl.querySelector(`.goal-edit-timeframe[data-id="${id}"]`);
+      const notesInputEl = listEl.querySelector(`.goal-edit-notes[data-id="${id}"]`);
+      const title = titleInputEl ? titleInputEl.value.trim() : '';
+      editingGoalId = null;
+      if (!title) { render(); return; }
+      const g = (tasksDataCache.goals || []).find(x => x.id === id);
+      if (!g) { render(); return; }
+      g.title = title;
+      g.timeframe = timeframeInputEl ? timeframeInputEl.value : g.timeframe;
+      g.notes = notesInputEl ? notesInputEl.value.trim() : g.notes;
+      render();
+      setStatus('Saving...', '');
+      const ok = await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
+      if (ok) setStatus('Saved ✓', 'success');
+    }
+
+    async function addGoal() {
+      const title = titleInput.value.trim();
+      if (!title) return;
+      tasksDataCache.goals = tasksDataCache.goals || [];
+      tasksDataCache.goals.push({
+        id: tasksNewId(), title,
+        timeframe: timeframeInput.value,
+        status: statusInput.value,
+        notes: notesInput.value.trim(),
+      });
+      titleInput.value = '';
+      notesInput.value = '';
+      render();
+      setStatus('Saving...', '');
+      const ok = await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
+      if (ok) setStatus('Saved ✓', 'success');
+    }
+
+    async function cycleStatus(id) {
+      const g = (tasksDataCache.goals || []).find(x => x.id === id);
+      if (!g) return;
+      const idx = GOAL_STATUSES.findIndex(s => s.value === g.status);
+      g.status = GOAL_STATUSES[(idx + 1) % GOAL_STATUSES.length].value;
+      render();
+      setStatus('Saving...', '');
+      const ok = await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
+      if (ok) setStatus('Saved ✓', 'success');
+    }
+
+    async function deleteGoal(id) {
+      tasksDataCache.goals = (tasksDataCache.goals || []).filter(x => x.id !== id);
+      render();
+      setStatus('Saving...', '');
+      const ok = await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
+      if (ok) setStatus('Saved ✓', 'success');
+    }
+
+    card.addEventListener('click', (e) => {
+      const act = e.target.dataset.act;
+      if (act === 'add') addGoal();
+      else if (act === 'refresh') initTasksData();
+      else if (act === 'cycleStatus') cycleStatus(e.target.dataset.id);
+      else if (act === 'delete') deleteGoal(e.target.dataset.id);
+      else if (act === 'startEditGoal') startEditGoal(e.target.dataset.id);
+      else if (act === 'saveEditGoal') saveEditGoal(e.target.dataset.id);
+      else if (act === 'cancelEditGoal') cancelEditGoal();
+    });
+    titleInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addGoal(); });
+    listEl.addEventListener('keydown', (e) => {
+      if (!e.target.matches('.goal-edit-title, .goal-edit-notes')) return;
+      if (e.key === 'Enter') saveEditGoal(e.target.dataset.id);
+      else if (e.key === 'Escape') cancelEditGoal();
+    });
+
+    return card;
+  }
+
+  cardsTasksRoot.appendChild(buildDailyTasksCard());
+  cardsTasksRoot.appendChild(buildGoalsCard());
+  initTasksData();
 </script>
 </body>
 </html>

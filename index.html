@@ -787,9 +787,13 @@
         ]);
 
         // ── Invitation side ──────────────────────────────────────────────────
-        const invOrderDoneEligible = invOrderDoneCandidates.filter(r =>
-          r.fields?.[INV_STATUS] === 'For posting' ? otIsInCurrentWeek(r.fields?.[INV_DATE_FINISHED]) : true
-        );
+        // "Order Done" is strictly "finished this week" — Date finished must
+        // fall in the current week, regardless of which of the Photo/For
+        // packaging/To Ship/For posting statuses the record currently sits
+        // in (previously only "For posting" was date-gated, so anything
+        // still in an earlier status counted forever until it moved,
+        // showing a nonzero total even first thing Monday morning).
+        const invOrderDoneEligible = invOrderDoneCandidates.filter(r => otIsInCurrentWeek(r.fields?.[INV_DATE_FINISHED]));
         const invPrinting = otSumTotals(printingRecords, INV_TOTAL);
         const invAssemble = otSumTotals(assignedAssemblyRecords, INV_TOTAL);
         const invOrderDone = otSumTotals(invOrderDoneEligible, INV_TOTAL);
@@ -800,9 +804,7 @@
         // that same bucket here too — a bundled souvenir should track its
         // parent invitation's production stage, not just its own Status field
         // (which may not have been updated to match yet).
-        const souOrderDoneEligible = souOrderDoneCandidates.filter(r =>
-          r.fields?.[SOU_STATUS] === 'For posting' ? otIsInCurrentWeek(r.fields?.[SOU_DATE_FINISHED]) : true
-        );
+        const souOrderDoneEligible = souOrderDoneCandidates.filter(r => otIsInCurrentWeek(r.fields?.[SOU_DATE_FINISHED]));
         const souPrintingTotal = otSumTotals(souPrinting, SOU_TOTAL) + otSumTotals(printingRecords, INV_SOUVENIR_TOTAL);
         const souAssembleTotal = otSumTotals(souAssignedAssembly, SOU_TOTAL) + otSumTotals(assignedAssemblyRecords, INV_SOUVENIR_TOTAL);
         const souOrderDone = otSumTotals(souOrderDoneEligible, SOU_TOTAL);

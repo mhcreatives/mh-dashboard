@@ -112,6 +112,14 @@
       "startKey": "2026-08",
       "endKey": "2026-12",
       "paidMonths": {}
+    },
+    {
+      "id": "cc7lwt7v",
+      "name": "",
+      "amount": 0,
+      "startKey": "2026-08",
+      "endKey": "2028-12",
+      "paidMonths": {}
     }
   ],
   "months": {

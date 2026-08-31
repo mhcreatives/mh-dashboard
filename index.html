@@ -3125,6 +3125,18 @@ Then extract:
     return s || null;
   }
 
+  // Constructs the date from its YYYY-MM-DD parts explicitly (local time),
+  // rather than `new Date(dateStr)` — a bare date-only ISO string parses as
+  // UTC midnight per spec, which can roll over to the previous/next day's
+  // name once converted to local time near timezone boundaries.
+  const OT_WEEKDAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  function otDayOfWeek(dateStr) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr || '');
+    if (!m) return '';
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    return OT_WEEKDAY_ABBR[d.getDay()];
+  }
+
   function buildSalesCard() {
     const card = document.createElement('div');
     card.className = 'tool-card';
@@ -3174,12 +3186,13 @@ Then extract:
       }
       tableEl.innerHTML = `
         <thead><tr>
-          <th>Date</th><th>Orders</th><th>Total value</th><th>Total DP</th><th>AOV</th>
+          <th>Date</th><th>Day</th><th>Orders</th><th>Total value</th><th>Total DP</th><th>AOV</th>
         </tr></thead>
         <tbody>
           ${rows.map(r => `
             <tr>
               <td class="no-name">${r.date}</td>
+              <td>${otDayOfWeek(r.date)}</td>
               <td class="no-num">${r.orders}</td>
               <td class="no-num">${peso(r.totalValue)}</td>
               <td class="no-num">${peso(r.dpReceived)}</td>
@@ -3827,12 +3840,13 @@ Then extract:
       }
       tableEl.innerHTML = `
         <thead><tr>
-          <th>Date</th><th>Spend</th><th>Messages</th><th>Cost/message</th><th>Purchases</th><th>Cost/purchase</th><th>Reach</th><th>Cost/reach</th>
+          <th>Date</th><th>Day</th><th>Spend</th><th>Messages</th><th>Cost/message</th><th>Purchases</th><th>Cost/purchase</th><th>Reach</th><th>Cost/reach</th>
         </tr></thead>
         <tbody>
           ${rows.map(r => `
             <tr>
               <td class="no-name">${r.date}</td>
+              <td>${otDayOfWeek(r.date)}</td>
               <td class="no-num">${peso(r.spend)}</td>
               <td class="no-num">${r.messages.toLocaleString()}</td>
               <td class="no-num">${peso(r.costPerMessage)}</td>

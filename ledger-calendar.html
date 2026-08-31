@@ -919,6 +919,7 @@
         ghSyncing = false;
         if (text) text.textContent = "sync failed";
         console.warn("github save failed", e);
+        alert("GitHub sync failed: " + e.message + "\n\nCheck the token has 'repo' (or Contents: Read & write) permission and hasn't expired.");
       });
     }, 600);
   }
@@ -1668,9 +1669,22 @@
     if (!token) return;
     localStorage.setItem(GH_TOKEN_STORAGE, token);
     githubPanel.hidden = true;
-    // a token was just set — push what's on this device now, then treat
-    // github as source of truth going forward via loadFromGithub() below
-    scheduleGithubSave();
+    // a token was just set — push what's on this device now immediately
+    // (don't wait for the usual debounce), so the user gets a clear
+    // pass/fail result right away instead of a silent background retry.
+    if (ghSaveTimer) clearTimeout(ghSaveTimer);
+    ghSaveLedgerData(token, state).then(function(){
+      var dot = document.getElementById("saveDot");
+      var text = document.getElementById("saveText");
+      if (dot) dot.style.opacity = "1";
+      if (text) text.textContent = "synced to GitHub";
+      alert("Synced to GitHub ✓ — this ledger will now load on other devices too.");
+    }).catch(function(e){
+      var text = document.getElementById("saveText");
+      if (text) text.textContent = "sync failed";
+      console.warn("github save failed", e);
+      alert("GitHub sync failed: " + e.message + "\n\nCheck the token has 'repo' (or Contents: Read & write) permission and hasn't expired.");
+    });
   });
 
   document.getElementById("showImport").addEventListener("click", function(){

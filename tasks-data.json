@@ -1,9 +1,18 @@
 {
   "dailyTasks": [
     {
+      "id": "mtgkramumn97fc",
+      "text": "Cutting for tomorrow",
+      "done": false,
+      "priority": "none",
+      "dueDate": null
+    },
+    {
       "id": "mtfl7kz7sdwphu",
-      "text": "Inserts cutting",
-      "done": false
+      "text": "Cutting for today",
+      "done": false,
+      "priority": "none",
+      "dueDate": null
     },
     {
       "id": "mtfl7hu6h992wy",
@@ -17,8 +26,10 @@
     },
     {
       "id": "mtfl6vfp56wvpk",
-      "text": "Printing",
-      "done": false
+      "text": "Printing for tuesday",
+      "done": false,
+      "priority": "none",
+      "dueDate": null
     }
   ],
   "goals": [

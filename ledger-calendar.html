@@ -370,6 +370,25 @@
     grid-template-columns:1fr 1fr;
     gap:6px;
   }
+  .recur-paid{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    margin-top:8px;
+    font-size:12px;
+    color:var(--text-muted);
+    cursor:pointer;
+  }
+  .recur-paid input[type="checkbox"]{
+    accent-color:var(--positive);
+    width:14px;height:14px;
+    cursor:pointer;
+  }
+  .recur-row.is-paid .item-row input[type="text"]{
+    text-decoration:line-through;
+    color:var(--text-faint);
+  }
+  .recur-row.is-paid .recur-paid{ color:var(--positive); }
   .range-field{
     display:flex;
     flex-direction:column;
@@ -795,7 +814,8 @@
           name: r.name || "",
           amount: Number(r.amount) || 0,
           startKey: (r.startKey && MONTH_KEYS.indexOf(r.startKey) > -1) ? r.startKey : MONTH_KEYS[0],
-          endKey: (r.endKey && MONTH_KEYS.indexOf(r.endKey) > -1) ? r.endKey : MONTH_KEYS[MONTH_KEYS.length-1]
+          endKey: (r.endKey && MONTH_KEYS.indexOf(r.endKey) > -1) ? r.endKey : MONTH_KEYS[MONTH_KEYS.length-1],
+          paid: !!r.paid
         };
       });
       if (parsed.months){
@@ -1189,6 +1209,23 @@
       mainLine.appendChild(amtInput);
       mainLine.appendChild(rm);
       row.appendChild(mainLine);
+
+      var paidLine = document.createElement("label");
+      paidLine.className = "recur-paid";
+      var paidBox = document.createElement("input");
+      paidBox.type = "checkbox";
+      paidBox.checked = !!item.paid;
+      paidBox.addEventListener("change", function(){
+        item.paid = paidBox.checked;
+        row.classList.toggle("is-paid", item.paid);
+        scheduleSave();
+      });
+      var paidText = document.createElement("span");
+      paidText.textContent = "Already paid";
+      paidLine.appendChild(paidBox);
+      paidLine.appendChild(paidText);
+      row.appendChild(paidLine);
+      if (item.paid) row.classList.add("is-paid");
 
       var rangeLine = document.createElement("div");
       rangeLine.className = "range-row";

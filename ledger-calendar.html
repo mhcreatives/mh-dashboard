@@ -853,7 +853,13 @@
 
   function ghFetchLedgerData(token){
     var url = "https://api.github.com/repos/" + GH_REPO_OWNER + "/" + GH_REPO_NAME + "/contents/" + GH_DATA_PATH;
-    return fetch(url, { headers: { Authorization: "Bearer " + token, Accept: "application/vnd.github+json" } })
+    // this repo is public, so reads work with no token at all (a token is
+    // only required to write) — always send the request, and only attach
+    // Authorization when a token is actually present, so a browser that
+    // never had a token saved (e.g. a fresh device) still pulls the data.
+    var headers = { Accept: "application/vnd.github+json" };
+    if (token) headers.Authorization = "Bearer " + token;
+    return fetch(url, { headers: headers })
       .then(function(resp){
         if (resp.status === 404) { ghSha = null; return null; }
         return resp.json().then(function(json){
@@ -909,8 +915,7 @@
   }
 
   function loadFromGithub(){
-    var token = ghToken();
-    if (!token) return;
+    var token = ghToken(); // may be empty — fine, reads don't need one
     var text = document.getElementById("saveText");
     if (text) text.textContent = "syncing…";
     ghFetchLedgerData(token).then(function(remote){

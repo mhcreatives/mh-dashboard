@@ -685,7 +685,17 @@
   <div class="backup-bar">
     <button class="reset-link" id="showExport">Export data</button>
     <button class="reset-link" id="showImport">Import data</button>
+    <button class="reset-link" id="showGithub">⚙ GitHub sync</button>
     <button class="reset-link" id="resetAll">Reset all data</button>
+  </div>
+
+  <div class="backup-panel" id="githubPanel" hidden>
+    <div class="backup-panel-head">
+      <span>Saves this ledger to <code>ledger-data.json</code> in the mh-dashboard repo (same as Tasks), so it's the same on every device. Needs a GitHub personal access token with repo contents access — the same one used for Daily Tasks, if already set.</span>
+      <button class="reset-link" id="closeGithub">Close</button>
+    </div>
+    <textarea class="backup-textarea" id="githubTokenInput" style="min-height:auto; height:42px;" placeholder="GitHub personal access token" spellcheck="false"></textarea>
+    <button class="add-btn" id="saveGithubToken">Save token &amp; sync now</button>
   </div>
 
   <div class="backup-panel" id="exportPanel" hidden>
@@ -810,10 +820,116 @@
   var state = loadState();
   var saveTimer = null;
 
+  // ---------- GitHub sync (same pattern as Daily Tasks: a committed JSON
+  // file in the mh-dashboard repo, read/written via the Contents API, so
+  // the ledger is the same on every device instead of stuck in this
+  // browser's localStorage). localStorage stays as an instant local cache
+  // so the page still renders immediately and still works offline/without
+  // a token; GitHub is the source of truth once a token is set.
+  var GH_REPO_OWNER = "mhcreatives";
+  var GH_REPO_NAME = "mh-dashboard";
+  var GH_DATA_PATH = "ledger-data.json";
+  var GH_TOKEN_STORAGE = "mh_tasks_github_token"; // shared with the Tasks card, same site/origin
+
+  var ghSha = null; // null = file doesn't exist in the repo yet
+  var ghSaveTimer = null;
+  var ghSyncing = false;
+
+  function utf8ToBase64(str){
+    var bytes = new TextEncoder().encode(str);
+    var binary = "";
+    bytes.forEach(function(b){ binary += String.fromCharCode(b); });
+    return btoa(binary);
+  }
+  function base64ToUtf8(b64){
+    var binary = atob(b64.replace(/\n/g, ""));
+    var bytes = Uint8Array.from(binary, function(c){ return c.charCodeAt(0); });
+    return new TextDecoder().decode(bytes);
+  }
+
+  function ghToken(){
+    return localStorage.getItem(GH_TOKEN_STORAGE) || "";
+  }
+
+  function ghFetchLedgerData(token){
+    var url = "https://api.github.com/repos/" + GH_REPO_OWNER + "/" + GH_REPO_NAME + "/contents/" + GH_DATA_PATH;
+    return fetch(url, { headers: { Authorization: "Bearer " + token, Accept: "application/vnd.github+json" } })
+      .then(function(resp){
+        if (resp.status === 404) { ghSha = null; return null; }
+        return resp.json().then(function(json){
+          if (!resp.ok) throw new Error(json.message || ("GitHub API error " + resp.status));
+          ghSha = json.sha;
+          try{ return JSON.parse(base64ToUtf8(json.content)); }
+          catch(e){ return null; }
+        });
+      });
+  }
+
+  function ghSaveLedgerData(token, data){
+    var url = "https://api.github.com/repos/" + GH_REPO_OWNER + "/" + GH_REPO_NAME + "/contents/" + GH_DATA_PATH;
+    function doPut(){
+      var body = { message: "Update ledger data", content: utf8ToBase64(JSON.stringify(data, null, 2)) };
+      if (ghSha) body.sha = ghSha;
+      return fetch(url, {
+        method: "PUT",
+        headers: { Authorization: "Bearer " + token, Accept: "application/vnd.github+json", "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+    }
+    return doPut().then(function(resp){
+      if (resp.status === 409){
+        // sha is stale (saved elsewhere since we last loaded) — refetch then retry once, last-write-wins
+        return ghFetchLedgerData(token).then(doPut);
+      }
+      return resp;
+    }).then(function(resp){
+      return resp.json().then(function(json){
+        if (!resp.ok) throw new Error(json.message || ("GitHub API error " + resp.status));
+        ghSha = json.content.sha;
+      });
+    });
+  }
+
+  function scheduleGithubSave(){
+    var token = ghToken();
+    if (!token) return;
+    if (ghSaveTimer) clearTimeout(ghSaveTimer);
+    ghSaveTimer = setTimeout(function(){
+      var text = document.getElementById("saveText");
+      ghSyncing = true;
+      ghSaveLedgerData(token, state).then(function(){
+        ghSyncing = false;
+        flashSaved();
+      }).catch(function(e){
+        ghSyncing = false;
+        if (text) text.textContent = "sync failed";
+        console.warn("github save failed", e);
+      });
+    }, 600);
+  }
+
+  function loadFromGithub(){
+    var token = ghToken();
+    if (!token) return;
+    var text = document.getElementById("saveText");
+    if (text) text.textContent = "syncing…";
+    ghFetchLedgerData(token).then(function(remote){
+      if (remote){
+        try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(remote)); }catch(e){}
+        state = loadState();
+        renderAll();
+      }
+      flashSaved();
+    }).catch(function(e){
+      if (text) text.textContent = "sync failed";
+      console.warn("github load failed", e);
+    });
+  }
+
   function persist(){
     try{
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      flashSaved();
+      if (ghToken()){ scheduleGithubSave(); } else { flashSaved(); }
     }catch(e){
       var t = document.getElementById("saveText");
       if (t) t.textContent = "save failed";
@@ -1522,6 +1638,27 @@
     }
   });
 
+  /* ---------- GitHub sync panel ---------- */
+  var githubPanel = document.getElementById("githubPanel");
+  document.getElementById("showGithub").addEventListener("click", function(){
+    exportPanel.hidden = true;
+    importPanel.hidden = true;
+    document.getElementById("githubTokenInput").value = ghToken();
+    githubPanel.hidden = false;
+  });
+  document.getElementById("closeGithub").addEventListener("click", function(){
+    githubPanel.hidden = true;
+  });
+  document.getElementById("saveGithubToken").addEventListener("click", function(){
+    var token = document.getElementById("githubTokenInput").value.trim();
+    if (!token) return;
+    localStorage.setItem(GH_TOKEN_STORAGE, token);
+    githubPanel.hidden = true;
+    // a token was just set — push what's on this device now, then treat
+    // github as source of truth going forward via loadFromGithub() below
+    scheduleGithubSave();
+  });
+
   document.getElementById("showImport").addEventListener("click", function(){
     exportPanel.hidden = true;
     document.getElementById("importText").value = "";
@@ -1561,6 +1698,7 @@
   }
 
   renderAll();
+  loadFromGithub();
 })();
 </script>
 

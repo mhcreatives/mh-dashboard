@@ -51,7 +51,7 @@
       "amount": 9000,
       "startKey": "2026-08",
       "endKey": "2028-12",
-      "paid": false
+      "paidMonths": {}
     },
     {
       "id": "b9603nem",
@@ -59,7 +59,7 @@
       "amount": 2649,
       "startKey": "2026-08",
       "endKey": "2028-12",
-      "paid": false
+      "paidMonths": {}
     },
     {
       "id": "q9t3f1x9",
@@ -67,7 +67,7 @@
       "amount": 18000,
       "startKey": "2026-08",
       "endKey": "2028-12",
-      "paid": false
+      "paidMonths": {}
     },
     {
       "id": "pgshu701",
@@ -75,7 +75,7 @@
       "amount": 11093,
       "startKey": "2026-08",
       "endKey": "2028-12",
-      "paid": false
+      "paidMonths": {}
     },
     {
       "id": "hnsp9b50",
@@ -83,7 +83,7 @@
       "amount": 3000,
       "startKey": "2026-08",
       "endKey": "2028-12",
-      "paid": false
+      "paidMonths": {}
     },
     {
       "id": "z5vdnwfs",
@@ -91,7 +91,7 @@
       "amount": 18500,
       "startKey": "2026-08",
       "endKey": "2027-07",
-      "paid": false
+      "paidMonths": {}
     },
     {
       "id": "mb2edsgz",
@@ -99,7 +99,7 @@
       "amount": 6350,
       "startKey": "2026-08",
       "endKey": "2026-12",
-      "paid": false
+      "paidMonths": {}
     }
   ],
   "months": {

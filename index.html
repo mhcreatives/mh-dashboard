@@ -299,6 +299,7 @@
   const INV_STATUS = 'fldCmhug64G5pUcFA';
   const INV_TOTAL = 'fldYLks2dxPjb43X2';
   const INV_DATE_SHIPPED = 'fldNPAxYpiX2voBTW';
+  const INV_DATE_FINISHED = 'fldfn00tOk9ruv51e';
   const INV_QUOTA = 'fldYuBYEi82bNzyB7';
   const INV_ASSIGNEE = 'fldhul0vE8f1uQlrT';
   const INV_SOUVENIR_TOTAL = 'fldd2HSPwFB7tzyVT';
@@ -319,6 +320,7 @@
   const SOU_STATUS = 'fldhozzU0CbMQTnnq';
   const SOU_TOTAL = 'fldd6sDmRz4I6g8Vt';
   const SOU_DATE_SHIPPED = 'fldqUDCjBPp5Rii9r';
+  const SOU_DATE_FINISHED = 'fldNzN9Lgf7JE47bE';
   const SOU_INV_LINK = 'fld01NmCcAHEdlhMD';
   const SOU_FB_NAME = 'fldthHOJea7EpbNMO';
 
@@ -420,12 +422,13 @@
 
   // Fetches ALL records (no status filter) from both tables and returns, per month,
   // Invitation + Souvenir totals side by side — plus previous/current-week totals.
-  // Souvenir has no "For posting" status, so its "shipped" figures use Date Shipped
-  // falling in the week/month, regardless of status (best available proxy).
+  // Date basis is "Date finished" (production completion), not Date Shipped —
+  // changed at the user's request so the weekly/monthly figures reflect when
+  // an order was actually finished, not when it happened to ship.
   async function otFetchCombinedTimeline(apiKey) {
     const [invRecords, souRecords] = await Promise.all([
-      otFetchRecords(apiKey, INV_TABLE, INV_STATUS, INV_TOTAL, INV_DATE_SHIPPED, null, [INV_LAYOUT_FINALIZED]),
-      otFetchRecords(apiKey, SOU_TABLE, SOU_STATUS, SOU_TOTAL, SOU_DATE_SHIPPED, null),
+      otFetchRecords(apiKey, INV_TABLE, INV_STATUS, INV_TOTAL, INV_DATE_FINISHED, null, [INV_LAYOUT_FINALIZED]),
+      otFetchRecords(apiKey, SOU_TABLE, SOU_STATUS, SOU_TOTAL, SOU_DATE_FINISHED, null),
     ]);
 
     let oldest = new Date();
@@ -435,8 +438,8 @@
         if (!isNaN(d) && d < oldest) oldest = d;
       }
     };
-    scanOldest(invRecords, INV_DATE_SHIPPED);
-    scanOldest(souRecords, SOU_DATE_SHIPPED);
+    scanOldest(invRecords, INV_DATE_FINISHED);
+    scanOldest(souRecords, SOU_DATE_FINISHED);
     scanOldest(invRecords, INV_LAYOUT_FINALIZED);
 
     const months = otBuildMonthRange(oldest);
@@ -460,8 +463,8 @@
         if (otIsInWeekBounds(dateStr, curBounds) && onCurWeek) onCurWeek(amount);
       }
     };
-    accumulate(invRecords, INV_DATE_SHIPPED, INV_TOTAL, totalsInv, a => prevWeekInv += a, null);
-    accumulate(souRecords, SOU_DATE_SHIPPED, SOU_TOTAL, totalsSou, a => prevWeekSou += a, a => curWeekSou += a);
+    accumulate(invRecords, INV_DATE_FINISHED, INV_TOTAL, totalsInv, a => prevWeekInv += a, null);
+    accumulate(souRecords, SOU_DATE_FINISHED, SOU_TOTAL, totalsSou, a => prevWeekSou += a, a => curWeekSou += a);
 
     // Layout: Invitation records with Status = Done, summed on Own Total, grouped by Layout finalized date
     const doneInvRecords = invRecords.filter(r => r.fields?.[INV_STATUS] === 'Done');
@@ -625,8 +628,8 @@
       try {
         const invEq = s => `{Status}="${s}"`;
         const souEq = s => `{Status}="${s}"`;
-        const invF = (filter) => otFetchRecords(apiKey, INV_TABLE, INV_STATUS, INV_TOTAL, INV_DATE_SHIPPED, filter, [INV_QUOTA, INV_ASSIGNEE, INV_SOUVENIR_TOTAL]);
-        const souF = (filter) => otFetchRecords(apiKey, SOU_TABLE, SOU_STATUS, SOU_TOTAL, SOU_DATE_SHIPPED, filter);
+        const invF = (filter) => otFetchRecords(apiKey, INV_TABLE, INV_STATUS, INV_TOTAL, INV_DATE_FINISHED, filter, [INV_QUOTA, INV_ASSIGNEE, INV_SOUVENIR_TOTAL]);
+        const souF = (filter) => otFetchRecords(apiKey, SOU_TABLE, SOU_STATUS, SOU_TOTAL, SOU_DATE_FINISHED, filter);
 
         const invStatusOr = (...names) => `OR(${names.map(n => `{Status}="${n}"`).join(',')})`;
         const souStatusOr = (...names) => `OR(${names.map(n => `{Status}="${n}"`).join(',')})`;
@@ -647,7 +650,7 @@
 
         // ── Invitation side ──────────────────────────────────────────────────
         const invOrderDoneEligible = invOrderDoneCandidates.filter(r =>
-          r.fields?.[INV_STATUS] === 'For posting' ? otIsInCurrentWeek(r.fields?.[INV_DATE_SHIPPED]) : true
+          r.fields?.[INV_STATUS] === 'For posting' ? otIsInCurrentWeek(r.fields?.[INV_DATE_FINISHED]) : true
         );
         const invPrinting = otSumTotals(printingRecords, INV_TOTAL);
         const invAssemble = otSumTotals(assignedAssemblyRecords, INV_TOTAL);
@@ -660,7 +663,7 @@
         // parent invitation's production stage, not just its own Status field
         // (which may not have been updated to match yet).
         const souOrderDoneEligible = souOrderDoneCandidates.filter(r =>
-          r.fields?.[SOU_STATUS] === 'For posting' ? otIsInCurrentWeek(r.fields?.[SOU_DATE_SHIPPED]) : true
+          r.fields?.[SOU_STATUS] === 'For posting' ? otIsInCurrentWeek(r.fields?.[SOU_DATE_FINISHED]) : true
         );
         const souPrintingTotal = otSumTotals(souPrinting, SOU_TOTAL) + otSumTotals(printingRecords, INV_SOUVENIR_TOTAL);
         const souAssembleTotal = otSumTotals(souAssignedAssembly, SOU_TOTAL) + otSumTotals(assignedAssemblyRecords, INV_SOUVENIR_TOTAL);

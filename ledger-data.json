@@ -116,7 +116,7 @@
     {
       "id": "cc7lwt7v",
       "name": "Food",
-      "amount": 0,
+      "amount": 9000,
       "startKey": "2026-08",
       "endKey": "2028-12",
       "paidMonths": {}

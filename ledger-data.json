@@ -81,7 +81,9 @@
       "amount": 11093,
       "startKey": "2026-08",
       "endKey": "2028-12",
-      "paidMonths": {}
+      "paidMonths": {
+        "2026-08": true
+      }
     },
     {
       "id": "hnsp9b50",
@@ -89,7 +91,9 @@
       "amount": 3000,
       "startKey": "2026-08",
       "endKey": "2028-12",
-      "paidMonths": {}
+      "paidMonths": {
+        "2026-08": true
+      }
     },
     {
       "id": "z5vdnwfs",

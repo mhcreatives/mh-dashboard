@@ -917,6 +917,16 @@
     if (savedKey) { keyInput.value = savedKey; loadData(); }
     else { setStatus('Set Airtable API key first ↓', 'error'); configPanel.classList.add('open'); }
 
+    const OT_AUTO_REFRESH_MS = 15 * 60 * 1000;
+    let otAutoRefreshTimer = null;
+    function otStartAutoRefresh() {
+      if (otAutoRefreshTimer) return;
+      otAutoRefreshTimer = setInterval(() => {
+        if (document.visibilityState === 'visible' && getKey()) loadData();
+      }, OT_AUTO_REFRESH_MS);
+    }
+    otStartAutoRefresh();
+
     return card;
   }
 

@@ -89,5 +89,14 @@
       "status": "not_started",
       "notes": "Future expressway project"
     }
+  ],
+  "weeklyTasks": [
+    {
+      "id": "mtii6ukat5hm85",
+      "text": "Philhealth",
+      "done": false,
+      "priority": "none",
+      "dueDate": "2026-09-05"
+    }
   ]
 }

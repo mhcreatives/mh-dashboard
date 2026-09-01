@@ -483,6 +483,13 @@
     return d >= bounds.monday && d <= bounds.sunday;
   }
   function otIsInCurrentWeek(dateStr) { return otIsInWeekBounds(dateStr, otGetWeekBounds(0)); }
+  function otIsToday(dateStr) {
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    if (isNaN(d)) return false;
+    const now = new Date();
+    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+  }
   function otFormatWeekLabel() {
     const { monday, sunday } = otGetWeekBounds();
     const fmt = d => d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' });
@@ -651,6 +658,10 @@
             <div><div class="ot-label">Order Done</div><div class="ot-sub">Assigned + Shipped</div></div>
             <div class="ot-values"><div class="ot-value" data-el="v-orderdone-inv">—</div><div class="ot-value" data-el="v-orderdone-sou">—</div><div class="ot-value" data-el="v-orderdone-tot">—</div></div>
           </div>
+          <div class="ot-row">
+            <div><div class="ot-label">Order Done Today</div><div class="ot-sub">Date finished = today</div></div>
+            <div class="ot-values"><div class="ot-value" data-el="v-orderdonetoday-inv">—</div><div class="ot-value" data-el="v-orderdonetoday-sou">—</div><div class="ot-value" data-el="v-orderdonetoday-tot">—</div></div>
+          </div>
           <div class="ot-divider"></div>
           <div class="ot-row">
             <div><div class="ot-label">Assigned + Order Done</div></div>
@@ -737,7 +748,7 @@
     function renderSnapshot(inv, sou) {
       const set = (id, side, val) => { el(`v-${id}-${side}`).textContent = otFormatPeso(val); };
       const totals = {};
-      ['printing', 'assemble', 'orderdone', 'prevweek'].forEach(key => {
+      ['printing', 'assemble', 'orderdone', 'orderdonetoday', 'prevweek'].forEach(key => {
         const invVal = inv[key] ?? 0;
         const souVal = sou[key] ?? 0;
         set(key, 'inv', invVal);
@@ -794,9 +805,11 @@
         // still in an earlier status counted forever until it moved,
         // showing a nonzero total even first thing Monday morning).
         const invOrderDoneEligible = invOrderDoneCandidates.filter(r => otIsInCurrentWeek(r.fields?.[INV_DATE_FINISHED]));
+        const invOrderDoneTodayEligible = invOrderDoneCandidates.filter(r => otIsToday(r.fields?.[INV_DATE_FINISHED]));
         const invPrinting = otSumTotals(printingRecords, INV_TOTAL);
         const invAssemble = otSumTotals(assignedAssemblyRecords, INV_TOTAL);
         const invOrderDone = otSumTotals(invOrderDoneEligible, INV_TOTAL);
+        const invOrderDoneToday = otSumTotals(invOrderDoneTodayEligible, INV_TOTAL);
 
         // ── Souvenir side ────────────────────────────────────────────────────
         // If the linked Invitation is in the printing/assembly queue (Quota
@@ -805,16 +818,18 @@
         // parent invitation's production stage, not just its own Status field
         // (which may not have been updated to match yet).
         const souOrderDoneEligible = souOrderDoneCandidates.filter(r => otIsInCurrentWeek(r.fields?.[SOU_DATE_FINISHED]));
+        const souOrderDoneTodayEligible = souOrderDoneCandidates.filter(r => otIsToday(r.fields?.[SOU_DATE_FINISHED]));
         const souPrintingTotal = otSumTotals(souPrinting, SOU_TOTAL) + otSumTotals(printingRecords, INV_SOUVENIR_TOTAL);
         const souAssembleTotal = otSumTotals(souAssignedAssembly, SOU_TOTAL) + otSumTotals(assignedAssemblyRecords, INV_SOUVENIR_TOTAL);
         const souOrderDone = otSumTotals(souOrderDoneEligible, SOU_TOTAL);
+        const souOrderDoneToday = otSumTotals(souOrderDoneTodayEligible, SOU_TOTAL);
 
         renderSnapshot(
           { printing: invPrinting, assemble: invAssemble,
-            orderdone: invOrderDone,
+            orderdone: invOrderDone, orderdonetoday: invOrderDoneToday,
             prevweek: timeline.prevWeekInv },
           { printing: souPrintingTotal, assemble: souAssembleTotal,
-            orderdone: souOrderDone,
+            orderdone: souOrderDone, orderdonetoday: souOrderDoneToday,
             prevweek: timeline.prevWeekSou }
         );
         renderMonthly(timeline.months);
@@ -917,6 +932,16 @@
     if (savedKey) { keyInput.value = savedKey; loadData(); }
     else { setStatus('Set Airtable API key first ↓', 'error'); configPanel.classList.add('open'); }
 
+    const OT_AUTO_REFRESH_MS = 15 * 60 * 1000;
+    let otAutoRefreshTimer = null;
+    function otStartAutoRefresh() {
+      if (otAutoRefreshTimer) return;
+      otAutoRefreshTimer = setInterval(() => {
+        if (document.visibilityState === 'visible' && getKey()) loadData();
+      }, OT_AUTO_REFRESH_MS);
+    }
+    otStartAutoRefresh();
+
     return card;
   }
 
@@ -931,6 +956,14 @@
   const PROOF_FB_NAME = 'fld01zQJ86lA2f1F9';
   const PROOF_CLIENT_NUM = 'fld3csxglBQdezHDA';
   const PROOF_ATTACHMENT = 'fldHTnYGaKUoEkLYI';
+
+  // Solo souvenir orders (no linked Invitation) — same Photo-status Proof
+  // check as the Invitation table above, just on the Souvenir table's own
+  // Breakdown/DP/Balance/Proof fields.
+  const SOU_PROOF_BREAKDOWN = 'fldfiG9mUUWeRncOI';
+  const SOU_PROOF_DP = 'fldMaGQI2FTYT7NhI';
+  const SOU_PROOF_BALANCE = 'fldF1yVcR52i6SGQH';
+  const SOU_PROOF_ATTACHMENT = 'fldUdyZVYWgYGt9ux';
   const META_LINK = 'fldkZTIUuy4mJt9id';
 
   // Extracts "Label: ₱X" and, if a "+ ₱Y ... shipping fee" line follows it
@@ -1036,7 +1069,7 @@
           <button class="icon-btn" data-act="scan">▶ Scan</button>
         </div>
       </div>
-      <div class="tool-desc">Photo-status orders with a Proof attached — checks Breakdown text against DP / Balance fields.</div>
+      <div class="tool-desc">Photo-status orders with a Proof attached — checks Breakdown text against DP / Balance fields. Includes solo souvenir orders (no linked Invitation).</div>
       <div class="status-line" data-el="status"></div>
       <div class="proof-summary" data-el="summary"></div>
       <div class="proof-results" data-el="results"></div>
@@ -1136,11 +1169,11 @@
       }
       resultsEl.innerHTML = mismatches.map(m => `
         <div class="proof-item">
-          <div class="proof-name">${m.name}${m.clientNum ? ` <span>#${m.clientNum}</span>` : ''}</div>
+          <div class="proof-name">${m.name}${m.clientNum ? ` <span>#${m.clientNum}</span>` : ''}${m.isSolo ? ` <span>· solo souvenir</span>` : ''}</div>
           ${m.unparsed ? `<div class="proof-diff">Could not find Downpayment / Balance before ship out lines in Breakdown</div>` : ''}
           ${!m.unparsed && !m.dpOk ? `<div class="proof-diff">DP: breakdown ${otFormatPeso(m.dpExpected)} ≠ field ${otFormatPeso(m.dpActual)}</div>` : ''}
           ${!m.unparsed && !m.balOk ? `<div class="proof-diff">Balance: breakdown ${otFormatPeso(m.balExpected)} ≠ field ${otFormatPeso(m.balActual)}</div>` : ''}
-          <a class="proof-link" href="https://airtable.com/${OT_BASE_ID}/${INV_TABLE}/${m.id}" target="_blank" rel="noopener">Open record ↗</a>
+          <a class="proof-link" href="https://airtable.com/${OT_BASE_ID}/${m.isSolo ? SOU_TABLE : INV_TABLE}/${m.id}" target="_blank" rel="noopener">Open record ↗</a>
         </div>
       `).join('');
     }
@@ -1157,12 +1190,25 @@
       resultsEl.innerHTML = '';
 
       try {
-        const allRecords = await otFetchRecords(
-          apiKey, INV_TABLE, INV_STATUS, PROOF_DP, PROOF_BALANCE,
-          `{Status}="Photo"`,
-          [PROOF_BREAKDOWN, PROOF_FB_NAME, PROOF_CLIENT_NUM, PROOF_ATTACHMENT]
-        );
+        const [allRecords, allSouRecords] = await Promise.all([
+          otFetchRecords(
+            apiKey, INV_TABLE, INV_STATUS, PROOF_DP, PROOF_BALANCE,
+            `{Status}="Photo"`,
+            [PROOF_BREAKDOWN, PROOF_FB_NAME, PROOF_CLIENT_NUM, PROOF_ATTACHMENT]
+          ),
+          otFetchRecords(
+            apiKey, SOU_TABLE, SOU_STATUS, SOU_PROOF_DP, SOU_PROOF_BALANCE,
+            `{Status}="Photo"`,
+            [SOU_PROOF_BREAKDOWN, SOU_FB_NAME, SOU_PROOF_ATTACHMENT, SOU_INV_LINK]
+          ),
+        ]);
         const records = allRecords.filter(r => Array.isArray(r.fields?.[PROOF_ATTACHMENT]) && r.fields[PROOF_ATTACHMENT].length > 0);
+        // "Solo" souvenir orders — not linked to any Invitation record, so they
+        // never got scanned as part of that Invitation's own Photo-status check.
+        const soloSouRecords = allSouRecords.filter(r =>
+          (!Array.isArray(r.fields?.[SOU_INV_LINK]) || r.fields[SOU_INV_LINK].length === 0) &&
+          Array.isArray(r.fields?.[SOU_PROOF_ATTACHMENT]) && r.fields[SOU_PROOF_ATTACHMENT].length > 0
+        );
 
         const mismatches = [];
         let ok = 0, skipped = 0;
@@ -1187,8 +1233,29 @@
             balExpected: parsed.balance, balActual, balOk,
           });
         });
+        soloSouRecords.forEach(r => {
+          const name = r.fields?.[SOU_FB_NAME] || 'Unnamed';
+          const parsed = parseBreakdownFigures(r.fields?.[SOU_PROOF_BREAKDOWN]);
+          if (!parsed) {
+            skipped++;
+            mismatches.push({ id: r.id, name, isSolo: true, unparsed: true });
+            return;
+          }
+          const dpActual = r.fields?.[SOU_PROOF_DP] ?? 0;
+          const balActual = r.fields?.[SOU_PROOF_BALANCE] ?? 0;
+          const dpOk = Math.abs(parsed.dp - dpActual) < 1;
+          const balOk = Math.abs(parsed.balance - balActual) < 1;
+          if (dpOk && balOk) { ok++; return; }
+          mismatches.push({
+            id: r.id,
+            name, isSolo: true,
+            dpExpected: parsed.dp, dpActual, dpOk,
+            balExpected: parsed.balance, balActual, balOk,
+          });
+        });
 
-        summaryEl.textContent = `${records.length} scanned · ${mismatches.length} mismatch(es) · ${ok} ok · ${skipped} unparsed`;
+        const totalScanned = records.length + soloSouRecords.length;
+        summaryEl.textContent = `${totalScanned} scanned · ${mismatches.length} mismatch(es) · ${ok} ok · ${skipped} unparsed`;
         setStatus(mismatches.length ? `${mismatches.length} mismatch(es) found` : 'All matched ✓', mismatches.length ? 'error' : 'success');
         renderResults(mismatches);
       } catch (err) {
@@ -2921,6 +2988,7 @@ Then extract:
         <div class="tool-name">📝 Updates</div>
         <div class="tool-actions">
           <button class="icon-btn" data-act="load">↻ Refresh</button>
+          <button class="icon-btn" data-act="deleteSelected" style="color:#f87171;">🗑 Delete selected</button>
           <button class="icon-btn" data-act="deleteAll" style="color:#f87171;">🗑 Delete all</button>
         </div>
       </div>
@@ -2949,6 +3017,7 @@ Then extract:
     const apiKeyInput = el('apiKeyInput');
 
     let lastRows = [];
+    let selectedRows = new Set();
 
     function setStatus(text, cls) {
       statusEl.className = `status-line ${cls || ''}`;
@@ -2962,7 +3031,8 @@ Then extract:
       }
       resultsEl.innerHTML = rows.map(r => `
         <div class="proof-item">
-          <div class="proof-name">
+          <div class="proof-name" style="display:flex; align-items:center; gap:8px;">
+            <input type="checkbox" data-act="selectRow" data-row="${r.sheetRow}" ${selectedRows.has(r.sheetRow) ? 'checked' : ''} style="flex:none; width:14px; height:14px; cursor:pointer;" />
             <span>${r.name}</span>
           </div>
           <div style="white-space:pre-wrap; font-size:10px; color:#ccc; background:#111; border-radius:6px; padding:8px; margin-top:6px; font-family:'DM Mono',monospace; max-height:120px; overflow-y:auto;">${r.breakdown.replace(/</g, '&lt;')}</div>
@@ -2991,6 +3061,7 @@ Then extract:
           .filter(r => r.name);
 
         lastRows = rows;
+        selectedRows.clear();
         summaryEl.textContent = `${rows.length} update(s)`;
         setStatus('Loaded ✓', 'success');
         renderRows(rows);
@@ -3021,10 +3092,10 @@ Then extract:
       const ok = confirm(`Delete all ${lastRows.length} pending update(s)? This can't be undone.`);
       if (!ok) return;
 
-      // Delete bottom-up (highest sheet row first) — deleting a row shifts
-      // every row below it up by one, so working from the bottom keeps the
-      // remaining rows' sheetRow numbers valid for the rest of the loop.
-      const toDelete = lastRows.slice().sort((a, b) => b.sheetRow - a.sheetRow);
+      // Delete top-down (lowest sheet row / row 1 first). Deleting a row shifts
+      // every row below it up by one, so after each delete we decrement the
+      // still-pending rows' sheetRow to keep them pointing at the right row.
+      const toDelete = lastRows.map(r => ({ ...r })).sort((a, b) => a.sheetRow - b.sheetRow);
       let done = 0, failed = 0;
       for (const r of toDelete) {
         setStatus(`Deleting ${done + failed + 1}/${toDelete.length}: ${r.name}...`, '');
@@ -3037,6 +3108,34 @@ Then extract:
           const data = await resp.json();
           if (!data.ok) throw new Error(data.error || 'Delete failed');
           done++;
+          toDelete.forEach(other => { if (other.sheetRow > r.sheetRow) other.sheetRow--; });
+        } catch (err) {
+          failed++;
+        }
+      }
+      setStatus(`Deleted ${done}${failed ? `, ${failed} failed` : ''} ✓`, failed ? 'error' : 'success');
+      load();
+    }
+
+    async function deleteSelected() {
+      if (selectedRows.size === 0) return;
+      const toDelete = lastRows.filter(r => selectedRows.has(r.sheetRow)).map(r => ({ ...r })).sort((a, b) => a.sheetRow - b.sheetRow);
+      const ok = confirm(`Delete ${toDelete.length} selected update(s)? This can't be undone.`);
+      if (!ok) return;
+
+      let done = 0, failed = 0;
+      for (const r of toDelete) {
+        setStatus(`Deleting ${done + failed + 1}/${toDelete.length}: ${r.name}...`, '');
+        try {
+          const resp = await fetch(NO_APPS_SCRIPT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ action: 'delete', tab: UPDATES_SHEET_TAB, row: r.sheetRow }),
+          });
+          const data = await resp.json();
+          if (!data.ok) throw new Error(data.error || 'Delete failed');
+          done++;
+          toDelete.forEach(other => { if (other.sheetRow > r.sheetRow) other.sheetRow--; });
         } catch (err) {
           failed++;
         }
@@ -3061,6 +3160,16 @@ Then extract:
         deleteRow(row, name);
       } else if (act === 'deleteAll') {
         deleteAll();
+      } else if (act === 'deleteSelected') {
+        deleteSelected();
+      }
+    });
+
+    card.addEventListener('change', (e) => {
+      if (e.target.dataset.act === 'selectRow') {
+        const row = Number(e.target.dataset.row);
+        if (e.target.checked) selectedRows.add(row);
+        else selectedRows.delete(row);
       }
     });
 
@@ -3125,6 +3234,18 @@ Then extract:
     return s || null;
   }
 
+  // Constructs the date from its YYYY-MM-DD parts explicitly (local time),
+  // rather than `new Date(dateStr)` — a bare date-only ISO string parses as
+  // UTC midnight per spec, which can roll over to the previous/next day's
+  // name once converted to local time near timezone boundaries.
+  const OT_WEEKDAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  function otDayOfWeek(dateStr) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr || '');
+    if (!m) return '';
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    return OT_WEEKDAY_ABBR[d.getDay()];
+  }
+
   function buildSalesCard() {
     const card = document.createElement('div');
     card.className = 'tool-card';
@@ -3174,12 +3295,13 @@ Then extract:
       }
       tableEl.innerHTML = `
         <thead><tr>
-          <th>Date</th><th>Orders</th><th>Total value</th><th>Total DP</th><th>AOV</th>
+          <th>Date</th><th>Day</th><th>Orders</th><th>Total value</th><th>Total DP</th><th>AOV</th>
         </tr></thead>
         <tbody>
           ${rows.map(r => `
             <tr>
               <td class="no-name">${r.date}</td>
+              <td>${otDayOfWeek(r.date)}</td>
               <td class="no-num">${r.orders}</td>
               <td class="no-num">${peso(r.totalValue)}</td>
               <td class="no-num">${peso(r.dpReceived)}</td>
@@ -3827,12 +3949,13 @@ Then extract:
       }
       tableEl.innerHTML = `
         <thead><tr>
-          <th>Date</th><th>Spend</th><th>Messages</th><th>Cost/message</th><th>Purchases</th><th>Cost/purchase</th><th>Reach</th><th>Cost/reach</th>
+          <th>Date</th><th>Day</th><th>Spend</th><th>Messages</th><th>Cost/message</th><th>Purchases</th><th>Cost/purchase</th><th>Reach</th><th>Cost/reach</th>
         </tr></thead>
         <tbody>
           ${rows.map(r => `
             <tr>
               <td class="no-name">${r.date}</td>
+              <td>${otDayOfWeek(r.date)}</td>
               <td class="no-num">${peso(r.spend)}</td>
               <td class="no-num">${r.messages.toLocaleString()}</td>
               <td class="no-num">${peso(r.costPerMessage)}</td>
@@ -4059,27 +4182,34 @@ Then extract:
   }
 
   let renderDailyTasksList = () => {};
+  let renderWeeklyTasksList = () => {};
   let renderGoalsList = () => {};
   let setDailyTasksStatus = () => {};
+  let setWeeklyTasksStatus = () => {};
   let setGoalsStatus = () => {};
 
   async function initTasksData() {
     const token = localStorage.getItem(TASKS_GITHUB_TOKEN_STORAGE) || '';
     if (!token) {
       setDailyTasksStatus('Set GitHub token first ↓', 'error');
+      setWeeklyTasksStatus('Set GitHub token in Daily Tasks card ↓', 'error');
       setGoalsStatus('Set GitHub token in Daily Tasks card ↓', 'error');
       return;
     }
     setDailyTasksStatus('Loading...', '');
+    setWeeklyTasksStatus('Loading...', '');
     setGoalsStatus('Loading...', '');
     try {
       tasksDataCache = await ghFetchTasksData(token);
       setDailyTasksStatus('Loaded ✓', 'success');
+      setWeeklyTasksStatus('Loaded ✓', 'success');
       setGoalsStatus('Loaded ✓', 'success');
       renderDailyTasksList();
+      renderWeeklyTasksList();
       renderGoalsList();
     } catch (err) {
       setDailyTasksStatus(`Error: ${err.message}`, 'error');
+      setWeeklyTasksStatus(`Error: ${err.message}`, 'error');
       setGoalsStatus(`Error: ${err.message}`, 'error');
     }
   }
@@ -4426,6 +4556,327 @@ Then extract:
     return card;
   }
 
+  function buildWeeklyTasksCard() {
+    const card = document.createElement('div');
+    card.className = 'tool-card task-card-accent';
+    card.style.setProperty('--task-accent-color', '#4ade80');
+    card.innerHTML = `
+      <div class="tool-hd">
+        <div class="tool-name">📆 Weekly Tasks</div>
+        <div class="tool-actions">
+          <button class="icon-btn" data-act="refresh">↻ Refresh</button>
+        </div>
+      </div>
+      <div class="tool-desc">A running checklist — nothing auto-clears, check things off as you go.</div>
+      <div class="status-line" data-el="status"></div>
+      <div class="qa-bar" style="margin-bottom:2px;">
+        <button class="qa-plus" data-act="add" title="Add task">+</button>
+        <input type="text" data-el="taskInput" class="qa-input" placeholder="Add a task" autocomplete="off" spellcheck="false" />
+        <div class="qa-icons">
+          <button class="qa-icon-btn" data-act="toggleDueMenu" data-el="dueBtn" title="Due date">📅</button>
+          <button class="qa-icon-btn" data-act="togglePriorityMenu" data-el="priorityBtn" title="Priority">🚩</button>
+        </div>
+      </div>
+      <div class="qa-chips" data-el="chips"></div>
+      <div class="qa-menu" data-el="dueMenu" hidden></div>
+      <div class="qa-menu" data-el="priorityMenu" hidden>
+        <button class="qa-menu-item" data-act="setPriority" data-value="none"><span>⚪</span> No priority</button>
+        <button class="qa-menu-item" data-act="setPriority" data-value="low"><span style="color:#5b9bd5;">🚩</span> Low</button>
+        <button class="qa-menu-item" data-act="setPriority" data-value="med"><span style="color:#f5a524;">🚩</span> Medium</button>
+        <button class="qa-menu-item" data-act="setPriority" data-value="high"><span style="color:#f87171;">🚩</span> High</button>
+      </div>
+      <input type="date" data-el="dueDateInput" style="display:none;" />
+      <div class="proof-summary" data-el="summary" style="display:flex; align-items:center; justify-content:space-between; margin-top:8px;"></div>
+      <div data-el="list"></div>
+
+      <div class="config-toggle" data-act="toggleConfig">⚙ set GitHub token</div>
+      <div class="config-panel" data-el="configPanel">
+        <div class="config-hint">
+          A GitHub personal access token (fine-grained, scoped to just this repo, with Contents read/write) — used by the Daily Tasks, Weekly Tasks and Goals cards. Stored locally in this browser only.
+        </div>
+        <div class="id-row">
+          <input type="password" data-el="tokenInput" placeholder="GitHub personal access token" autocomplete="off" spellcheck="false" />
+          <button class="save-btn" data-act="saveToken">Save</button>
+        </div>
+      </div>
+    `;
+
+    const el = sel => card.querySelector(`[data-el="${sel}"]`);
+    const statusEl = el('status');
+    const taskInput = el('taskInput');
+    const dueDateInput = el('dueDateInput');
+    const dueBtn = el('dueBtn');
+    const priorityBtn = el('priorityBtn');
+    const dueMenu = el('dueMenu');
+    const priorityMenu = el('priorityMenu');
+    const chipsEl = el('chips');
+    const summaryEl = el('summary');
+    const listEl = el('list');
+    const configPanel = el('configPanel');
+    const tokenInput = el('tokenInput');
+
+    const PRIORITY_LABELS = { none: '', low: 'Low', med: 'Medium', high: 'High' };
+    const PRIORITY_COLORS = { none: '#444', low: '#5b9bd5', med: '#f5a524', high: '#f87171' };
+
+    function todayKeyLocal() {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+    function dateKeyFrom(d) {
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+    function formatDueDate(dateStr) {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+    function weekdayAbbrev(d) {
+      return d.toLocaleDateString('en-US', { weekday: 'short' });
+    }
+
+    let pendingDueDate = null;
+    let pendingPriority = 'none';
+
+    function renderDueMenu() {
+      const today = new Date();
+      const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+      const daysUntilNextMonday = (8 - today.getDay()) % 7 || 7;
+      const nextWeek = new Date(today); nextWeek.setDate(nextWeek.getDate() + daysUntilNextMonday);
+      const options = [
+        { label: 'Today', icon: '📅', date: today },
+        { label: 'Tomorrow', icon: '📆', date: tomorrow },
+        { label: 'Next week', icon: '📅', date: nextWeek },
+      ];
+      dueMenu.innerHTML = options.map(o => `
+        <button class="qa-menu-item" data-act="setDue" data-value="${dateKeyFrom(o.date)}"><span>${o.icon} ${o.label}</span><span class="qa-menu-day">${weekdayAbbrev(o.date)}</span></button>
+      `).join('') + `
+        <button class="qa-menu-item" data-act="pickDate"><span>🗓️ Pick a date</span></button>
+      `;
+    }
+    renderDueMenu();
+
+    function closeMenus() {
+      dueMenu.hidden = true;
+      priorityMenu.hidden = true;
+      dueBtn.classList.remove('active');
+      priorityBtn.classList.remove('active');
+    }
+
+    function renderChips() {
+      const chips = [];
+      if (pendingDueDate) {
+        chips.push(`<div class="qa-chip">📅 ${formatDueDate(pendingDueDate)}<button data-act="clearDue">✕</button></div>`);
+      }
+      if (pendingPriority !== 'none') {
+        chips.push(`<div class="qa-chip">🚩 ${PRIORITY_LABELS[pendingPriority]}<button data-act="clearPriority">✕</button></div>`);
+      }
+      chipsEl.innerHTML = chips.join('');
+    }
+
+    function setStatus(text, cls) {
+      statusEl.className = `status-line ${cls || ''}`;
+      statusEl.innerHTML = text ? `<span class="status-dot ${cls || ''}"></span>${text}` : '';
+    }
+    setWeeklyTasksStatus = setStatus;
+
+    let editingTaskId = null;
+
+    function render() {
+      const allTasks = tasksDataCache.weeklyTasks || [];
+      const openCount = allTasks.filter(t => !t.done).length;
+      const doneCount = allTasks.length - openCount;
+      summaryEl.innerHTML = allTasks.length === 0 ? '' : `
+        <span>${openCount} open · ${doneCount} done</span>
+        ${doneCount > 0 ? `<button class="icon-btn" data-act="clearCompleted">Clear completed</button>` : ''}
+      `;
+      if (allTasks.length === 0) { listEl.innerHTML = ''; return; }
+      const today = todayKeyLocal();
+      const tasks = [...allTasks.filter(t => !t.done), ...allTasks.filter(t => t.done)];
+      listEl.innerHTML = tasks.map(t => {
+        const priority = t.priority || 'none';
+        const checkboxColorVar = `--task-priority-color: ${PRIORITY_COLORS[priority]};`;
+        if (t.id === editingTaskId) {
+          return `
+            <div class="task-row" style="flex-wrap:wrap;">
+              <input type="checkbox" data-id="${t.id}" ${t.done ? 'checked' : ''} style="${checkboxColorVar}" />
+              <input type="text" class="task-edit-input" data-id="${t.id}" value="${t.text.replace(/"/g, '&quot;')}" autocomplete="off" spellcheck="false" style="flex:1;" />
+              <button class="task-del" data-act="saveEdit" data-id="${t.id}" style="color:#4ade80; opacity:1;">✓</button>
+              <button class="task-del" data-act="cancelEdit" style="opacity:1;">✕</button>
+              <select class="task-edit-priority" data-id="${t.id}" style="margin-left:23px;">
+                ${Object.keys(PRIORITY_LABELS).map(p => `<option value="${p}" ${p === priority ? 'selected' : ''}>${p === 'none' ? 'No priority' : PRIORITY_LABELS[p]}</option>`).join('')}
+              </select>
+              <input type="date" class="task-edit-duedate" data-id="${t.id}" value="${t.dueDate || ''}" style="color-scheme: dark; flex: none; width: 128px;" />
+            </div>
+          `;
+        }
+        const dueBadge = t.dueDate && !t.done
+          ? `<span style="font-size:10px; margin-left:6px; padding:1px 6px; border-radius:8px; ${t.dueDate < today ? 'color:#f87171; background:#3a1e1e;' : 'color:#888; background:#1e1e1e;'}">${formatDueDate(t.dueDate)}</span>`
+          : '';
+        return `
+        <div class="task-row">
+          <input type="checkbox" data-id="${t.id}" ${t.done ? 'checked' : ''} style="${checkboxColorVar}" />
+          <div class="task-text${t.done ? ' done' : ''}" data-act="startEdit" data-id="${t.id}">${t.text.replace(/</g, '&lt;')}${dueBadge}</div>
+          <button class="task-del" data-act="startEdit" data-id="${t.id}">✎</button>
+          <button class="task-del" data-act="delete" data-id="${t.id}">✕</button>
+        </div>
+      `;
+      }).join('');
+      if (editingTaskId) {
+        const input = listEl.querySelector('.task-edit-input');
+        if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
+      }
+    }
+    renderWeeklyTasksList = render;
+
+    function startEditTask(id) {
+      editingTaskId = id;
+      render();
+    }
+
+    function cancelEditTask() {
+      editingTaskId = null;
+      render();
+    }
+
+    async function saveEditTask(id) {
+      const input = listEl.querySelector(`.task-edit-input[data-id="${id}"]`);
+      const priorityEl = listEl.querySelector(`.task-edit-priority[data-id="${id}"]`);
+      const dueDateEl = listEl.querySelector(`.task-edit-duedate[data-id="${id}"]`);
+      const text = input ? input.value.trim() : '';
+      editingTaskId = null;
+      if (!text) { render(); return; }
+      const t = (tasksDataCache.weeklyTasks || []).find(x => x.id === id);
+      if (!t) { render(); return; }
+      const newPriority = priorityEl ? priorityEl.value : (t.priority || 'none');
+      const newDueDate = dueDateEl ? (dueDateEl.value || null) : (t.dueDate || null);
+      if (t.text === text && (t.priority || 'none') === newPriority && (t.dueDate || null) === newDueDate) { render(); return; }
+      t.text = text;
+      t.priority = newPriority;
+      t.dueDate = newDueDate;
+      render();
+      setStatus('Saving...', '');
+      const ok = await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
+      if (ok) setStatus('Saved ✓', 'success');
+    }
+
+    async function addTask() {
+      const text = taskInput.value.trim();
+      if (!text) return;
+      tasksDataCache.weeklyTasks = tasksDataCache.weeklyTasks || [];
+      tasksDataCache.weeklyTasks.unshift({
+        id: tasksNewId(), text, done: false,
+        priority: pendingPriority,
+        dueDate: pendingDueDate,
+      });
+      taskInput.value = '';
+      pendingPriority = 'none';
+      pendingDueDate = null;
+      dueDateInput.value = '';
+      renderChips();
+      render();
+      setStatus('Saving...', '');
+      const ok = await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
+      if (ok) setStatus('Saved ✓', 'success');
+    }
+
+    async function clearCompletedTasks() {
+      tasksDataCache.weeklyTasks = (tasksDataCache.weeklyTasks || []).filter(x => !x.done);
+      render();
+      setStatus('Saving...', '');
+      const ok = await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
+      if (ok) setStatus('Saved ✓', 'success');
+    }
+
+    async function toggleTask(id) {
+      const t = (tasksDataCache.weeklyTasks || []).find(x => x.id === id);
+      if (!t) return;
+      t.done = !t.done;
+      render();
+      setStatus('Saving...', '');
+      const ok = await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
+      if (ok) setStatus('Saved ✓', 'success');
+    }
+
+    async function deleteTask(id) {
+      tasksDataCache.weeklyTasks = (tasksDataCache.weeklyTasks || []).filter(x => x.id !== id);
+      render();
+      setStatus('Saving...', '');
+      const ok = await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
+      if (ok) setStatus('Saved ✓', 'success');
+    }
+
+    card.addEventListener('click', (e) => {
+      const target = e.target.closest('[data-act]');
+      const act = target?.dataset.act;
+      if (act === 'add') addTask();
+      else if (act === 'refresh') initTasksData();
+      else if (act === 'toggleConfig') configPanel.classList.toggle('open');
+      else if (act === 'delete') deleteTask(target.dataset.id);
+      else if (act === 'startEdit') startEditTask(target.dataset.id);
+      else if (act === 'saveEdit') saveEditTask(target.dataset.id);
+      else if (act === 'cancelEdit') cancelEditTask();
+      else if (act === 'clearCompleted') clearCompletedTasks();
+      else if (act === 'toggleDueMenu') {
+        const willOpen = dueMenu.hidden;
+        closeMenus();
+        if (willOpen) { dueMenu.hidden = false; dueBtn.classList.add('active'); }
+        e.stopPropagation();
+      }
+      else if (act === 'togglePriorityMenu') {
+        const willOpen = priorityMenu.hidden;
+        closeMenus();
+        if (willOpen) { priorityMenu.hidden = false; priorityBtn.classList.add('active'); }
+        e.stopPropagation();
+      }
+      else if (act === 'setDue') {
+        pendingDueDate = target.dataset.value;
+        closeMenus();
+        renderChips();
+      }
+      else if (act === 'pickDate') {
+        closeMenus();
+        dueDateInput.style.display = '';
+        if (dueDateInput.showPicker) dueDateInput.showPicker(); else dueDateInput.focus();
+      }
+      else if (act === 'setPriority') {
+        pendingPriority = target.dataset.value;
+        closeMenus();
+        renderChips();
+      }
+      else if (act === 'clearDue') { pendingDueDate = null; renderChips(); }
+      else if (act === 'clearPriority') { pendingPriority = 'none'; renderChips(); }
+      else if (act === 'saveToken') {
+        const val = tokenInput.value.trim();
+        if (!val) return;
+        localStorage.setItem(TASKS_GITHUB_TOKEN_STORAGE, val);
+        setStatus('Token saved ✓', 'success');
+        initTasksData();
+      }
+    });
+    document.addEventListener('click', (e) => {
+      if (!card.contains(e.target)) closeMenus();
+    });
+    dueDateInput.addEventListener('change', () => {
+      pendingDueDate = dueDateInput.value || null;
+      dueDateInput.style.display = 'none';
+      renderChips();
+    });
+    card.addEventListener('change', (e) => {
+      if (e.target.matches('input[type="checkbox"][data-id]')) toggleTask(e.target.dataset.id);
+    });
+    card.addEventListener('keydown', (e) => {
+      if (!e.target.matches('.task-edit-input')) return;
+      if (e.key === 'Enter') saveEditTask(e.target.dataset.id);
+      else if (e.key === 'Escape') cancelEditTask();
+    });
+    taskInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addTask(); });
+
+    const savedToken = localStorage.getItem(TASKS_GITHUB_TOKEN_STORAGE) || '';
+    if (savedToken) tokenInput.value = savedToken;
+    else configPanel.classList.add('open');
+
+    return card;
+  }
+
   const GOAL_TIMEFRAMES = ['3 months', '6 months', '1 year', 'Long-term'];
   const GOAL_STATUSES = [
     { value: 'not_started', label: 'Not started' },
@@ -4615,6 +5066,7 @@ Then extract:
   }
 
   cardsTasksRoot.appendChild(buildDailyTasksCard());
+  cardsTasksRoot.appendChild(buildWeeklyTasksCard());
   cardsTasksRoot.appendChild(buildGoalsCard());
   initTasksData();
 </script>

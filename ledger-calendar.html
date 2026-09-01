@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -176,7 +176,7 @@
     margin-bottom:6px;
   }
   .hero-total{
-    font-size:clamp(34px,5vw,50px);
+    font-size:clamp(24px,3.5vw,34px);
     font-weight:600;
     line-height:1;
     color:var(--accent-ink);
@@ -370,6 +370,35 @@
     grid-template-columns:1fr 1fr;
     gap:6px;
   }
+  .month-recur-left{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    min-width:0;
+  }
+  .month-recur-paid{
+    display:flex;
+    align-items:center;
+    gap:5px;
+    cursor:pointer;
+    flex-shrink:0;
+  }
+  .month-recur-paid input[type="checkbox"]{
+    accent-color:var(--positive);
+    width:12px;height:12px;
+    cursor:pointer;
+  }
+  .month-recur-paid span{
+    font-size:10px;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+    color:var(--text-faint);
+  }
+  .stat-line.recur-is-paid .lbl{
+    text-decoration:line-through;
+    color:var(--text-faint);
+  }
+  .stat-line.recur-is-paid .month-recur-paid span{ color:var(--positive); }
   .range-field{
     display:flex;
     flex-direction:column;
@@ -841,7 +870,11 @@
           name: r.name || "",
           amount: Number(r.amount) || 0,
           startKey: (r.startKey && MONTH_KEYS.indexOf(r.startKey) > -1) ? r.startKey : MONTH_KEYS[0],
-          endKey: (r.endKey && MONTH_KEYS.indexOf(r.endKey) > -1) ? r.endKey : MONTH_KEYS[MONTH_KEYS.length-1]
+          endKey: (r.endKey && MONTH_KEYS.indexOf(r.endKey) > -1) ? r.endKey : MONTH_KEYS[MONTH_KEYS.length-1],
+          // which months this recurring fee has been marked paid for —
+          // per-month, not a single flag, since the same fee recurs and
+          // needs its own paid/unpaid status each month it's active.
+          paidMonths: (r.paidMonths && typeof r.paidMonths === "object") ? r.paidMonths : {}
         };
       });
       if (parsed.months){
@@ -1349,7 +1382,8 @@
     state.recurringExpenses.push({
       id: uid(), name: "", amount: 0,
       startKey: currentMonthKey(),
-      endKey: MONTH_KEYS[MONTH_KEYS.length-1]
+      endKey: MONTH_KEYS[MONTH_KEYS.length-1],
+      paidMonths: {}
     });
     recurIndex = state.recurringExpenses.length - 1; // jump to the new item
     renderRecurring();
@@ -1535,13 +1569,37 @@
           activeRecur.forEach(function(r){
             var rRow = document.createElement("div");
             rRow.className = "stat-line";
+            if (r.paidMonths && r.paidMonths[key]) rRow.classList.add("recur-is-paid");
+
+            var rLeft = document.createElement("span");
+            rLeft.className = "month-recur-left";
             var rName = document.createElement("span");
             rName.className = "lbl";
             rName.textContent = r.name || "Untitled";
+            rLeft.appendChild(rName);
+
+            var paidLbl = document.createElement("label");
+            paidLbl.className = "month-recur-paid";
+            var paidBox = document.createElement("input");
+            paidBox.type = "checkbox";
+            paidBox.checked = !!(r.paidMonths && r.paidMonths[key]);
+            paidBox.addEventListener("change", function(){
+              if (!r.paidMonths) r.paidMonths = {};
+              if (paidBox.checked) r.paidMonths[key] = true;
+              else delete r.paidMonths[key];
+              rRow.classList.toggle("recur-is-paid", paidBox.checked);
+              scheduleSave();
+            });
+            var paidText = document.createElement("span");
+            paidText.textContent = "Paid";
+            paidLbl.appendChild(paidBox);
+            paidLbl.appendChild(paidText);
+            rLeft.appendChild(paidLbl);
+
             var rAmt = document.createElement("span");
             rAmt.className = "val num";
             rAmt.textContent = fmt(Number(r.amount) || 0);
-            rRow.appendChild(rName);
+            rRow.appendChild(rLeft);
             rRow.appendChild(rAmt);
             recurSection.appendChild(rRow);
           });

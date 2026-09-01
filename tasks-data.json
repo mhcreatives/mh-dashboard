@@ -1,15 +1,43 @@
 {
   "dailyTasks": [
     {
-      "id": "mtgkramumn97fc",
-      "text": "Cutting for tomorrow",
+      "id": "mthussvb8ai0cn",
+      "text": "Inventory",
+      "done": true,
+      "priority": "none",
+      "dueDate": null
+    },
+    {
+      "id": "mthtuqmcehqk9i",
+      "text": "Cutting for wednesday",
       "done": false,
       "priority": "none",
       "dueDate": null
     },
     {
+      "id": "mthtujls3mtdhc",
+      "text": "Printing for wednesday",
+      "done": false,
+      "priority": "none",
+      "dueDate": null
+    },
+    {
+      "id": "mthcbka5v2sorm",
+      "text": "archive for balance",
+      "done": false,
+      "priority": "none",
+      "dueDate": null
+    },
+    {
+      "id": "mtgkramumn97fc",
+      "text": "Cutting for tuesday",
+      "done": true,
+      "priority": "none",
+      "dueDate": null
+    },
+    {
       "id": "mtfl7kz7sdwphu",
-      "text": "Cutting for today",
+      "text": "Cutting for monday",
       "done": true,
       "priority": "none",
       "dueDate": null
@@ -22,12 +50,12 @@
     {
       "id": "mtfl6yez5j55t4",
       "text": "Packaging",
-      "done": false
+      "done": true
     },
     {
       "id": "mtfl6vfp56wvpk",
       "text": "Printing for tuesday",
-      "done": false,
+      "done": true,
       "priority": "none",
       "dueDate": null
     }
@@ -53,6 +81,13 @@
       "timeframe": "1 year",
       "status": "not_started",
       "notes": "Used in business"
+    },
+    {
+      "id": "mth2vgvn4xkp5t",
+      "title": "Invest near mahipon",
+      "timeframe": "1 year",
+      "status": "not_started",
+      "notes": "Future expressway project"
     }
   ]
 }

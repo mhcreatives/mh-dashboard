@@ -3035,10 +3035,10 @@ Then extract:
       const ok = confirm(`Delete all ${lastRows.length} pending update(s)? This can't be undone.`);
       if (!ok) return;
 
-      // Delete bottom-up (highest sheet row first) — deleting a row shifts
-      // every row below it up by one, so working from the bottom keeps the
-      // remaining rows' sheetRow numbers valid for the rest of the loop.
-      const toDelete = lastRows.slice().sort((a, b) => b.sheetRow - a.sheetRow);
+      // Delete top-down (lowest sheet row / row 1 first). Deleting a row shifts
+      // every row below it up by one, so after each delete we decrement the
+      // still-pending rows' sheetRow to keep them pointing at the right row.
+      const toDelete = lastRows.map(r => ({ ...r })).sort((a, b) => a.sheetRow - b.sheetRow);
       let done = 0, failed = 0;
       for (const r of toDelete) {
         setStatus(`Deleting ${done + failed + 1}/${toDelete.length}: ${r.name}...`, '');
@@ -3051,6 +3051,7 @@ Then extract:
           const data = await resp.json();
           if (!data.ok) throw new Error(data.error || 'Delete failed');
           done++;
+          toDelete.forEach(other => { if (other.sheetRow > r.sheetRow) other.sheetRow--; });
         } catch (err) {
           failed++;
         }
@@ -3061,7 +3062,7 @@ Then extract:
 
     async function deleteSelected() {
       if (selectedRows.size === 0) return;
-      const toDelete = lastRows.filter(r => selectedRows.has(r.sheetRow)).sort((a, b) => b.sheetRow - a.sheetRow);
+      const toDelete = lastRows.filter(r => selectedRows.has(r.sheetRow)).map(r => ({ ...r })).sort((a, b) => a.sheetRow - b.sheetRow);
       const ok = confirm(`Delete ${toDelete.length} selected update(s)? This can't be undone.`);
       if (!ok) return;
 
@@ -3077,6 +3078,7 @@ Then extract:
           const data = await resp.json();
           if (!data.ok) throw new Error(data.error || 'Delete failed');
           done++;
+          toDelete.forEach(other => { if (other.sheetRow > r.sheetRow) other.sheetRow--; });
         } catch (err) {
           failed++;
         }

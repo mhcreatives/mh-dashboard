@@ -2931,6 +2931,7 @@ Then extract:
         <div class="tool-name">📝 Updates</div>
         <div class="tool-actions">
           <button class="icon-btn" data-act="load">↻ Refresh</button>
+          <button class="icon-btn" data-act="deleteSelected" style="color:#f87171;">🗑 Delete selected</button>
           <button class="icon-btn" data-act="deleteAll" style="color:#f87171;">🗑 Delete all</button>
         </div>
       </div>
@@ -2959,6 +2960,7 @@ Then extract:
     const apiKeyInput = el('apiKeyInput');
 
     let lastRows = [];
+    let selectedRows = new Set();
 
     function setStatus(text, cls) {
       statusEl.className = `status-line ${cls || ''}`;
@@ -2972,7 +2974,8 @@ Then extract:
       }
       resultsEl.innerHTML = rows.map(r => `
         <div class="proof-item">
-          <div class="proof-name">
+          <div class="proof-name" style="display:flex; align-items:center; gap:8px;">
+            <input type="checkbox" data-act="selectRow" data-row="${r.sheetRow}" ${selectedRows.has(r.sheetRow) ? 'checked' : ''} style="flex:none; width:14px; height:14px; cursor:pointer;" />
             <span>${r.name}</span>
           </div>
           <div style="white-space:pre-wrap; font-size:10px; color:#ccc; background:#111; border-radius:6px; padding:8px; margin-top:6px; font-family:'DM Mono',monospace; max-height:120px; overflow-y:auto;">${r.breakdown.replace(/</g, '&lt;')}</div>
@@ -3001,6 +3004,7 @@ Then extract:
           .filter(r => r.name);
 
         lastRows = rows;
+        selectedRows.clear();
         summaryEl.textContent = `${rows.length} update(s)`;
         setStatus('Loaded ✓', 'success');
         renderRows(rows);
@@ -3055,6 +3059,32 @@ Then extract:
       load();
     }
 
+    async function deleteSelected() {
+      if (selectedRows.size === 0) return;
+      const toDelete = lastRows.filter(r => selectedRows.has(r.sheetRow)).sort((a, b) => b.sheetRow - a.sheetRow);
+      const ok = confirm(`Delete ${toDelete.length} selected update(s)? This can't be undone.`);
+      if (!ok) return;
+
+      let done = 0, failed = 0;
+      for (const r of toDelete) {
+        setStatus(`Deleting ${done + failed + 1}/${toDelete.length}: ${r.name}...`, '');
+        try {
+          const resp = await fetch(NO_APPS_SCRIPT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ action: 'delete', tab: UPDATES_SHEET_TAB, row: r.sheetRow }),
+          });
+          const data = await resp.json();
+          if (!data.ok) throw new Error(data.error || 'Delete failed');
+          done++;
+        } catch (err) {
+          failed++;
+        }
+      }
+      setStatus(`Deleted ${done}${failed ? `, ${failed} failed` : ''} ✓`, failed ? 'error' : 'success');
+      load();
+    }
+
     card.addEventListener('click', (e) => {
       const act = e.target.dataset.act;
       if (act === 'load') load();
@@ -3071,6 +3101,16 @@ Then extract:
         deleteRow(row, name);
       } else if (act === 'deleteAll') {
         deleteAll();
+      } else if (act === 'deleteSelected') {
+        deleteSelected();
+      }
+    });
+
+    card.addEventListener('change', (e) => {
+      if (e.target.dataset.act === 'selectRow') {
+        const row = Number(e.target.dataset.row);
+        if (e.target.checked) selectedRows.add(row);
+        else selectedRows.delete(row);
       }
     });
 

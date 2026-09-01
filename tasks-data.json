@@ -1,6 +1,13 @@
 {
   "dailyTasks": [
     {
+      "id": "mti4d63knwgwjf",
+      "text": "a",
+      "done": false,
+      "priority": "none",
+      "dueDate": "2026-09-03"
+    },
+    {
       "id": "mthussvb8ai0cn",
       "text": "Inventory",
       "done": true,

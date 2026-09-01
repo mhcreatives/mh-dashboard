@@ -17,7 +17,7 @@
     {
       "id": "mthtujls3mtdhc",
       "text": "Printing for wednesday",
-      "done": false,
+      "done": true,
       "priority": "none",
       "dueDate": null
     },
@@ -88,22 +88,6 @@
       "timeframe": "1 year",
       "status": "not_started",
       "notes": "Future expressway project"
-    }
-  ],
-  "weeklyTasks": [
-    {
-      "id": "mtii76wq45xop6",
-      "text": "PMS",
-      "done": false,
-      "priority": "none",
-      "dueDate": "2026-09-05"
-    },
-    {
-      "id": "mtii6ukat5hm85",
-      "text": "Philhealth",
-      "done": false,
-      "priority": "none",
-      "dueDate": "2026-09-05"
     }
   ]
 }

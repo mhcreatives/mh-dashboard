@@ -956,6 +956,14 @@
   const PROOF_FB_NAME = 'fld01zQJ86lA2f1F9';
   const PROOF_CLIENT_NUM = 'fld3csxglBQdezHDA';
   const PROOF_ATTACHMENT = 'fldHTnYGaKUoEkLYI';
+
+  // Solo souvenir orders (no linked Invitation) — same Photo-status Proof
+  // check as the Invitation table above, just on the Souvenir table's own
+  // Breakdown/DP/Balance/Proof fields.
+  const SOU_PROOF_BREAKDOWN = 'fldfiG9mUUWeRncOI';
+  const SOU_PROOF_DP = 'fldMaGQI2FTYT7NhI';
+  const SOU_PROOF_BALANCE = 'fldF1yVcR52i6SGQH';
+  const SOU_PROOF_ATTACHMENT = 'fldUdyZVYWgYGt9ux';
   const META_LINK = 'fldkZTIUuy4mJt9id';
 
   // Extracts "Label: ₱X" and, if a "+ ₱Y ... shipping fee" line follows it
@@ -1061,7 +1069,7 @@
           <button class="icon-btn" data-act="scan">▶ Scan</button>
         </div>
       </div>
-      <div class="tool-desc">Photo-status orders with a Proof attached — checks Breakdown text against DP / Balance fields.</div>
+      <div class="tool-desc">Photo-status orders with a Proof attached — checks Breakdown text against DP / Balance fields. Includes solo souvenir orders (no linked Invitation).</div>
       <div class="status-line" data-el="status"></div>
       <div class="proof-summary" data-el="summary"></div>
       <div class="proof-results" data-el="results"></div>
@@ -1161,11 +1169,11 @@
       }
       resultsEl.innerHTML = mismatches.map(m => `
         <div class="proof-item">
-          <div class="proof-name">${m.name}${m.clientNum ? ` <span>#${m.clientNum}</span>` : ''}</div>
+          <div class="proof-name">${m.name}${m.clientNum ? ` <span>#${m.clientNum}</span>` : ''}${m.isSolo ? ` <span>· solo souvenir</span>` : ''}</div>
           ${m.unparsed ? `<div class="proof-diff">Could not find Downpayment / Balance before ship out lines in Breakdown</div>` : ''}
           ${!m.unparsed && !m.dpOk ? `<div class="proof-diff">DP: breakdown ${otFormatPeso(m.dpExpected)} ≠ field ${otFormatPeso(m.dpActual)}</div>` : ''}
           ${!m.unparsed && !m.balOk ? `<div class="proof-diff">Balance: breakdown ${otFormatPeso(m.balExpected)} ≠ field ${otFormatPeso(m.balActual)}</div>` : ''}
-          <a class="proof-link" href="https://airtable.com/${OT_BASE_ID}/${INV_TABLE}/${m.id}" target="_blank" rel="noopener">Open record ↗</a>
+          <a class="proof-link" href="https://airtable.com/${OT_BASE_ID}/${m.isSolo ? SOU_TABLE : INV_TABLE}/${m.id}" target="_blank" rel="noopener">Open record ↗</a>
         </div>
       `).join('');
     }
@@ -1182,12 +1190,25 @@
       resultsEl.innerHTML = '';
 
       try {
-        const allRecords = await otFetchRecords(
-          apiKey, INV_TABLE, INV_STATUS, PROOF_DP, PROOF_BALANCE,
-          `{Status}="Photo"`,
-          [PROOF_BREAKDOWN, PROOF_FB_NAME, PROOF_CLIENT_NUM, PROOF_ATTACHMENT]
-        );
+        const [allRecords, allSouRecords] = await Promise.all([
+          otFetchRecords(
+            apiKey, INV_TABLE, INV_STATUS, PROOF_DP, PROOF_BALANCE,
+            `{Status}="Photo"`,
+            [PROOF_BREAKDOWN, PROOF_FB_NAME, PROOF_CLIENT_NUM, PROOF_ATTACHMENT]
+          ),
+          otFetchRecords(
+            apiKey, SOU_TABLE, SOU_STATUS, SOU_PROOF_DP, SOU_PROOF_BALANCE,
+            `{Status}="Photo"`,
+            [SOU_PROOF_BREAKDOWN, SOU_FB_NAME, SOU_PROOF_ATTACHMENT, SOU_INV_LINK]
+          ),
+        ]);
         const records = allRecords.filter(r => Array.isArray(r.fields?.[PROOF_ATTACHMENT]) && r.fields[PROOF_ATTACHMENT].length > 0);
+        // "Solo" souvenir orders — not linked to any Invitation record, so they
+        // never got scanned as part of that Invitation's own Photo-status check.
+        const soloSouRecords = allSouRecords.filter(r =>
+          (!Array.isArray(r.fields?.[SOU_INV_LINK]) || r.fields[SOU_INV_LINK].length === 0) &&
+          Array.isArray(r.fields?.[SOU_PROOF_ATTACHMENT]) && r.fields[SOU_PROOF_ATTACHMENT].length > 0
+        );
 
         const mismatches = [];
         let ok = 0, skipped = 0;
@@ -1212,8 +1233,29 @@
             balExpected: parsed.balance, balActual, balOk,
           });
         });
+        soloSouRecords.forEach(r => {
+          const name = r.fields?.[SOU_FB_NAME] || 'Unnamed';
+          const parsed = parseBreakdownFigures(r.fields?.[SOU_PROOF_BREAKDOWN]);
+          if (!parsed) {
+            skipped++;
+            mismatches.push({ id: r.id, name, isSolo: true, unparsed: true });
+            return;
+          }
+          const dpActual = r.fields?.[SOU_PROOF_DP] ?? 0;
+          const balActual = r.fields?.[SOU_PROOF_BALANCE] ?? 0;
+          const dpOk = Math.abs(parsed.dp - dpActual) < 1;
+          const balOk = Math.abs(parsed.balance - balActual) < 1;
+          if (dpOk && balOk) { ok++; return; }
+          mismatches.push({
+            id: r.id,
+            name, isSolo: true,
+            dpExpected: parsed.dp, dpActual, dpOk,
+            balExpected: parsed.balance, balActual, balOk,
+          });
+        });
 
-        summaryEl.textContent = `${records.length} scanned · ${mismatches.length} mismatch(es) · ${ok} ok · ${skipped} unparsed`;
+        const totalScanned = records.length + soloSouRecords.length;
+        summaryEl.textContent = `${totalScanned} scanned · ${mismatches.length} mismatch(es) · ${ok} ok · ${skipped} unparsed`;
         setStatus(mismatches.length ? `${mismatches.length} mismatch(es) found` : 'All matched ✓', mismatches.length ? 'error' : 'success');
         renderResults(mismatches);
       } catch (err) {

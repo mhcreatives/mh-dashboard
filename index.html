@@ -4134,8 +4134,174 @@ Then extract:
     return card;
   }
 
+  // ─── Leads (Meta Graph API — Lead Ads leads_retrieval) ──────────────────
+  // Pulls the raw leads captured by your Lead Ads forms — this is the same
+  // underlying data behind Business Suite's Leads Center table, minus the
+  // Intake/Qualified pipeline stage (that classification lives only inside
+  // Business Suite's CRM UI and isn't exposed by the Graph API). Reuses the
+  // same Page ID + Page access token already set up in Balance/Shipping,
+  // but that token needs the leads_retrieval permission granted too.
+
+  const LEADS_GRAPH_VERSION = 'v21.0';
+
+  async function leadsFetchAllPages(url) {
+    const rows = [];
+    let pages = 0;
+    while (url && pages < 20) {
+      const resp = await fetch(url);
+      const json = await resp.json();
+      if (json.error) throw new Error(json.error.message || 'Graph API error');
+      rows.push(...(json.data || []));
+      url = json.paging?.next || null;
+      pages++;
+    }
+    return rows;
+  }
+
+  function leadsFieldValue(fieldData, keys) {
+    if (!Array.isArray(fieldData)) return '';
+    for (const key of keys) {
+      const match = fieldData.find(f => (f.name || '').toLowerCase().replace(/[^a-z]/g, '').includes(key));
+      if (match && Array.isArray(match.values) && match.values.length) return match.values[0];
+    }
+    return '';
+  }
+
+  function buildLeadsCard() {
+    const card = document.createElement('div');
+    card.className = 'tool-card';
+    card.innerHTML = `
+      <div class="tool-hd">
+        <div class="tool-name">🎯 Leads</div>
+        <div class="tool-actions">
+          <button class="icon-btn" data-act="refresh">↻ Refresh</button>
+        </div>
+      </div>
+      <div class="tool-desc">Raw leads captured by your Meta Lead Ads forms — name, contact info and time received. Pipeline stage (Intake/Qualified) isn't available via API, only in Business Suite's Leads Center.</div>
+      <div class="status-line" data-el="status"></div>
+      <div class="proof-summary" data-el="summary"></div>
+      <div class="proof-results" data-el="results" style="max-height:460px;"></div>
+
+      <div class="config-toggle" data-act="toggleConfig">⚙ set facebook page</div>
+      <div class="config-panel" data-el="configPanel">
+        <div class="config-hint">
+          Same Page ID + Page access token as the Balance/Shipping cards — the token also needs the <b>leads_retrieval</b> permission granted (in addition to messaging). Stored locally in this browser only.
+        </div>
+        <div class="id-row">
+          <input type="text" data-el="pageIdInput" placeholder="Facebook Page ID" autocomplete="off" spellcheck="false" />
+          <input type="password" data-el="pageTokenInput" placeholder="Page access token" autocomplete="off" spellcheck="false" />
+          <button class="save-btn" data-act="save">Save</button>
+        </div>
+      </div>
+    `;
+
+    const el = sel => card.querySelector(`[data-el="${sel}"]`);
+    const statusEl = el('status');
+    const summaryEl = el('summary');
+    const resultsEl = el('results');
+    const configPanel = el('configPanel');
+    const pageIdInput = el('pageIdInput');
+    const pageTokenInput = el('pageTokenInput');
+
+    function setStatus(text, cls) {
+      statusEl.className = `status-line ${cls || ''}`;
+      statusEl.innerHTML = text ? `<span class="status-dot ${cls || ''}"></span>${text}` : '';
+    }
+
+    function renderResults(leads) {
+      if (leads.length === 0) {
+        resultsEl.innerHTML = '';
+        return;
+      }
+      resultsEl.innerHTML = leads.map(l => `
+        <div class="proof-item">
+          <div class="proof-name">
+            <span>${l.name || 'Unnamed'}</span>
+            <span style="color:#888; font-weight:400;">${new Date(l.created_time).toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+          </div>
+          <div style="font-size:10px; color:#ccc; margin-top:4px;">
+            ${l.email ? `✉ ${l.email}` : ''}${l.email && l.phone ? ' · ' : ''}${l.phone ? `📞 ${l.phone}` : ''}
+          </div>
+          <div style="font-size:10px; color:#666; margin-top:2px;">${l.formName || ''}</div>
+        </div>
+      `).join('');
+    }
+
+    async function load() {
+      const pageId = localStorage.getItem(FB_PAGE_ID_STORAGE) || '';
+      const pageToken = localStorage.getItem(FB_PAGE_TOKEN_STORAGE) || '';
+      if (!pageId || !pageToken) {
+        setStatus('Set Facebook Page ID + token first ↓', 'error');
+        configPanel.classList.add('open');
+        return;
+      }
+
+      setStatus('Loading forms...', '');
+      summaryEl.textContent = '';
+      resultsEl.innerHTML = '';
+
+      try {
+        const formsUrl = `https://graph.facebook.com/${LEADS_GRAPH_VERSION}/${encodeURIComponent(pageId)}/leadgen_forms?fields=id,name&limit=100&access_token=${encodeURIComponent(pageToken)}`;
+        const forms = await leadsFetchAllPages(formsUrl);
+        if (forms.length === 0) {
+          setStatus('No lead forms found on this Page', 'error');
+          return;
+        }
+
+        setStatus(`Loading leads from ${forms.length} form(s)...`, '');
+        const leadsByForm = await Promise.all(forms.map(async f => {
+          const leadsUrl = `https://graph.facebook.com/${LEADS_GRAPH_VERSION}/${f.id}/leads?fields=created_time,field_data&limit=100&access_token=${encodeURIComponent(pageToken)}`;
+          const rows = await leadsFetchAllPages(leadsUrl);
+          return rows.map(r => ({
+            id: r.id,
+            created_time: r.created_time,
+            name: leadsFieldValue(r.field_data, ['fullname', 'name']),
+            email: leadsFieldValue(r.field_data, ['email']),
+            phone: leadsFieldValue(r.field_data, ['phone']),
+            formName: f.name,
+          }));
+        }));
+
+        const allLeads = leadsByForm.flat().sort((a, b) => new Date(b.created_time) - new Date(a.created_time));
+        const todayKey = new Date().toISOString().slice(0, 10);
+        const todayCount = allLeads.filter(l => (l.created_time || '').slice(0, 10) === todayKey).length;
+
+        summaryEl.textContent = `${allLeads.length} total lead(s) · ${todayCount} today`;
+        setStatus('Loaded ✓', 'success');
+        renderResults(allLeads);
+      } catch (err) {
+        setStatus(`Error: ${err.message}`, 'error');
+      }
+    }
+
+    card.addEventListener('click', (e) => {
+      const act = e.target.dataset.act;
+      if (act === 'refresh') load();
+      else if (act === 'toggleConfig') configPanel.classList.toggle('open');
+      else if (act === 'save') {
+        const pageId = pageIdInput.value.trim();
+        const pageToken = pageTokenInput.value.trim();
+        if (!pageId || !pageToken) return;
+        localStorage.setItem(FB_PAGE_ID_STORAGE, pageId);
+        localStorage.setItem(FB_PAGE_TOKEN_STORAGE, pageToken);
+        setStatus('Saved ✓', 'success');
+        load();
+      }
+    });
+
+    const savedPageId = localStorage.getItem(FB_PAGE_ID_STORAGE) || '';
+    const savedPageToken = localStorage.getItem(FB_PAGE_TOKEN_STORAGE) || '';
+    if (savedPageId) pageIdInput.value = savedPageId;
+    if (savedPageToken) pageTokenInput.value = savedPageToken;
+    if (savedPageId && savedPageToken) load();
+    else configPanel.classList.add('open');
+
+    return card;
+  }
+
   cardsDataRoot.appendChild(buildSalesCard());
   cardsDataRoot.appendChild(buildAdsCard());
+  cardsDataRoot.appendChild(buildLeadsCard());
 
   // ─── Tasks & Goals (stored as a JSON file in this GitHub repo) ──────────
   // No spreadsheet, no third-party backend — the data lives in a single

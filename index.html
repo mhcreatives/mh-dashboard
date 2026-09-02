@@ -2397,23 +2397,12 @@ Then extract:
             <div class="proof-diff">Could not read receipt: ${f.analysisError}</div>
             ${f.receiptImageUrl ? `<img src="${f.receiptImageUrl}" alt="Receipt" style="max-width:100%; border-radius:8px; margin-top:6px; display:block;" />` : ''}`;
         }
-        let debugHtml = '';
-        if (f.debugInfo) {
-          const safeJson = v => (JSON.stringify(v, null, 2) || 'undefined').replace(/</g, '&lt;');
-          const body = f.debugInfo.nearMisses !== undefined
-            ? `Anchor not found. Page messages mentioning "balance"/"mapaship":\n${safeJson(f.debugInfo.nearMisses)}`
-            : `${f.debugInfo.candidateMessageCount} message(s) after anchor (within ${RECEIPT_WINDOW_HOURS}h window), ${f.debugInfo.clientMessageCount} from client, ${f.debugInfo.clientAttachmentCount} attachment(s) total:\nanchor: ${safeJson(f.debugInfo.anchorMessage)} @ ${f.debugInfo.anchorTime}${f.debugInfo.anchorAmountUnverified ? ' ⚠ (amount in message didn\'t match current balance field — used anyway, only candidate)' : ''}\ncandidateTimes: ${safeJson(f.debugInfo.candidateTimes)}${f.debugInfo.rawAttachments !== undefined ? `\nrawAttachments: ${safeJson(f.debugInfo.rawAttachments)}` : ''}${f.debugInfo.lateClientMessageCount ? `\n⚠ ${f.debugInfo.lateClientMessageCount} client message(s) AFTER the ${RECEIPT_WINDOW_HOURS}h window (${f.debugInfo.lateClientAttachmentCount} with attachments) — window may be too short:\nlateClientMessageTimes: ${safeJson(f.debugInfo.lateClientMessageTimes)}` : ''}`;
-          debugHtml = `
-          <div style="white-space:pre-wrap; font-size:9px; color:#888; background:#111; border-radius:6px; padding:8px; margin-top:6px; font-family:'DM Mono',monospace; max-height:200px; overflow-y:auto;">DEBUG — ${body}</div>
-        `;
-        }
         return `
         <div class="proof-item" data-balance="${f.balance}">
           <div class="proof-name">${f.name}${f.clientNum ? ` <span>#${f.clientNum}</span>` : ''}</div>
           <div class="proof-diff">Balance pending: ${otFormatPeso(f.balance)}</div>
           <div class="proof-diff" style="color:${f.hasReceipt ? '#4ade80' : '#f87171'};">${f.receiptStatus}</div>
           ${analysisHtml}
-          ${debugHtml}
           ${f.paid
             ? `<div class="proof-diff" style="color:#4ade80;">Marked as paid ✓</div>`
             : `<button class="icon-btn" data-act="markPaid" data-id="${f.id}" style="margin-top:6px;">✓ Payment Received</button>`}

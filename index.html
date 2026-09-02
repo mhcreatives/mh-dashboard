@@ -3862,7 +3862,13 @@ Then extract:
 
   const ADS_MESSAGE_ACTION_TYPES = ['onsite_conversion.messaging_conversation_started_7d'];
   const ADS_PURCHASE_ACTION_TYPES = ['omni_purchase', 'purchase', 'offsite_conversion.fb_pixel_purchase'];
-  const ADS_LEAD_ACTION_TYPES = ['lead', 'onsite_conversion.lead_grouped', 'offsite_conversion.fb_pixel_lead'];
+  // NOTE: Meta reports the same underlying leads under several different
+  // action_types at once (lead, onsite_conversion.lead_grouped,
+  // onsite_web_lead, onsite_conversion.lead, offsite_*_add_meta_leads —
+  // confirmed via a live breakdown to all carry the identical count on the
+  // same day). Summing more than one of these double/triple-counts the same
+  // leads. "lead" alone is Meta's canonical unique count.
+  const ADS_LEAD_ACTION_TYPES = ['lead'];
 
   async function adsFetchInsights(token, accountId, datePreset) {
     const acct = accountId.trim().replace(/^act_/, '');

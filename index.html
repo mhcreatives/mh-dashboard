@@ -3911,6 +3911,29 @@ Then extract:
     return count > 0 ? spend / count : 0;
   }
 
+  // "Leads (FB)" — the raw Lead Ads leads count per day, straight from the
+  // leads_retrieval API (same source as the Leads card / Business Suite's
+  // Leads Center), shown next to the Marketing-API-derived "Leads" column
+  // for comparison since the two can disagree (see adsCountActions above —
+  // that one is attribution-based; this one counts actual form submissions
+  // grouped by the day they came in).
+  async function adsFetchLeadsByDate(pageId, pageToken) {
+    if (!pageId || !pageToken) return {};
+    const formsUrl = `https://graph.facebook.com/${ADS_GRAPH_VERSION}/${encodeURIComponent(pageId)}/leadgen_forms?fields=id&limit=100&access_token=${encodeURIComponent(pageToken)}`;
+    const forms = await leadsFetchAllPages(formsUrl);
+    const byDate = {};
+    await Promise.all(forms.map(async f => {
+      const leadsUrl = `https://graph.facebook.com/${ADS_GRAPH_VERSION}/${f.id}/leads?fields=created_time&limit=100&access_token=${encodeURIComponent(pageToken)}`;
+      const rows = await leadsFetchAllPages(leadsUrl);
+      rows.forEach(r => {
+        const key = (r.created_time || '').slice(0, 10);
+        if (!key) return;
+        byDate[key] = (byDate[key] || 0) + 1;
+      });
+    }));
+    return byDate;
+  }
+
   function buildAdsCard() {
     const card = document.createElement('div');
     card.className = 'tool-card';
@@ -3964,7 +3987,7 @@ Then extract:
       }
       tableEl.innerHTML = `
         <thead><tr>
-          <th>Date</th><th>Day</th><th>Spend</th><th>Messages</th><th>Cost/message</th><th>Leads</th><th>Cost/lead</th><th>Purchases</th><th>Cost/purchase</th><th>Reach</th><th>Cost/reach</th>
+          <th>Date</th><th>Day</th><th>Spend</th><th>Messages</th><th>Cost/message</th><th>Leads</th><th>Cost/lead</th><th>Leads (FB)</th><th>Purchases</th><th>Cost/purchase</th><th>Reach</th><th>Cost/reach</th>
         </tr></thead>
         <tbody>
           ${rows.map(r => `
@@ -3976,6 +3999,7 @@ Then extract:
               <td class="no-num">${peso(r.costPerMessage)}</td>
               <td class="no-num">${r.leads.toLocaleString()}</td>
               <td class="no-num">${peso(r.costPerLead)}</td>
+              <td class="no-num">${r.leadsFB.toLocaleString()}</td>
               <td class="no-num">${r.purchases.toLocaleString()}</td>
               <td class="no-num">${peso(r.costPerPurchase)}</td>
               <td class="no-num">${r.reach.toLocaleString()}</td>
@@ -3989,7 +4013,7 @@ Then extract:
     function renderAverages(bases) {
       avgTableEl.innerHTML = `
         <thead><tr>
-          <th>Basis</th><th>Spend</th><th>Messages</th><th>Cost/message</th><th>Leads</th><th>Cost/lead</th><th>Purchases</th><th>Cost/purchase</th><th>Reach</th><th>Cost/reach</th>
+          <th>Basis</th><th>Spend</th><th>Messages</th><th>Cost/message</th><th>Leads</th><th>Cost/lead</th><th>Leads (FB)</th><th>Purchases</th><th>Cost/purchase</th><th>Reach</th><th>Cost/reach</th>
         </tr></thead>
         <tbody>
           ${bases.map(b => `
@@ -4000,6 +4024,7 @@ Then extract:
               <td class="no-num">${peso(b.costPerMessage)}</td>
               <td class="no-num">${b.leads.toLocaleString(undefined, { maximumFractionDigits: 1 })}</td>
               <td class="no-num">${peso(b.costPerLead)}</td>
+              <td class="no-num">${b.leadsFB.toLocaleString(undefined, { maximumFractionDigits: 1 })}</td>
               <td class="no-num">${b.purchases.toLocaleString(undefined, { maximumFractionDigits: 1 })}</td>
               <td class="no-num">${peso(b.costPerPurchase)}</td>
               <td class="no-num">${b.reach.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
@@ -4018,9 +4043,10 @@ Then extract:
         spend: acc.spend + r.spend,
         messages: acc.messages + r.messages,
         leads: acc.leads + r.leads,
+        leadsFB: acc.leadsFB + r.leadsFB,
         purchases: acc.purchases + r.purchases,
         reach: acc.reach + r.reach,
-      }), { spend: 0, messages: 0, leads: 0, purchases: 0, reach: 0 });
+      }), { spend: 0, messages: 0, leads: 0, leadsFB: 0, purchases: 0, reach: 0 });
 
       const withCosts = s => ({
         ...s,
@@ -4031,7 +4057,7 @@ Then extract:
       });
       const scale = (s, factor) => withCosts({
         spend: s.spend * factor, messages: s.messages * factor,
-        leads: s.leads * factor,
+        leads: s.leads * factor, leadsFB: s.leadsFB * factor,
         purchases: s.purchases * factor, reach: s.reach * factor,
       });
 
@@ -4069,10 +4095,18 @@ Then extract:
         // returns a stale/empty row), so fetch it separately and merge it
         // in — the table then shows today's running spend even though the
         // averages below still exclude it as an unfinished day.
-        const [daily, todayRows] = await Promise.all([
+        const fbPageId = localStorage.getItem(FB_PAGE_ID_STORAGE) || '';
+        const fbPageToken = localStorage.getItem(FB_PAGE_TOKEN_STORAGE) || '';
+        const [daily, todayRows, leadsByDateResult] = await Promise.all([
           adsFetchInsights(token, accountId, ADS_DATE_PRESET),
           adsFetchInsights(token, accountId, 'today'),
+          // Best-effort — Leads (FB) needs the Page token to also have
+          // leads_retrieval permission (set up in the Leads card). If it's
+          // missing/unauthorized, still show the rest of the table rather
+          // than failing the whole load.
+          adsFetchLeadsByDate(fbPageId, fbPageToken).catch(() => null),
         ]);
+        const leadsByDate = leadsByDateResult || {};
         const merged = [...daily];
         todayRows.forEach(t => {
           const idx = merged.findIndex(d => d.date_start === t.date_start);
@@ -4083,6 +4117,7 @@ Then extract:
             const spend = Number(d.spend) || 0;
             const messages = adsCountActions(d, ADS_MESSAGE_ACTION_TYPES);
             const leads = adsCountActions(d, ADS_LEAD_ACTION_TYPES);
+            const leadsFB = leadsByDate[d.date_start] || 0;
             const purchases = adsCountActions(d, ADS_PURCHASE_ACTION_TYPES);
             const reach = Number(d.reach) || 0;
             return {
@@ -4092,6 +4127,7 @@ Then extract:
               costPerMessage: adsCostPer(spend, messages),
               leads,
               costPerLead: adsCostPer(spend, leads),
+              leadsFB,
               purchases,
               costPerPurchase: adsCostPer(spend, purchases),
               reach,
@@ -4101,7 +4137,7 @@ Then extract:
           .sort((a, b) => b.date.localeCompare(a.date));
         renderRows(rows);
         renderAverages(computeAverageBases(rows));
-        setStatus('Loaded ✓', 'success');
+        setStatus(leadsByDateResult === null ? 'Loaded ✓ (Leads (FB) unavailable — check Page token has leads_retrieval)' : 'Loaded ✓', leadsByDateResult === null ? 'error' : 'success');
       } catch (err) {
         setStatus(`Error: ${err.message}`, 'error');
         tableEl.innerHTML = '';

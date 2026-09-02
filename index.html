@@ -3862,6 +3862,7 @@ Then extract:
 
   const ADS_MESSAGE_ACTION_TYPES = ['onsite_conversion.messaging_conversation_started_7d'];
   const ADS_PURCHASE_ACTION_TYPES = ['omni_purchase', 'purchase', 'offsite_conversion.fb_pixel_purchase'];
+  const ADS_LEAD_ACTION_TYPES = ['lead', 'onsite_conversion.lead_grouped', 'offsite_conversion.fb_pixel_lead'];
 
   async function adsFetchInsights(token, accountId, datePreset) {
     const acct = accountId.trim().replace(/^act_/, '');
@@ -3949,7 +3950,7 @@ Then extract:
       }
       tableEl.innerHTML = `
         <thead><tr>
-          <th>Date</th><th>Day</th><th>Spend</th><th>Messages</th><th>Cost/message</th><th>Purchases</th><th>Cost/purchase</th><th>Reach</th><th>Cost/reach</th>
+          <th>Date</th><th>Day</th><th>Spend</th><th>Messages</th><th>Cost/message</th><th>Leads</th><th>Cost/lead</th><th>Purchases</th><th>Cost/purchase</th><th>Reach</th><th>Cost/reach</th>
         </tr></thead>
         <tbody>
           ${rows.map(r => `
@@ -3959,6 +3960,8 @@ Then extract:
               <td class="no-num">${peso(r.spend)}</td>
               <td class="no-num">${r.messages.toLocaleString()}</td>
               <td class="no-num">${peso(r.costPerMessage)}</td>
+              <td class="no-num">${r.leads.toLocaleString()}</td>
+              <td class="no-num">${peso(r.costPerLead)}</td>
               <td class="no-num">${r.purchases.toLocaleString()}</td>
               <td class="no-num">${peso(r.costPerPurchase)}</td>
               <td class="no-num">${r.reach.toLocaleString()}</td>
@@ -3972,7 +3975,7 @@ Then extract:
     function renderAverages(bases) {
       avgTableEl.innerHTML = `
         <thead><tr>
-          <th>Basis</th><th>Spend</th><th>Messages</th><th>Cost/message</th><th>Purchases</th><th>Cost/purchase</th><th>Reach</th><th>Cost/reach</th>
+          <th>Basis</th><th>Spend</th><th>Messages</th><th>Cost/message</th><th>Leads</th><th>Cost/lead</th><th>Purchases</th><th>Cost/purchase</th><th>Reach</th><th>Cost/reach</th>
         </tr></thead>
         <tbody>
           ${bases.map(b => `
@@ -3981,6 +3984,8 @@ Then extract:
               <td class="no-num">${peso(b.spend)}</td>
               <td class="no-num">${b.messages.toLocaleString(undefined, { maximumFractionDigits: 1 })}</td>
               <td class="no-num">${peso(b.costPerMessage)}</td>
+              <td class="no-num">${b.leads.toLocaleString(undefined, { maximumFractionDigits: 1 })}</td>
+              <td class="no-num">${peso(b.costPerLead)}</td>
               <td class="no-num">${b.purchases.toLocaleString(undefined, { maximumFractionDigits: 1 })}</td>
               <td class="no-num">${peso(b.costPerPurchase)}</td>
               <td class="no-num">${b.reach.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
@@ -3998,18 +4003,21 @@ Then extract:
       const sumRange = list => list.reduce((acc, r) => ({
         spend: acc.spend + r.spend,
         messages: acc.messages + r.messages,
+        leads: acc.leads + r.leads,
         purchases: acc.purchases + r.purchases,
         reach: acc.reach + r.reach,
-      }), { spend: 0, messages: 0, purchases: 0, reach: 0 });
+      }), { spend: 0, messages: 0, leads: 0, purchases: 0, reach: 0 });
 
       const withCosts = s => ({
         ...s,
         costPerMessage: adsCostPer(s.spend, s.messages),
+        costPerLead: adsCostPer(s.spend, s.leads),
         costPerPurchase: adsCostPer(s.spend, s.purchases),
         costPerReach: adsCostPer(s.spend, s.reach),
       });
       const scale = (s, factor) => withCosts({
         spend: s.spend * factor, messages: s.messages * factor,
+        leads: s.leads * factor,
         purchases: s.purchases * factor, reach: s.reach * factor,
       });
 
@@ -4060,6 +4068,7 @@ Then extract:
           .map(d => {
             const spend = Number(d.spend) || 0;
             const messages = adsCountActions(d, ADS_MESSAGE_ACTION_TYPES);
+            const leads = adsCountActions(d, ADS_LEAD_ACTION_TYPES);
             const purchases = adsCountActions(d, ADS_PURCHASE_ACTION_TYPES);
             const reach = Number(d.reach) || 0;
             return {
@@ -4067,6 +4076,8 @@ Then extract:
               spend,
               messages,
               costPerMessage: adsCostPer(spend, messages),
+              leads,
+              costPerLead: adsCostPer(spend, leads),
               purchases,
               costPerPurchase: adsCostPer(spend, purchases),
               reach,

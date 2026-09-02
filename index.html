@@ -3873,12 +3873,20 @@ Then extract:
   async function adsFetchInsights(token, accountId, datePreset) {
     const acct = accountId.trim().replace(/^act_/, '');
     const fields = 'spend,reach,actions';
+    // action_report_time=conversion buckets action counts (leads, messages,
+    // purchases) by the date the event actually happened, not the date of
+    // the ad click/impression that's credited for it. Without this, a lead
+    // that clicked an ad on day N but submitted the form on day N+3 shows up
+    // under day N here — which doesn't match Meta's own Leads Center /
+    // Business Suite Leads page (confirmed: caused a same-day undercount
+    // against Business Suite's reported total).
+    const attributionParams = 'action_report_time=conversion';
     // Facebook's default page size for a daily-broken-down query is smaller
     // than the requested window and returns oldest-first, so reading only
     // the first page silently cut off the most recent days (confirmed: a
     // 30-day window was only showing up through day ~25). Follow pagination
     // fully.
-    let url = `https://graph.facebook.com/${ADS_GRAPH_VERSION}/act_${encodeURIComponent(acct)}/insights?fields=${fields}&date_preset=${datePreset}&time_increment=1&limit=100&access_token=${encodeURIComponent(token)}`;
+    let url = `https://graph.facebook.com/${ADS_GRAPH_VERSION}/act_${encodeURIComponent(acct)}/insights?fields=${fields}&date_preset=${datePreset}&time_increment=1&${attributionParams}&limit=100&access_token=${encodeURIComponent(token)}`;
     const rows = [];
     let pages = 0;
     while (url && pages < 10) {

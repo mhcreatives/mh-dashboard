@@ -777,8 +777,8 @@
       try {
         const invEq = s => `{Status}="${s}"`;
         const souEq = s => `{Status}="${s}"`;
-        const invF = (filter) => otFetchRecords(apiKey, INV_TABLE, INV_STATUS, INV_TOTAL, INV_DATE_FINISHED, filter, [INV_QUOTA, INV_ASSIGNEE, INV_SOUVENIR_TOTAL]);
-        const souF = (filter) => otFetchRecords(apiKey, SOU_TABLE, SOU_STATUS, SOU_TOTAL, SOU_DATE_FINISHED, filter);
+        const invF = (filter) => otFetchRecords(apiKey, INV_TABLE, INV_STATUS, INV_TOTAL, INV_DATE_FINISHED, filter, [INV_QUOTA, INV_ASSIGNEE, INV_SOUVENIR_TOTAL, INV_GRAND_TOTAL, ADDITIONAL_ORDER_FIELD]);
+        const souF = (filter) => otFetchRecords(apiKey, SOU_TABLE, SOU_STATUS, SOU_TOTAL, SOU_DATE_FINISHED, filter, [SOU_INV_LINK]);
 
         const invStatusOr = (...names) => `OR(${names.map(n => `{Status}="${n}"`).join(',')})`;
         const souStatusOr = (...names) => `OR(${names.map(n => `{Status}="${n}"`).join(',')})`;
@@ -804,21 +804,38 @@
         // in (previously only "For posting" was date-gated, so anything
         // still in an earlier status counted forever until it moved,
         // showing a nonzero total even first thing Monday morning).
-        const invOrderDoneEligible = invOrderDoneCandidates.filter(r => otIsInCurrentWeek(r.fields?.[INV_DATE_FINISHED]));
-        const invOrderDoneTodayEligible = invOrderDoneCandidates.filter(r => otIsToday(r.fields?.[INV_DATE_FINISHED]));
+        //
+        // Order Done sums the "Total" (grand total, INV_GRAND_TOTAL) field
+        // instead of "Own Total" — Total already folds in any bundled
+        // souvenir/rush/SF amounts, so this is the true order value. Records
+        // with "Additional order" checked are excluded: they're rider/split
+        // records whose charge is captured on the main order's own
+        // "Additional" field instead, so counting them too would double it
+        // (confirmed: both such records in a live check carried Total=0,
+        // i.e. they exist purely for tracking, not as separate revenue).
+        const invOrderDoneEligibleAll = invOrderDoneCandidates.filter(r => !r.fields?.[ADDITIONAL_ORDER_FIELD]);
+        const invOrderDoneEligible = invOrderDoneEligibleAll.filter(r => otIsInCurrentWeek(r.fields?.[INV_DATE_FINISHED]));
+        const invOrderDoneTodayEligible = invOrderDoneEligibleAll.filter(r => otIsToday(r.fields?.[INV_DATE_FINISHED]));
         const invPrinting = otSumTotals(printingRecords, INV_TOTAL);
         const invAssemble = otSumTotals(assignedAssemblyRecords, INV_TOTAL);
-        const invOrderDone = otSumTotals(invOrderDoneEligible, INV_TOTAL);
-        const invOrderDoneToday = otSumTotals(invOrderDoneTodayEligible, INV_TOTAL);
+        const invOrderDone = otSumTotals(invOrderDoneEligible, INV_GRAND_TOTAL);
+        const invOrderDoneToday = otSumTotals(invOrderDoneTodayEligible, INV_GRAND_TOTAL);
 
         // ── Souvenir side ────────────────────────────────────────────────────
-        // If the linked Invitation is in the printing/assembly queue (Quota
-        // checked or has an assignee), its linked souvenir's total counts in
-        // that same bucket here too — a bundled souvenir should track its
-        // parent invitation's production stage, not just its own Status field
-        // (which may not have been updated to match yet).
-        const souOrderDoneEligible = souOrderDoneCandidates.filter(r => otIsInCurrentWeek(r.fields?.[SOU_DATE_FINISHED]));
-        const souOrderDoneTodayEligible = souOrderDoneCandidates.filter(r => otIsToday(r.fields?.[SOU_DATE_FINISHED]));
+        // Printing/Assemble buckets: if the linked Invitation is in the
+        // printing/assembly queue (Quota checked or has an assignee), its
+        // linked souvenir's total counts in that same bucket here too — a
+        // bundled souvenir should track its parent invitation's production
+        // stage, not just its own Status field (which may not have been
+        // updated to match yet).
+        //
+        // Order Done: only *solo* souvenir orders (no linked Invitation) are
+        // counted here — a bundled souvenir's value is already folded into
+        // its parent Invitation's Total field above, so including it again
+        // via its own Souvenir-table Status/Date finished would double-count it.
+        const souOrderDoneSoloAll = souOrderDoneCandidates.filter(r => !Array.isArray(r.fields?.[SOU_INV_LINK]) || r.fields[SOU_INV_LINK].length === 0);
+        const souOrderDoneEligible = souOrderDoneSoloAll.filter(r => otIsInCurrentWeek(r.fields?.[SOU_DATE_FINISHED]));
+        const souOrderDoneTodayEligible = souOrderDoneSoloAll.filter(r => otIsToday(r.fields?.[SOU_DATE_FINISHED]));
         const souPrintingTotal = otSumTotals(souPrinting, SOU_TOTAL) + otSumTotals(printingRecords, INV_SOUVENIR_TOTAL);
         const souAssembleTotal = otSumTotals(souAssignedAssembly, SOU_TOTAL) + otSumTotals(assignedAssemblyRecords, INV_SOUVENIR_TOTAL);
         const souOrderDone = otSumTotals(souOrderDoneEligible, SOU_TOTAL);

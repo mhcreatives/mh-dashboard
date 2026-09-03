@@ -1,6 +1,13 @@
 {
   "dailyTasks": [
     {
+      "id": "mtl3l741ctysf0",
+      "text": "Cutting for friday",
+      "done": false,
+      "priority": "none",
+      "dueDate": null
+    },
+    {
       "id": "mtl3l2tod225yw",
       "text": "Printing for friday",
       "done": false,

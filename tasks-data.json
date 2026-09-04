@@ -8,6 +8,13 @@
       "dueDate": null
     },
     {
+      "id": "mtma9nxekfukgx",
+      "text": "Gatefold template",
+      "done": false,
+      "priority": "none",
+      "dueDate": null
+    },
+    {
       "id": "mtmabgooc5u0cl",
       "text": "PMS",
       "done": false,
@@ -24,13 +31,6 @@
     {
       "id": "mtmabcm3bwwwx0",
       "text": "LBC and J&T shipping",
-      "done": false,
-      "priority": "none",
-      "dueDate": null
-    },
-    {
-      "id": "mtma9nxekfukgx",
-      "text": "Gatefold template",
       "done": false,
       "priority": "none",
       "dueDate": null

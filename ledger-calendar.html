@@ -1212,6 +1212,16 @@
       return s;
     }, 0);
   }
+  // same idea as one-time expenses: a recurring expense already checked
+  // paid for this month has already come out of real cash, so it must
+  // drop out of the forward projection or it gets subtracted twice.
+  function recurringUnpaidTotalForKey(key){
+    return state.recurringExpenses.reduce(function(s,r){
+      if (key < r.startKey || key > r.endKey) return s;
+      if (r.paidMonths && r.paidMonths[key]) return s;
+      return s + (Number(r.amount) || 0);
+    }, 0);
+  }
   function renderRecurTotal(){
     document.getElementById("recurTotal").textContent = fmt(recurringTotalForKey(currentMonthKey()));
   }
@@ -1451,8 +1461,9 @@
       var oneTimeUnpaidTotal = m.expenses.reduce(function(s,e){ return s + (e.paid ? 0 : (Number(e.amount)||0)); }, 0);
       var fixedTotal = FIXED_EXPENSE_NAMES.reduce(function(s,n){ return s + (Number(m.fixed[n])||0); }, 0);
       var recurTotal = recurringTotalForKey(key);
+      var recurUnpaidTotal = recurringUnpaidTotalForKey(key);
       var expTotal = oneTimeTotal + fixedTotal + recurTotal;
-      var projectedExpTotal = oneTimeUnpaidTotal + fixedTotal + recurTotal;
+      var projectedExpTotal = oneTimeUnpaidTotal + fixedTotal + recurUnpaidTotal;
       var start = running;
       var net = earned - projectedExpTotal;
       var end = start + net;

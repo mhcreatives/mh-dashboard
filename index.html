@@ -400,7 +400,14 @@
   </div>
   <div id="page-tasks" class="page-panel"><div id="cards-tasks"></div></div>
   <div id="page-ledger" class="page-panel">
-    <iframe src="ledger-calendar.html" class="assign-frame" title="Ledger Calendar"></iframe>
+    <iframe class="assign-frame" title="Ledger Calendar" id="ledgerFrame"></iframe>
+    <script>
+      // GitHub Pages/browsers can cache this file for a while, so a fix
+      // pushed to ledger-calendar.html doesn't always show up on reload —
+      // force a fresh fetch every time this tab is opened by cache-busting
+      // the URL, instead of leaving stale JS running silently.
+      document.getElementById('ledgerFrame').src = 'ledger-calendar.html?v=' + Date.now();
+    </script>
   </div>
 
 </div>

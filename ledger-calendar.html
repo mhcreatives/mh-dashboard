@@ -1792,7 +1792,10 @@
       return;
     }
     document.getElementById("cashUpdateMonthLabel").textContent = monthLabel(todayKey);
-    document.getElementById("cashUpdateAmount").value = "";
+    var currentFigure = computeMonthFigures()[todayKey];
+    var amountEl = document.getElementById("cashUpdateAmount");
+    amountEl.value = currentFigure ? Math.round(currentFigure.start) : "";
+    amountEl.select();
     cashUpdatePanel.hidden = false;
   });
   document.getElementById("closeCashUpdate").addEventListener("click", function(){

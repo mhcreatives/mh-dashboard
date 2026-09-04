@@ -5,7 +5,7 @@
     "Maya 1": 29112,
     "Maya 2": 57656,
     "Maya savings": 206702,
-    "UB": 170544,
+    "UB": 182330,
     "CBS": 84088,
     "Loans": 85000,
     "Others": 0
@@ -147,7 +147,10 @@
         "Ads": 0,
         "Electricity": 0
       },
-      "cashOverride": null
+      "cashOverride": {
+        "amount": 908102,
+        "date": "2026-08-31"
+      }
     },
     "2026-09": {
       "earned": 800000,
@@ -164,7 +167,10 @@
         "Ads": 168000,
         "Electricity": 5000
       },
-      "cashOverride": null
+      "cashOverride": {
+        "amount": 937833,
+        "date": "2026-09-05"
+      }
     },
     "2026-10": {
       "earned": 800000,

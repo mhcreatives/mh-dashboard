@@ -147,7 +147,10 @@
         "Ads": 0,
         "Electricity": 0
       },
-      "cashOverride": null
+      "cashOverride": {
+        "amount": 908102,
+        "date": "2026-08-31"
+      }
     },
     "2026-09": {
       "earned": 800000,

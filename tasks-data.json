@@ -1,6 +1,13 @@
 {
   "dailyTasks": [
     {
+      "id": "mtmalgcb700sty",
+      "text": "Solihiya trifold",
+      "done": false,
+      "priority": "none",
+      "dueDate": null
+    },
+    {
       "id": "mtmabgooc5u0cl",
       "text": "PMS",
       "done": false,

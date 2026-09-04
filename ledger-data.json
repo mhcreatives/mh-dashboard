@@ -159,7 +159,7 @@
           "id": "whcorsat",
           "name": "Maya credit",
           "amount": 21013,
-          "paid": false
+          "paid": true
         }
       ],
       "fixed": {

@@ -1792,9 +1792,8 @@
       return;
     }
     document.getElementById("cashUpdateMonthLabel").textContent = monthLabel(todayKey);
-    var currentFigure = computeMonthFigures()[todayKey];
     var amountEl = document.getElementById("cashUpdateAmount");
-    amountEl.value = currentFigure ? Math.round(currentFigure.start) : "";
+    amountEl.value = Math.round(totalCashOnHand());
     amountEl.select();
     cashUpdatePanel.hidden = false;
   });

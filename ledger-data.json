@@ -1,13 +1,13 @@
 {
   "accounts": {
-    "Gcash 1": 229980,
-    "Gcash 2": 54146,
-    "Maya 1": 17350,
-    "Maya 2": 58395,
+    "Gcash 1": 267475,
+    "Gcash 2": 25470,
+    "Maya 1": 27,
+    "Maya 2": 57656,
     "Maya savings": 206702,
     "UB": 170544,
     "CBS": 84088,
-    "Loans": 87500,
+    "Loans": 85000,
     "Others": 0
   },
   "liabilities": [
@@ -146,7 +146,8 @@
         "Materials": 0,
         "Ads": 0,
         "Electricity": 0
-      }
+      },
+      "cashOverride": null
     },
     "2026-09": {
       "earned": 800000,
@@ -162,7 +163,8 @@
         "Materials": 120000,
         "Ads": 168000,
         "Electricity": 5000
-      }
+      },
+      "cashOverride": null
     },
     "2026-10": {
       "earned": 800000,
@@ -178,7 +180,8 @@
         "Materials": 120000,
         "Ads": 168000,
         "Electricity": 5000
-      }
+      },
+      "cashOverride": null
     },
     "2026-11": {
       "earned": 800000,
@@ -188,7 +191,8 @@
         "Materials": 120000,
         "Ads": 168000,
         "Electricity": 5000
-      }
+      },
+      "cashOverride": null
     },
     "2026-12": {
       "earned": 800000,
@@ -198,7 +202,8 @@
         "Materials": 120000,
         "Ads": 168000,
         "Electricity": 5000
-      }
+      },
+      "cashOverride": null
     },
     "2027-01": {
       "earned": 0,
@@ -208,7 +213,8 @@
         "Materials": 0,
         "Ads": 0,
         "Electricity": 0
-      }
+      },
+      "cashOverride": null
     },
     "2027-02": {
       "earned": 0,
@@ -218,7 +224,8 @@
         "Materials": 0,
         "Ads": 0,
         "Electricity": 0
-      }
+      },
+      "cashOverride": null
     },
     "2027-03": {
       "earned": 0,
@@ -228,7 +235,8 @@
         "Materials": 0,
         "Ads": 0,
         "Electricity": 0
-      }
+      },
+      "cashOverride": null
     },
     "2027-04": {
       "earned": 0,
@@ -238,7 +246,8 @@
         "Materials": 0,
         "Ads": 0,
         "Electricity": 0
-      }
+      },
+      "cashOverride": null
     },
     "2027-05": {
       "earned": 0,
@@ -248,7 +257,8 @@
         "Materials": 0,
         "Ads": 0,
         "Electricity": 0
-      }
+      },
+      "cashOverride": null
     },
     "2027-06": {
       "earned": 0,
@@ -258,7 +268,8 @@
         "Materials": 0,
         "Ads": 0,
         "Electricity": 0
-      }
+      },
+      "cashOverride": null
     },
     "2027-07": {
       "earned": 0,
@@ -268,7 +279,8 @@
         "Materials": 0,
         "Ads": 0,
         "Electricity": 0
-      }
+      },
+      "cashOverride": null
     },
     "2027-08": {
       "earned": 0,
@@ -278,7 +290,8 @@
         "Materials": 0,
         "Ads": 0,
         "Electricity": 0
-      }
+      },
+      "cashOverride": null
     },
     "2027-09": {
       "earned": 0,
@@ -288,7 +301,8 @@
         "Materials": 0,
         "Ads": 0,
         "Electricity": 0
-      }
+      },
+      "cashOverride": null
     },
     "2027-10": {
       "earned": 0,
@@ -298,7 +312,8 @@
         "Materials": 0,
         "Ads": 0,
         "Electricity": 0
-      }
+      },
+      "cashOverride": null
     },
     "2027-11": {
       "earned": 0,
@@ -308,7 +323,8 @@
         "Materials": 0,
         "Ads": 0,
         "Electricity": 0
-      }
+      },
+      "cashOverride": null
     },
     "2027-12": {
       "earned": 0,
@@ -318,7 +334,8 @@
         "Materials": 0,
         "Ads": 0,
         "Electricity": 0
-      }
+      },
+      "cashOverride": null
     },
     "2028-01": {
       "earned": 0,
@@ -328,7 +345,8 @@
         "Materials": 0,
         "Ads": 0,
         "Electricity": 0
-      }
+      },
+      "cashOverride": null
     },
     "2028-02": {
       "earned": 0,
@@ -338,7 +356,8 @@
         "Materials": 0,
         "Ads": 0,
         "Electricity": 0
-      }
+      },
+      "cashOverride": null
     },
     "2028-03": {
       "earned": 0,
@@ -348,7 +367,8 @@
         "Materials": 0,
         "Ads": 0,
         "Electricity": 0
-      }
+      },
+      "cashOverride": null
     },
     "2028-04": {
       "earned": 0,
@@ -358,7 +378,8 @@
         "Materials": 0,
         "Ads": 0,
         "Electricity": 0
-      }
+      },
+      "cashOverride": null
     },
     "2028-05": {
       "earned": 0,
@@ -368,7 +389,8 @@
         "Materials": 0,
         "Ads": 0,
         "Electricity": 0
-      }
+      },
+      "cashOverride": null
     },
     "2028-06": {
       "earned": 0,
@@ -378,7 +400,8 @@
         "Materials": 0,
         "Ads": 0,
         "Electricity": 0
-      }
+      },
+      "cashOverride": null
     },
     "2028-07": {
       "earned": 0,
@@ -388,7 +411,8 @@
         "Materials": 0,
         "Ads": 0,
         "Electricity": 0
-      }
+      },
+      "cashOverride": null
     },
     "2028-08": {
       "earned": 0,
@@ -398,7 +422,8 @@
         "Materials": 0,
         "Ads": 0,
         "Electricity": 0
-      }
+      },
+      "cashOverride": null
     },
     "2028-09": {
       "earned": 0,
@@ -408,7 +433,8 @@
         "Materials": 0,
         "Ads": 0,
         "Electricity": 0
-      }
+      },
+      "cashOverride": null
     },
     "2028-10": {
       "earned": 0,
@@ -418,7 +444,8 @@
         "Materials": 0,
         "Ads": 0,
         "Electricity": 0
-      }
+      },
+      "cashOverride": null
     },
     "2028-11": {
       "earned": 0,
@@ -428,7 +455,8 @@
         "Materials": 0,
         "Ads": 0,
         "Electricity": 0
-      }
+      },
+      "cashOverride": null
     },
     "2028-12": {
       "earned": 0,
@@ -438,7 +466,8 @@
         "Materials": 0,
         "Ads": 0,
         "Electricity": 0
-      }
+      },
+      "cashOverride": null
     }
   }
 }

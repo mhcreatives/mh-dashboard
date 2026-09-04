@@ -1,6 +1,76 @@
 {
   "dailyTasks": [
     {
+      "id": "mtma9nxekfukgx",
+      "text": "Gatefold template",
+      "done": true,
+      "priority": "none",
+      "dueDate": null
+    },
+    {
+      "id": "mtmalgcb700sty",
+      "text": "Solihiya trifold",
+      "done": false,
+      "priority": "none",
+      "dueDate": null
+    },
+    {
+      "id": "mtmabcm3bwwwx0",
+      "text": "LBC and J&T shipping",
+      "done": false,
+      "priority": "none",
+      "dueDate": null
+    },
+    {
+      "id": "mtmabgooc5u0cl",
+      "text": "PMS",
+      "done": true,
+      "priority": "none",
+      "dueDate": null
+    },
+    {
+      "id": "mtl3ldv2r5lmjg",
+      "text": "Packaging",
+      "done": true,
+      "priority": "none",
+      "dueDate": null
+    },
+    {
+      "id": "mtl3lbvzcta93p",
+      "text": "Water",
+      "done": true,
+      "priority": "none",
+      "dueDate": null
+    },
+    {
+      "id": "mtl3l741ctysf0",
+      "text": "Cutting for friday",
+      "done": true,
+      "priority": "none",
+      "dueDate": null
+    },
+    {
+      "id": "mtl3l2tod225yw",
+      "text": "Printing for friday",
+      "done": true,
+      "priority": "none",
+      "dueDate": null
+    },
+    {
+      "id": "mtjb1zqrmvll32",
+      "text": "Cutting for thursday",
+      "done": true,
+      "priority": "none",
+      "dueDate": null
+    },
+    {
+      "id": "mtjb1qu0vz1a8r",
+      "text": "Printing for thursday",
+      "done": true,
+      "priority": "none",
+      "dueDate": null
+    },
+    {
       "id": "mthussvb8ai0cn",
       "text": "Inventory",
       "done": true,
@@ -10,21 +80,14 @@
     {
       "id": "mthtuqmcehqk9i",
       "text": "Cutting for wednesday",
-      "done": false,
+      "done": true,
       "priority": "none",
       "dueDate": null
     },
     {
       "id": "mthtujls3mtdhc",
       "text": "Printing for wednesday",
-      "done": false,
-      "priority": "none",
-      "dueDate": null
-    },
-    {
-      "id": "mthcbka5v2sorm",
-      "text": "archive for balance",
-      "done": false,
+      "done": true,
       "priority": "none",
       "dueDate": null
     },

@@ -221,6 +221,11 @@
   .task-row { display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-bottom: 1px solid #1e1e1e; border-radius: 6px; transition: background 0.15s; }
   .task-row:last-child { border-bottom: none; }
   .task-row:hover { background: #161616; }
+  .task-row[draggable="true"] { cursor: grab; }
+  .task-row.dragging { opacity: 0.4; }
+  .task-row.drag-over-top { border-top: 2px solid var(--task-accent-color, #5b9bd5); }
+  .task-row.drag-over-bottom { border-bottom: 2px solid var(--task-accent-color, #5b9bd5); }
+  .task-drag-handle { flex: none; color: #555; cursor: grab; font-size: 12px; padding: 0 2px; user-select: none; }
 
   /* Todoist-style round checkbox — color-coded by priority when open,
      fills solid with a checkmark once done, regardless of priority.
@@ -777,8 +782,8 @@
       try {
         const invEq = s => `{Status}="${s}"`;
         const souEq = s => `{Status}="${s}"`;
-        const invF = (filter) => otFetchRecords(apiKey, INV_TABLE, INV_STATUS, INV_TOTAL, INV_DATE_FINISHED, filter, [INV_QUOTA, INV_ASSIGNEE, INV_SOUVENIR_TOTAL]);
-        const souF = (filter) => otFetchRecords(apiKey, SOU_TABLE, SOU_STATUS, SOU_TOTAL, SOU_DATE_FINISHED, filter);
+        const invF = (filter) => otFetchRecords(apiKey, INV_TABLE, INV_STATUS, INV_TOTAL, INV_DATE_FINISHED, filter, [INV_QUOTA, INV_ASSIGNEE, INV_SOUVENIR_TOTAL, INV_GRAND_TOTAL, ADDITIONAL_ORDER_FIELD]);
+        const souF = (filter) => otFetchRecords(apiKey, SOU_TABLE, SOU_STATUS, SOU_TOTAL, SOU_DATE_FINISHED, filter, [SOU_INV_LINK]);
 
         const invStatusOr = (...names) => `OR(${names.map(n => `{Status}="${n}"`).join(',')})`;
         const souStatusOr = (...names) => `OR(${names.map(n => `{Status}="${n}"`).join(',')})`;
@@ -804,21 +809,38 @@
         // in (previously only "For posting" was date-gated, so anything
         // still in an earlier status counted forever until it moved,
         // showing a nonzero total even first thing Monday morning).
-        const invOrderDoneEligible = invOrderDoneCandidates.filter(r => otIsInCurrentWeek(r.fields?.[INV_DATE_FINISHED]));
-        const invOrderDoneTodayEligible = invOrderDoneCandidates.filter(r => otIsToday(r.fields?.[INV_DATE_FINISHED]));
+        //
+        // Order Done sums the "Total" (grand total, INV_GRAND_TOTAL) field
+        // instead of "Own Total" — Total already folds in any bundled
+        // souvenir/rush/SF amounts, so this is the true order value. Records
+        // with "Additional order" checked are excluded: they're rider/split
+        // records whose charge is captured on the main order's own
+        // "Additional" field instead, so counting them too would double it
+        // (confirmed: both such records in a live check carried Total=0,
+        // i.e. they exist purely for tracking, not as separate revenue).
+        const invOrderDoneEligibleAll = invOrderDoneCandidates.filter(r => !r.fields?.[ADDITIONAL_ORDER_FIELD]);
+        const invOrderDoneEligible = invOrderDoneEligibleAll.filter(r => otIsInCurrentWeek(r.fields?.[INV_DATE_FINISHED]));
+        const invOrderDoneTodayEligible = invOrderDoneEligibleAll.filter(r => otIsToday(r.fields?.[INV_DATE_FINISHED]));
         const invPrinting = otSumTotals(printingRecords, INV_TOTAL);
         const invAssemble = otSumTotals(assignedAssemblyRecords, INV_TOTAL);
-        const invOrderDone = otSumTotals(invOrderDoneEligible, INV_TOTAL);
-        const invOrderDoneToday = otSumTotals(invOrderDoneTodayEligible, INV_TOTAL);
+        const invOrderDone = otSumTotals(invOrderDoneEligible, INV_GRAND_TOTAL);
+        const invOrderDoneToday = otSumTotals(invOrderDoneTodayEligible, INV_GRAND_TOTAL);
 
         // ── Souvenir side ────────────────────────────────────────────────────
-        // If the linked Invitation is in the printing/assembly queue (Quota
-        // checked or has an assignee), its linked souvenir's total counts in
-        // that same bucket here too — a bundled souvenir should track its
-        // parent invitation's production stage, not just its own Status field
-        // (which may not have been updated to match yet).
-        const souOrderDoneEligible = souOrderDoneCandidates.filter(r => otIsInCurrentWeek(r.fields?.[SOU_DATE_FINISHED]));
-        const souOrderDoneTodayEligible = souOrderDoneCandidates.filter(r => otIsToday(r.fields?.[SOU_DATE_FINISHED]));
+        // Printing/Assemble buckets: if the linked Invitation is in the
+        // printing/assembly queue (Quota checked or has an assignee), its
+        // linked souvenir's total counts in that same bucket here too — a
+        // bundled souvenir should track its parent invitation's production
+        // stage, not just its own Status field (which may not have been
+        // updated to match yet).
+        //
+        // Order Done: only *solo* souvenir orders (no linked Invitation) are
+        // counted here — a bundled souvenir's value is already folded into
+        // its parent Invitation's Total field above, so including it again
+        // via its own Souvenir-table Status/Date finished would double-count it.
+        const souOrderDoneSoloAll = souOrderDoneCandidates.filter(r => !Array.isArray(r.fields?.[SOU_INV_LINK]) || r.fields[SOU_INV_LINK].length === 0);
+        const souOrderDoneEligible = souOrderDoneSoloAll.filter(r => otIsInCurrentWeek(r.fields?.[SOU_DATE_FINISHED]));
+        const souOrderDoneTodayEligible = souOrderDoneSoloAll.filter(r => otIsToday(r.fields?.[SOU_DATE_FINISHED]));
         const souPrintingTotal = otSumTotals(souPrinting, SOU_TOTAL) + otSumTotals(printingRecords, INV_SOUVENIR_TOTAL);
         const souAssembleTotal = otSumTotals(souAssignedAssembly, SOU_TOTAL) + otSumTotals(assignedAssemblyRecords, INV_SOUVENIR_TOTAL);
         const souOrderDone = otSumTotals(souOrderDoneEligible, SOU_TOTAL);
@@ -956,6 +978,12 @@
   const PROOF_FB_NAME = 'fld01zQJ86lA2f1F9';
   const PROOF_CLIENT_NUM = 'fld3csxglBQdezHDA';
   const PROOF_ATTACHMENT = 'fldHTnYGaKUoEkLYI';
+  const PROOF_SF = 'fldR1ZX638CalAqN9';
+  const PROOF_AREA = 'fld91fuFicejWURus';
+  const PROOF_AREA_CHOICES = ['NL', 'CL', 'NCR', 'SL', 'VIS', 'MIN'];
+  const SOU_PROOF_SF = 'fld1X3BHWdth72XX3';
+  const SOU_PROOF_AREA = 'fldcBvjJPCJp5B50c';
+  const SOU_AREA_CHOICES = ['NL', 'CL', 'NCR', 'SL', 'VIS', 'MIN', 'Batangas'];
 
   // Solo souvenir orders (no linked Invitation) — same Photo-status Proof
   // check as the Invitation table above, just on the Souvenir table's own
@@ -1003,13 +1031,23 @@
     return text.replace(/[​‌‍‎‏‪‫‬‭‮﻿]/g, '');
   }
 
+  // The "+ ₱X shipping fee" line always follows "Balance before ship out:"
+  // and is the same number as the SF field — pulled out on its own here so
+  // it can be checked against the field independently of the DP/Balance
+  // parse above (which folds this same amount into the balance total).
+  function extractShippingFee(text) {
+    const m = text.match(/\+\s*₱?\s*([\d,]+(?:\.\d+)?)\s*shipping fee/i);
+    return m ? parseFloat(m[1].replace(/,/g, '')) : null;
+  }
+
   function parseBreakdownFigures(text) {
     if (!text) return null;
     const clean = otStripBidiMarks(text);
     const dp = extractAmountWithShipping(clean, 'Downpayment');
     const balance = extractAmountWithShipping(clean, 'Balance before ship out');
     if (dp === null || balance === null) return null;
-    return { dp, balance };
+    const sf = extractShippingFee(clean);
+    return { dp, balance, sf };
   }
 
   // ─── Extension bridge ───────────────────────────────────────────────────
@@ -1069,7 +1107,7 @@
           <button class="icon-btn" data-act="scan">▶ Scan</button>
         </div>
       </div>
-      <div class="tool-desc">Photo-status orders with a Proof attached — checks Breakdown text against DP / Balance fields. Includes solo souvenir orders (no linked Invitation).</div>
+      <div class="tool-desc">Photo-status orders with a Proof attached — checks Breakdown text against DP / Balance / SF fields, shows Area (editable). Includes solo souvenir orders (no linked Invitation).</div>
       <div class="status-line" data-el="status"></div>
       <div class="proof-summary" data-el="summary"></div>
       <div class="proof-results" data-el="results"></div>
@@ -1173,6 +1211,14 @@
           ${m.unparsed ? `<div class="proof-diff">Could not find Downpayment / Balance before ship out lines in Breakdown</div>` : ''}
           ${!m.unparsed && !m.dpOk ? `<div class="proof-diff">DP: breakdown ${otFormatPeso(m.dpExpected)} ≠ field ${otFormatPeso(m.dpActual)}</div>` : ''}
           ${!m.unparsed && !m.balOk ? `<div class="proof-diff">Balance: breakdown ${otFormatPeso(m.balExpected)} ≠ field ${otFormatPeso(m.balActual)}</div>` : ''}
+          <div class="proof-diff" style="color:${(m.sfExpected == null) ? '#888' : (m.sfOk ? '#4ade80' : '#f87171')};">SF: breakdown ${m.sfExpected == null ? '—' : otFormatPeso(m.sfExpected)} ${m.sfOk ? '=' : '≠'} field ${otFormatPeso(m.sfActual)}</div>
+          <div style="display:flex; align-items:center; gap:6px; margin-top:6px;">
+            <span style="font-size:10px; color:#888;">Area:</span>
+            <select class="task-edit-priority" data-act="setArea" data-id="${m.id}" data-solo="${m.isSolo ? '1' : '0'}" data-field="${m.areaField}" style="font-size:11px;">
+              <option value="" ${!m.area ? 'selected' : ''}>—</option>
+              ${(m.areaChoices || []).map(a => `<option value="${a}" ${a === m.area ? 'selected' : ''}>${a}</option>`).join('')}
+            </select>
+          </div>
           <a class="proof-link" href="https://airtable.com/${OT_BASE_ID}/${m.isSolo ? SOU_TABLE : INV_TABLE}/${m.id}" target="_blank" rel="noopener">Open record ↗</a>
         </div>
       `).join('');
@@ -1194,12 +1240,12 @@
           otFetchRecords(
             apiKey, INV_TABLE, INV_STATUS, PROOF_DP, PROOF_BALANCE,
             `{Status}="Photo"`,
-            [PROOF_BREAKDOWN, PROOF_FB_NAME, PROOF_CLIENT_NUM, PROOF_ATTACHMENT]
+            [PROOF_BREAKDOWN, PROOF_FB_NAME, PROOF_CLIENT_NUM, PROOF_ATTACHMENT, PROOF_SF, PROOF_AREA]
           ),
           otFetchRecords(
             apiKey, SOU_TABLE, SOU_STATUS, SOU_PROOF_DP, SOU_PROOF_BALANCE,
             `{Status}="Photo"`,
-            [SOU_PROOF_BREAKDOWN, SOU_FB_NAME, SOU_PROOF_ATTACHMENT, SOU_INV_LINK]
+            [SOU_PROOF_BREAKDOWN, SOU_FB_NAME, SOU_PROOF_ATTACHMENT, SOU_INV_LINK, SOU_PROOF_SF, SOU_PROOF_AREA]
           ),
         ]);
         const records = allRecords.filter(r => Array.isArray(r.fields?.[PROOF_ATTACHMENT]) && r.fields[PROOF_ATTACHMENT].length > 0);
@@ -1215,42 +1261,50 @@
         records.forEach(r => {
           const name = r.fields?.[PROOF_FB_NAME] || 'Unnamed';
           const clientNum = r.fields?.[PROOF_CLIENT_NUM];
+          const area = r.fields?.[PROOF_AREA]?.name || '';
+          const sfActual = r.fields?.[PROOF_SF] ?? 0;
           const parsed = parseBreakdownFigures(r.fields?.[PROOF_BREAKDOWN]);
           if (!parsed) {
             skipped++;
-            mismatches.push({ id: r.id, name, clientNum, unparsed: true });
+            mismatches.push({ id: r.id, name, clientNum, area, sfActual, unparsed: true, areaField: PROOF_AREA, areaChoices: PROOF_AREA_CHOICES });
             return;
           }
           const dpActual = r.fields?.[PROOF_DP] ?? 0;
           const balActual = r.fields?.[PROOF_BALANCE] ?? 0;
           const dpOk = Math.abs(parsed.dp - dpActual) < 1;
           const balOk = Math.abs(parsed.balance - balActual) < 1;
-          if (dpOk && balOk) { ok++; return; }
+          const sfOk = parsed.sf === null || Math.abs(parsed.sf - sfActual) < 1;
+          if (dpOk && balOk && sfOk) { ok++; return; }
           mismatches.push({
             id: r.id,
-            name, clientNum,
+            name, clientNum, area, areaField: PROOF_AREA, areaChoices: PROOF_AREA_CHOICES,
             dpExpected: parsed.dp, dpActual, dpOk,
             balExpected: parsed.balance, balActual, balOk,
+            sfExpected: parsed.sf, sfActual, sfOk,
           });
         });
         soloSouRecords.forEach(r => {
           const name = r.fields?.[SOU_FB_NAME] || 'Unnamed';
+          const area = r.fields?.[SOU_PROOF_AREA]?.name || '';
+          const sfActual = r.fields?.[SOU_PROOF_SF] ?? 0;
           const parsed = parseBreakdownFigures(r.fields?.[SOU_PROOF_BREAKDOWN]);
           if (!parsed) {
             skipped++;
-            mismatches.push({ id: r.id, name, isSolo: true, unparsed: true });
+            mismatches.push({ id: r.id, name, isSolo: true, area, sfActual, unparsed: true, areaField: SOU_PROOF_AREA, areaChoices: SOU_AREA_CHOICES });
             return;
           }
           const dpActual = r.fields?.[SOU_PROOF_DP] ?? 0;
           const balActual = r.fields?.[SOU_PROOF_BALANCE] ?? 0;
           const dpOk = Math.abs(parsed.dp - dpActual) < 1;
           const balOk = Math.abs(parsed.balance - balActual) < 1;
-          if (dpOk && balOk) { ok++; return; }
+          const sfOk = parsed.sf === null || Math.abs(parsed.sf - sfActual) < 1;
+          if (dpOk && balOk && sfOk) { ok++; return; }
           mismatches.push({
             id: r.id,
-            name, isSolo: true,
+            name, isSolo: true, area, areaField: SOU_PROOF_AREA, areaChoices: SOU_AREA_CHOICES,
             dpExpected: parsed.dp, dpActual, dpOk,
             balExpected: parsed.balance, balActual, balOk,
+            sfExpected: parsed.sf, sfActual, sfOk,
           });
         });
 
@@ -1279,6 +1333,22 @@
         if (!val) return;
         localStorage.setItem(PROOF_EXT_ID_STORAGE, val);
         setSendStatus('Extension ID saved ✓', 'success');
+      }
+    });
+
+    card.addEventListener('change', async (e) => {
+      if (e.target.dataset.act !== 'setArea') return;
+      const apiKey = localStorage.getItem(OT_KEY_STORAGE) || '';
+      if (!apiKey) { setStatus('Set Airtable API key in Order Tracker first ↓', 'error'); return; }
+      const id = e.target.dataset.id;
+      const isSolo = e.target.dataset.solo === '1';
+      const val = e.target.value;
+      setStatus(`Updating Area...`, '');
+      try {
+        await otPatchRecords(apiKey, isSolo ? SOU_TABLE : INV_TABLE, [{ id, fields: { 'Area': val || null } }]);
+        setStatus(`Area updated ✓`, 'success');
+      } catch (err) {
+        setStatus(`Error: ${err.message}`, 'error');
       }
     });
 
@@ -2397,23 +2467,12 @@ Then extract:
             <div class="proof-diff">Could not read receipt: ${f.analysisError}</div>
             ${f.receiptImageUrl ? `<img src="${f.receiptImageUrl}" alt="Receipt" style="max-width:100%; border-radius:8px; margin-top:6px; display:block;" />` : ''}`;
         }
-        let debugHtml = '';
-        if (f.debugInfo) {
-          const safeJson = v => (JSON.stringify(v, null, 2) || 'undefined').replace(/</g, '&lt;');
-          const body = f.debugInfo.nearMisses !== undefined
-            ? `Anchor not found. Page messages mentioning "balance"/"mapaship":\n${safeJson(f.debugInfo.nearMisses)}`
-            : `${f.debugInfo.candidateMessageCount} message(s) after anchor (within ${RECEIPT_WINDOW_HOURS}h window), ${f.debugInfo.clientMessageCount} from client, ${f.debugInfo.clientAttachmentCount} attachment(s) total:\nanchor: ${safeJson(f.debugInfo.anchorMessage)} @ ${f.debugInfo.anchorTime}${f.debugInfo.anchorAmountUnverified ? ' ⚠ (amount in message didn\'t match current balance field — used anyway, only candidate)' : ''}\ncandidateTimes: ${safeJson(f.debugInfo.candidateTimes)}${f.debugInfo.rawAttachments !== undefined ? `\nrawAttachments: ${safeJson(f.debugInfo.rawAttachments)}` : ''}${f.debugInfo.lateClientMessageCount ? `\n⚠ ${f.debugInfo.lateClientMessageCount} client message(s) AFTER the ${RECEIPT_WINDOW_HOURS}h window (${f.debugInfo.lateClientAttachmentCount} with attachments) — window may be too short:\nlateClientMessageTimes: ${safeJson(f.debugInfo.lateClientMessageTimes)}` : ''}`;
-          debugHtml = `
-          <div style="white-space:pre-wrap; font-size:9px; color:#888; background:#111; border-radius:6px; padding:8px; margin-top:6px; font-family:'DM Mono',monospace; max-height:200px; overflow-y:auto;">DEBUG — ${body}</div>
-        `;
-        }
         return `
         <div class="proof-item" data-balance="${f.balance}">
           <div class="proof-name">${f.name}${f.clientNum ? ` <span>#${f.clientNum}</span>` : ''}</div>
           <div class="proof-diff">Balance pending: ${otFormatPeso(f.balance)}</div>
           <div class="proof-diff" style="color:${f.hasReceipt ? '#4ade80' : '#f87171'};">${f.receiptStatus}</div>
           ${analysisHtml}
-          ${debugHtml}
           ${f.paid
             ? `<div class="proof-diff" style="color:#4ade80;">Marked as paid ✓</div>`
             : `<button class="icon-btn" data-act="markPaid" data-id="${f.id}" style="margin-top:6px;">✓ Payment Received</button>`}
@@ -3862,16 +3921,31 @@ Then extract:
 
   const ADS_MESSAGE_ACTION_TYPES = ['onsite_conversion.messaging_conversation_started_7d'];
   const ADS_PURCHASE_ACTION_TYPES = ['omni_purchase', 'purchase', 'offsite_conversion.fb_pixel_purchase'];
+  // NOTE: Meta reports the same underlying leads under several different
+  // action_types at once (lead, onsite_conversion.lead_grouped,
+  // onsite_web_lead, onsite_conversion.lead, offsite_*_add_meta_leads —
+  // confirmed via a live breakdown to all carry the identical count on the
+  // same day). Summing more than one of these double/triple-counts the same
+  // leads. "lead" alone is Meta's canonical unique count.
+  const ADS_LEAD_ACTION_TYPES = ['lead'];
 
   async function adsFetchInsights(token, accountId, datePreset) {
     const acct = accountId.trim().replace(/^act_/, '');
     const fields = 'spend,reach,actions';
+    // action_report_time=conversion buckets action counts (leads, messages,
+    // purchases) by the date the event actually happened, not the date of
+    // the ad click/impression that's credited for it. Without this, a lead
+    // that clicked an ad on day N but submitted the form on day N+3 shows up
+    // under day N here — which doesn't match Meta's own Leads Center /
+    // Business Suite Leads page (confirmed: caused a same-day undercount
+    // against Business Suite's reported total).
+    const attributionParams = 'action_report_time=conversion';
     // Facebook's default page size for a daily-broken-down query is smaller
     // than the requested window and returns oldest-first, so reading only
     // the first page silently cut off the most recent days (confirmed: a
     // 30-day window was only showing up through day ~25). Follow pagination
     // fully.
-    let url = `https://graph.facebook.com/${ADS_GRAPH_VERSION}/act_${encodeURIComponent(acct)}/insights?fields=${fields}&date_preset=${datePreset}&time_increment=1&limit=100&access_token=${encodeURIComponent(token)}`;
+    let url = `https://graph.facebook.com/${ADS_GRAPH_VERSION}/act_${encodeURIComponent(acct)}/insights?fields=${fields}&date_preset=${datePreset}&time_increment=1&${attributionParams}&limit=100&access_token=${encodeURIComponent(token)}`;
     const rows = [];
     let pages = 0;
     while (url && pages < 10) {
@@ -3894,6 +3968,36 @@ Then extract:
 
   function adsCostPer(spend, count) {
     return count > 0 ? spend / count : 0;
+  }
+
+  // "Leads (FB)" — the raw Lead Ads leads count per day, straight from the
+  // leads_retrieval API (same source as the Leads card / Business Suite's
+  // Leads Center), shown next to the Marketing-API-derived "Leads" column
+  // for comparison since the two can disagree (see adsCountActions above —
+  // that one is attribution-based; this one counts actual form submissions
+  // grouped by the day they came in).
+  async function adsFetchLeadsByDate(pageId, pageToken) {
+    if (!pageId || !pageToken) throw new Error('Facebook Page ID/token not set');
+    const formsUrl = `https://graph.facebook.com/${ADS_GRAPH_VERSION}/${encodeURIComponent(pageId)}/leadgen_forms?fields=id&limit=100&access_token=${encodeURIComponent(pageToken)}`;
+    const forms = await leadsFetchAllPages(formsUrl);
+    // A silent empty array here (no thrown error) almost always means the
+    // Page token lacks leads_retrieval, or the app is in Development mode
+    // and this Page/user isn't added as a Tester — Graph API returns
+    // "success, 0 forms" rather than a permission error in that case, which
+    // otherwise looked identical to "no leads today" (confirmed bug: the
+    // Leads (FB) column read 0 with no indication anything was wrong).
+    if (forms.length === 0) throw new Error('No lead forms visible — check the Page token has leads_retrieval permission');
+    const byDate = {};
+    await Promise.all(forms.map(async f => {
+      const leadsUrl = `https://graph.facebook.com/${ADS_GRAPH_VERSION}/${f.id}/leads?fields=created_time&limit=100&access_token=${encodeURIComponent(pageToken)}`;
+      const rows = await leadsFetchAllPages(leadsUrl);
+      rows.forEach(r => {
+        const key = (r.created_time || '').slice(0, 10);
+        if (!key) return;
+        byDate[key] = (byDate[key] || 0) + 1;
+      });
+    }));
+    return byDate;
   }
 
   function buildAdsCard() {
@@ -3949,7 +4053,7 @@ Then extract:
       }
       tableEl.innerHTML = `
         <thead><tr>
-          <th>Date</th><th>Day</th><th>Spend</th><th>Messages</th><th>Cost/message</th><th>Purchases</th><th>Cost/purchase</th><th>Reach</th><th>Cost/reach</th>
+          <th>Date</th><th>Day</th><th>Spend</th><th>Messages</th><th>Cost/message</th><th>Leads</th><th>Cost/lead</th><th>Leads (FB)</th><th>Purchases</th><th>Cost/purchase</th><th>Reach</th><th>Cost/reach</th>
         </tr></thead>
         <tbody>
           ${rows.map(r => `
@@ -3959,6 +4063,9 @@ Then extract:
               <td class="no-num">${peso(r.spend)}</td>
               <td class="no-num">${r.messages.toLocaleString()}</td>
               <td class="no-num">${peso(r.costPerMessage)}</td>
+              <td class="no-num">${r.leads.toLocaleString()}</td>
+              <td class="no-num">${peso(r.costPerLead)}</td>
+              <td class="no-num">${r.leadsFB.toLocaleString()}</td>
               <td class="no-num">${r.purchases.toLocaleString()}</td>
               <td class="no-num">${peso(r.costPerPurchase)}</td>
               <td class="no-num">${r.reach.toLocaleString()}</td>
@@ -3972,7 +4079,7 @@ Then extract:
     function renderAverages(bases) {
       avgTableEl.innerHTML = `
         <thead><tr>
-          <th>Basis</th><th>Spend</th><th>Messages</th><th>Cost/message</th><th>Purchases</th><th>Cost/purchase</th><th>Reach</th><th>Cost/reach</th>
+          <th>Basis</th><th>Spend</th><th>Messages</th><th>Cost/message</th><th>Leads</th><th>Cost/lead</th><th>Leads (FB)</th><th>Purchases</th><th>Cost/purchase</th><th>Reach</th><th>Cost/reach</th>
         </tr></thead>
         <tbody>
           ${bases.map(b => `
@@ -3981,6 +4088,9 @@ Then extract:
               <td class="no-num">${peso(b.spend)}</td>
               <td class="no-num">${b.messages.toLocaleString(undefined, { maximumFractionDigits: 1 })}</td>
               <td class="no-num">${peso(b.costPerMessage)}</td>
+              <td class="no-num">${b.leads.toLocaleString(undefined, { maximumFractionDigits: 1 })}</td>
+              <td class="no-num">${peso(b.costPerLead)}</td>
+              <td class="no-num">${b.leadsFB.toLocaleString(undefined, { maximumFractionDigits: 1 })}</td>
               <td class="no-num">${b.purchases.toLocaleString(undefined, { maximumFractionDigits: 1 })}</td>
               <td class="no-num">${peso(b.costPerPurchase)}</td>
               <td class="no-num">${b.reach.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
@@ -3998,18 +4108,22 @@ Then extract:
       const sumRange = list => list.reduce((acc, r) => ({
         spend: acc.spend + r.spend,
         messages: acc.messages + r.messages,
+        leads: acc.leads + r.leads,
+        leadsFB: acc.leadsFB + r.leadsFB,
         purchases: acc.purchases + r.purchases,
         reach: acc.reach + r.reach,
-      }), { spend: 0, messages: 0, purchases: 0, reach: 0 });
+      }), { spend: 0, messages: 0, leads: 0, leadsFB: 0, purchases: 0, reach: 0 });
 
       const withCosts = s => ({
         ...s,
         costPerMessage: adsCostPer(s.spend, s.messages),
+        costPerLead: adsCostPer(s.spend, s.leads),
         costPerPurchase: adsCostPer(s.spend, s.purchases),
         costPerReach: adsCostPer(s.spend, s.reach),
       });
       const scale = (s, factor) => withCosts({
         spend: s.spend * factor, messages: s.messages * factor,
+        leads: s.leads * factor, leadsFB: s.leadsFB * factor,
         purchases: s.purchases * factor, reach: s.reach * factor,
       });
 
@@ -4047,10 +4161,19 @@ Then extract:
         // returns a stale/empty row), so fetch it separately and merge it
         // in — the table then shows today's running spend even though the
         // averages below still exclude it as an unfinished day.
-        const [daily, todayRows] = await Promise.all([
+        const fbPageId = localStorage.getItem(FB_PAGE_ID_STORAGE) || '';
+        const fbPageToken = localStorage.getItem(FB_PAGE_TOKEN_STORAGE) || '';
+        let leadsFBError = null;
+        const [daily, todayRows, leadsByDateResult] = await Promise.all([
           adsFetchInsights(token, accountId, ADS_DATE_PRESET),
           adsFetchInsights(token, accountId, 'today'),
+          // Best-effort — Leads (FB) needs a Facebook Page ID + Page token
+          // (same ones used in Balance/Shipping) with leads_retrieval
+          // permission granted. If it's missing/unauthorized, still show
+          // the rest of the table rather than failing the whole load.
+          adsFetchLeadsByDate(fbPageId, fbPageToken).catch(err => { leadsFBError = err; return null; }),
         ]);
+        const leadsByDate = leadsByDateResult || {};
         const merged = [...daily];
         todayRows.forEach(t => {
           const idx = merged.findIndex(d => d.date_start === t.date_start);
@@ -4060,6 +4183,8 @@ Then extract:
           .map(d => {
             const spend = Number(d.spend) || 0;
             const messages = adsCountActions(d, ADS_MESSAGE_ACTION_TYPES);
+            const leads = adsCountActions(d, ADS_LEAD_ACTION_TYPES);
+            const leadsFB = leadsByDate[d.date_start] || 0;
             const purchases = adsCountActions(d, ADS_PURCHASE_ACTION_TYPES);
             const reach = Number(d.reach) || 0;
             return {
@@ -4067,6 +4192,9 @@ Then extract:
               spend,
               messages,
               costPerMessage: adsCostPer(spend, messages),
+              leads,
+              costPerLead: adsCostPer(spend, leads),
+              leadsFB,
               purchases,
               costPerPurchase: adsCostPer(spend, purchases),
               reach,
@@ -4076,7 +4204,7 @@ Then extract:
           .sort((a, b) => b.date.localeCompare(a.date));
         renderRows(rows);
         renderAverages(computeAverageBases(rows));
-        setStatus('Loaded ✓', 'success');
+        setStatus(leadsFBError ? `Loaded ✓ (Leads (FB): ${leadsFBError.message})` : 'Loaded ✓', leadsFBError ? 'error' : 'success');
       } catch (err) {
         setStatus(`Error: ${err.message}`, 'error');
         tableEl.innerHTML = '';
@@ -4107,6 +4235,22 @@ Then extract:
     else configPanel.classList.add('open');
 
     return card;
+  }
+
+  // Shared pagination helper for Graph API "Lead Ads" endpoints, used by
+  // the Ads card's "Leads (FB)" column below (adsFetchLeadsByDate).
+  async function leadsFetchAllPages(url) {
+    const rows = [];
+    let pages = 0;
+    while (url && pages < 20) {
+      const resp = await fetch(url);
+      const json = await resp.json();
+      if (json.error) throw new Error(json.error.message || 'Graph API error');
+      rows.push(...(json.data || []));
+      url = json.paging?.next || null;
+      pages++;
+    }
+    return rows;
   }
 
   cardsDataRoot.appendChild(buildSalesCard());
@@ -4391,7 +4535,8 @@ Then extract:
           ? `<span style="font-size:10px; margin-left:6px; padding:1px 6px; border-radius:8px; ${t.dueDate < today ? 'color:#f87171; background:#3a1e1e;' : 'color:#888; background:#1e1e1e;'}">${formatDueDate(t.dueDate)}</span>`
           : '';
         return `
-        <div class="task-row">
+        <div class="task-row" draggable="true" data-drag-id="${t.id}">
+          <span class="task-drag-handle">⠿</span>
           <input type="checkbox" data-id="${t.id}" ${t.done ? 'checked' : ''} style="${checkboxColorVar}" />
           <div class="task-text${t.done ? ' done' : ''}" data-act="startEdit" data-id="${t.id}">${t.text.replace(/</g, '&lt;')}${dueBadge}</div>
           <button class="task-del" data-act="startEdit" data-id="${t.id}">✎</button>
@@ -4405,6 +4550,53 @@ Then extract:
       }
     }
     renderDailyTasksList = render;
+
+    // ── Drag-to-reorder ───────────────────────────────────────────────────
+    let dragId = null;
+    listEl.addEventListener('dragstart', (e) => {
+      const row = e.target.closest('.task-row[draggable="true"]');
+      if (!row) return;
+      dragId = row.dataset.dragId;
+      row.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    listEl.addEventListener('dragend', (e) => {
+      const row = e.target.closest('.task-row');
+      if (row) row.classList.remove('dragging');
+      listEl.querySelectorAll('.drag-over-top, .drag-over-bottom').forEach(el => el.classList.remove('drag-over-top', 'drag-over-bottom'));
+    });
+    listEl.addEventListener('dragover', (e) => {
+      const row = e.target.closest('.task-row[draggable="true"]');
+      if (!row || !dragId || row.dataset.dragId === dragId) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      listEl.querySelectorAll('.drag-over-top, .drag-over-bottom').forEach(el => el.classList.remove('drag-over-top', 'drag-over-bottom'));
+      const rect = row.getBoundingClientRect();
+      const before = (e.clientY - rect.top) < rect.height / 2;
+      row.classList.add(before ? 'drag-over-top' : 'drag-over-bottom');
+    });
+    listEl.addEventListener('drop', async (e) => {
+      const row = e.target.closest('.task-row[draggable="true"]');
+      if (!row || !dragId || row.dataset.dragId === dragId) return;
+      e.preventDefault();
+      const targetId = row.dataset.dragId;
+      const rect = row.getBoundingClientRect();
+      const before = (e.clientY - rect.top) < rect.height / 2;
+      listEl.querySelectorAll('.drag-over-top, .drag-over-bottom').forEach(el => el.classList.remove('drag-over-top', 'drag-over-bottom'));
+
+      const list = tasksDataCache.dailyTasks || [];
+      const fromIdx = list.findIndex(t => t.id === dragId);
+      if (fromIdx === -1) return;
+      const [moved] = list.splice(fromIdx, 1);
+      let toIdx = list.findIndex(t => t.id === targetId);
+      if (toIdx === -1) { list.push(moved); }
+      else { list.splice(before ? toIdx : toIdx + 1, 0, moved); }
+      dragId = null;
+      render();
+      setStatus('Saving...', '');
+      const ok = await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
+      if (ok) setStatus('Saved ✓', 'success');
+    });
 
     function startEditTask(id) {
       editingTaskId = id;

@@ -164,7 +164,10 @@
         "Ads": 168000,
         "Electricity": 5000
       },
-      "cashOverride": null
+      "cashOverride": {
+        "amount": 937833,
+        "date": "2026-09-05"
+      }
     },
     "2026-10": {
       "earned": 800000,

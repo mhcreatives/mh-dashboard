@@ -978,6 +978,12 @@
   const PROOF_FB_NAME = 'fld01zQJ86lA2f1F9';
   const PROOF_CLIENT_NUM = 'fld3csxglBQdezHDA';
   const PROOF_ATTACHMENT = 'fldHTnYGaKUoEkLYI';
+  const PROOF_SF = 'fldR1ZX638CalAqN9';
+  const PROOF_AREA = 'fld91fuFicejWURus';
+  const PROOF_AREA_CHOICES = ['NL', 'CL', 'NCR', 'SL', 'VIS', 'MIN'];
+  const SOU_PROOF_SF = 'fld1X3BHWdth72XX3';
+  const SOU_PROOF_AREA = 'fldcBvjJPCJp5B50c';
+  const SOU_AREA_CHOICES = ['NL', 'CL', 'NCR', 'SL', 'VIS', 'MIN', 'Batangas'];
 
   // Solo souvenir orders (no linked Invitation) — same Photo-status Proof
   // check as the Invitation table above, just on the Souvenir table's own
@@ -1025,13 +1031,23 @@
     return text.replace(/[​‌‍‎‏‪‫‬‭‮﻿]/g, '');
   }
 
+  // The "+ ₱X shipping fee" line always follows "Balance before ship out:"
+  // and is the same number as the SF field — pulled out on its own here so
+  // it can be checked against the field independently of the DP/Balance
+  // parse above (which folds this same amount into the balance total).
+  function extractShippingFee(text) {
+    const m = text.match(/\+\s*₱?\s*([\d,]+(?:\.\d+)?)\s*shipping fee/i);
+    return m ? parseFloat(m[1].replace(/,/g, '')) : null;
+  }
+
   function parseBreakdownFigures(text) {
     if (!text) return null;
     const clean = otStripBidiMarks(text);
     const dp = extractAmountWithShipping(clean, 'Downpayment');
     const balance = extractAmountWithShipping(clean, 'Balance before ship out');
     if (dp === null || balance === null) return null;
-    return { dp, balance };
+    const sf = extractShippingFee(clean);
+    return { dp, balance, sf };
   }
 
   // ─── Extension bridge ───────────────────────────────────────────────────
@@ -1091,7 +1107,7 @@
           <button class="icon-btn" data-act="scan">▶ Scan</button>
         </div>
       </div>
-      <div class="tool-desc">Photo-status orders with a Proof attached — checks Breakdown text against DP / Balance fields. Includes solo souvenir orders (no linked Invitation).</div>
+      <div class="tool-desc">Photo-status orders with a Proof attached — checks Breakdown text against DP / Balance / SF fields, shows Area (editable). Includes solo souvenir orders (no linked Invitation).</div>
       <div class="status-line" data-el="status"></div>
       <div class="proof-summary" data-el="summary"></div>
       <div class="proof-results" data-el="results"></div>
@@ -1195,6 +1211,14 @@
           ${m.unparsed ? `<div class="proof-diff">Could not find Downpayment / Balance before ship out lines in Breakdown</div>` : ''}
           ${!m.unparsed && !m.dpOk ? `<div class="proof-diff">DP: breakdown ${otFormatPeso(m.dpExpected)} ≠ field ${otFormatPeso(m.dpActual)}</div>` : ''}
           ${!m.unparsed && !m.balOk ? `<div class="proof-diff">Balance: breakdown ${otFormatPeso(m.balExpected)} ≠ field ${otFormatPeso(m.balActual)}</div>` : ''}
+          <div class="proof-diff" style="color:${(m.sfExpected == null) ? '#888' : (m.sfOk ? '#4ade80' : '#f87171')};">SF: breakdown ${m.sfExpected == null ? '—' : otFormatPeso(m.sfExpected)} ${m.sfOk ? '=' : '≠'} field ${otFormatPeso(m.sfActual)}</div>
+          <div style="display:flex; align-items:center; gap:6px; margin-top:6px;">
+            <span style="font-size:10px; color:#888;">Area:</span>
+            <select class="task-edit-priority" data-act="setArea" data-id="${m.id}" data-solo="${m.isSolo ? '1' : '0'}" data-field="${m.areaField}" style="font-size:11px;">
+              <option value="" ${!m.area ? 'selected' : ''}>—</option>
+              ${(m.areaChoices || []).map(a => `<option value="${a}" ${a === m.area ? 'selected' : ''}>${a}</option>`).join('')}
+            </select>
+          </div>
           <a class="proof-link" href="https://airtable.com/${OT_BASE_ID}/${m.isSolo ? SOU_TABLE : INV_TABLE}/${m.id}" target="_blank" rel="noopener">Open record ↗</a>
         </div>
       `).join('');
@@ -1216,12 +1240,12 @@
           otFetchRecords(
             apiKey, INV_TABLE, INV_STATUS, PROOF_DP, PROOF_BALANCE,
             `{Status}="Photo"`,
-            [PROOF_BREAKDOWN, PROOF_FB_NAME, PROOF_CLIENT_NUM, PROOF_ATTACHMENT]
+            [PROOF_BREAKDOWN, PROOF_FB_NAME, PROOF_CLIENT_NUM, PROOF_ATTACHMENT, PROOF_SF, PROOF_AREA]
           ),
           otFetchRecords(
             apiKey, SOU_TABLE, SOU_STATUS, SOU_PROOF_DP, SOU_PROOF_BALANCE,
             `{Status}="Photo"`,
-            [SOU_PROOF_BREAKDOWN, SOU_FB_NAME, SOU_PROOF_ATTACHMENT, SOU_INV_LINK]
+            [SOU_PROOF_BREAKDOWN, SOU_FB_NAME, SOU_PROOF_ATTACHMENT, SOU_INV_LINK, SOU_PROOF_SF, SOU_PROOF_AREA]
           ),
         ]);
         const records = allRecords.filter(r => Array.isArray(r.fields?.[PROOF_ATTACHMENT]) && r.fields[PROOF_ATTACHMENT].length > 0);
@@ -1237,42 +1261,50 @@
         records.forEach(r => {
           const name = r.fields?.[PROOF_FB_NAME] || 'Unnamed';
           const clientNum = r.fields?.[PROOF_CLIENT_NUM];
+          const area = r.fields?.[PROOF_AREA]?.name || '';
+          const sfActual = r.fields?.[PROOF_SF] ?? 0;
           const parsed = parseBreakdownFigures(r.fields?.[PROOF_BREAKDOWN]);
           if (!parsed) {
             skipped++;
-            mismatches.push({ id: r.id, name, clientNum, unparsed: true });
+            mismatches.push({ id: r.id, name, clientNum, area, sfActual, unparsed: true, areaField: PROOF_AREA, areaChoices: PROOF_AREA_CHOICES });
             return;
           }
           const dpActual = r.fields?.[PROOF_DP] ?? 0;
           const balActual = r.fields?.[PROOF_BALANCE] ?? 0;
           const dpOk = Math.abs(parsed.dp - dpActual) < 1;
           const balOk = Math.abs(parsed.balance - balActual) < 1;
-          if (dpOk && balOk) { ok++; return; }
+          const sfOk = parsed.sf === null || Math.abs(parsed.sf - sfActual) < 1;
+          if (dpOk && balOk && sfOk) { ok++; return; }
           mismatches.push({
             id: r.id,
-            name, clientNum,
+            name, clientNum, area, areaField: PROOF_AREA, areaChoices: PROOF_AREA_CHOICES,
             dpExpected: parsed.dp, dpActual, dpOk,
             balExpected: parsed.balance, balActual, balOk,
+            sfExpected: parsed.sf, sfActual, sfOk,
           });
         });
         soloSouRecords.forEach(r => {
           const name = r.fields?.[SOU_FB_NAME] || 'Unnamed';
+          const area = r.fields?.[SOU_PROOF_AREA]?.name || '';
+          const sfActual = r.fields?.[SOU_PROOF_SF] ?? 0;
           const parsed = parseBreakdownFigures(r.fields?.[SOU_PROOF_BREAKDOWN]);
           if (!parsed) {
             skipped++;
-            mismatches.push({ id: r.id, name, isSolo: true, unparsed: true });
+            mismatches.push({ id: r.id, name, isSolo: true, area, sfActual, unparsed: true, areaField: SOU_PROOF_AREA, areaChoices: SOU_AREA_CHOICES });
             return;
           }
           const dpActual = r.fields?.[SOU_PROOF_DP] ?? 0;
           const balActual = r.fields?.[SOU_PROOF_BALANCE] ?? 0;
           const dpOk = Math.abs(parsed.dp - dpActual) < 1;
           const balOk = Math.abs(parsed.balance - balActual) < 1;
-          if (dpOk && balOk) { ok++; return; }
+          const sfOk = parsed.sf === null || Math.abs(parsed.sf - sfActual) < 1;
+          if (dpOk && balOk && sfOk) { ok++; return; }
           mismatches.push({
             id: r.id,
-            name, isSolo: true,
+            name, isSolo: true, area, areaField: SOU_PROOF_AREA, areaChoices: SOU_AREA_CHOICES,
             dpExpected: parsed.dp, dpActual, dpOk,
             balExpected: parsed.balance, balActual, balOk,
+            sfExpected: parsed.sf, sfActual, sfOk,
           });
         });
 
@@ -1301,6 +1333,22 @@
         if (!val) return;
         localStorage.setItem(PROOF_EXT_ID_STORAGE, val);
         setSendStatus('Extension ID saved ✓', 'success');
+      }
+    });
+
+    card.addEventListener('change', async (e) => {
+      if (e.target.dataset.act !== 'setArea') return;
+      const apiKey = localStorage.getItem(OT_KEY_STORAGE) || '';
+      if (!apiKey) { setStatus('Set Airtable API key in Order Tracker first ↓', 'error'); return; }
+      const id = e.target.dataset.id;
+      const isSolo = e.target.dataset.solo === '1';
+      const val = e.target.value;
+      setStatus(`Updating Area...`, '');
+      try {
+        await otPatchRecords(apiKey, isSolo ? SOU_TABLE : INV_TABLE, [{ id, fields: { 'Area': val || null } }]);
+        setStatus(`Area updated ✓`, 'success');
+      } catch (err) {
+        setStatus(`Error: ${err.message}`, 'error');
       }
     });
 

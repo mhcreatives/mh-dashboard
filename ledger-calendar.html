@@ -711,11 +711,10 @@
 
     <div class="backup-panel" id="cashUpdatePanel" hidden>
       <div class="backup-panel-head">
-        <span>Record an actual cash-on-hand reading for a specific date. It replaces the projected "Cash on hand" figure on that date's month card, and every later month's projection carries forward from it.</span>
+        <span>Record today's actual cash-on-hand reading. It replaces the projected "Cash on hand" figure on <b id="cashUpdateMonthLabel"></b>'s card, and every later month's projection carries forward from it.</span>
         <button class="reset-link" id="closeCashUpdate">Close</button>
       </div>
       <div class="id-row">
-        <input type="date" id="cashUpdateDate" />
         <input type="number" step="1" id="cashUpdateAmount" placeholder="Cash on hand amount" />
         <button class="add-btn" id="saveCashUpdate">Save</button>
       </div>
@@ -1747,14 +1746,23 @@
     scheduleSave();
   });
 
-  /* ---------- update cash on hand (dated snapshot, routed to its month) ---------- */
+  /* ---------- update cash on hand (today's reading, routed to the current month) ---------- */
+  function todayISODate(){
+    return new Date().toISOString().slice(0, 10);
+  }
+
   var cashUpdatePanel = document.getElementById("cashUpdatePanel");
   document.getElementById("showCashUpdate").addEventListener("click", function(){
     exportPanel.hidden = true;
     importPanel.hidden = true;
     githubPanel.hidden = true;
-    var dateInput = document.getElementById("cashUpdateDate");
-    if (!dateInput.value) dateInput.value = new Date().toISOString().slice(0, 10);
+    var todayDate = todayISODate();
+    var todayKey = todayDate.slice(0, 7); // "YYYY-MM"
+    if (MONTH_KEYS.indexOf(todayKey) === -1){
+      alert("Today's date (" + todayDate + ") falls outside the supported calendar range (" + monthLabel(MONTH_KEYS[0]) + " – " + monthLabel(MONTH_KEYS[MONTH_KEYS.length - 1]) + ").");
+      return;
+    }
+    document.getElementById("cashUpdateMonthLabel").textContent = monthLabel(todayKey);
     document.getElementById("cashUpdateAmount").value = "";
     cashUpdatePanel.hidden = false;
   });
@@ -1762,18 +1770,14 @@
     cashUpdatePanel.hidden = true;
   });
   document.getElementById("saveCashUpdate").addEventListener("click", function(){
-    var dateVal = document.getElementById("cashUpdateDate").value;
     var amountVal = parseFloat(document.getElementById("cashUpdateAmount").value);
-    if (!dateVal || isNaN(amountVal)){
-      alert("Enter both a date and an amount.");
+    if (isNaN(amountVal)){
+      alert("Enter an amount.");
       return;
     }
-    var key = dateVal.slice(0, 7); // "YYYY-MM"
-    if (MONTH_KEYS.indexOf(key) === -1){
-      alert("That date falls outside the supported calendar range (" + monthLabel(MONTH_KEYS[0]) + " – " + monthLabel(MONTH_KEYS[MONTH_KEYS.length - 1]) + ").");
-      return;
-    }
-    state.months[key].cashOverride = { amount: amountVal, date: dateVal };
+    var todayDate = todayISODate();
+    var key = todayDate.slice(0, 7); // always the current calendar month
+    state.months[key].cashOverride = { amount: amountVal, date: todayDate };
     activeYear = parseInt(key.split("-")[0], 10);
     renderYearTabs();
     renderMonths();

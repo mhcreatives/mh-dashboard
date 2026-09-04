@@ -1444,11 +1444,17 @@
       }
       var earned = Number(m.earned) || 0;
       var oneTimeTotal = m.expenses.reduce(function(s,e){ return s + (Number(e.amount)||0); }, 0);
+      // a checked-off one-time expense has already been paid out of real
+      // cash — either baked into the accounts total already, or into a
+      // later "Update cash on hand" reading — so it must drop out of the
+      // forward projection here, or it gets subtracted a second time.
+      var oneTimeUnpaidTotal = m.expenses.reduce(function(s,e){ return s + (e.paid ? 0 : (Number(e.amount)||0)); }, 0);
       var fixedTotal = FIXED_EXPENSE_NAMES.reduce(function(s,n){ return s + (Number(m.fixed[n])||0); }, 0);
       var recurTotal = recurringTotalForKey(key);
       var expTotal = oneTimeTotal + fixedTotal + recurTotal;
+      var projectedExpTotal = oneTimeUnpaidTotal + fixedTotal + recurTotal;
       var start = running;
-      var net = earned - expTotal;
+      var net = earned - projectedExpTotal;
       var end = start + net;
       results[key] = { start: start, earned: earned, oneTimeTotal: oneTimeTotal, fixedTotal: fixedTotal, recurTotal: recurTotal, expTotal: expTotal, net: net, end: end };
       running = end;

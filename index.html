@@ -221,6 +221,11 @@
   .task-row { display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-bottom: 1px solid #1e1e1e; border-radius: 6px; transition: background 0.15s; }
   .task-row:last-child { border-bottom: none; }
   .task-row:hover { background: #161616; }
+  .task-row[draggable="true"] { cursor: grab; }
+  .task-row.dragging { opacity: 0.4; }
+  .task-row.drag-over-top { border-top: 2px solid var(--task-accent-color, #5b9bd5); }
+  .task-row.drag-over-bottom { border-bottom: 2px solid var(--task-accent-color, #5b9bd5); }
+  .task-drag-handle { flex: none; color: #555; cursor: grab; font-size: 12px; padding: 0 2px; user-select: none; }
 
   /* Todoist-style round checkbox — color-coded by priority when open,
      fills solid with a checkmark once done, regardless of priority.
@@ -4482,7 +4487,8 @@ Then extract:
           ? `<span style="font-size:10px; margin-left:6px; padding:1px 6px; border-radius:8px; ${t.dueDate < today ? 'color:#f87171; background:#3a1e1e;' : 'color:#888; background:#1e1e1e;'}">${formatDueDate(t.dueDate)}</span>`
           : '';
         return `
-        <div class="task-row">
+        <div class="task-row" draggable="true" data-drag-id="${t.id}">
+          <span class="task-drag-handle">⠿</span>
           <input type="checkbox" data-id="${t.id}" ${t.done ? 'checked' : ''} style="${checkboxColorVar}" />
           <div class="task-text${t.done ? ' done' : ''}" data-act="startEdit" data-id="${t.id}">${t.text.replace(/</g, '&lt;')}${dueBadge}</div>
           <button class="task-del" data-act="startEdit" data-id="${t.id}">✎</button>
@@ -4496,6 +4502,53 @@ Then extract:
       }
     }
     renderDailyTasksList = render;
+
+    // ── Drag-to-reorder ───────────────────────────────────────────────────
+    let dragId = null;
+    listEl.addEventListener('dragstart', (e) => {
+      const row = e.target.closest('.task-row[draggable="true"]');
+      if (!row) return;
+      dragId = row.dataset.dragId;
+      row.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    listEl.addEventListener('dragend', (e) => {
+      const row = e.target.closest('.task-row');
+      if (row) row.classList.remove('dragging');
+      listEl.querySelectorAll('.drag-over-top, .drag-over-bottom').forEach(el => el.classList.remove('drag-over-top', 'drag-over-bottom'));
+    });
+    listEl.addEventListener('dragover', (e) => {
+      const row = e.target.closest('.task-row[draggable="true"]');
+      if (!row || !dragId || row.dataset.dragId === dragId) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      listEl.querySelectorAll('.drag-over-top, .drag-over-bottom').forEach(el => el.classList.remove('drag-over-top', 'drag-over-bottom'));
+      const rect = row.getBoundingClientRect();
+      const before = (e.clientY - rect.top) < rect.height / 2;
+      row.classList.add(before ? 'drag-over-top' : 'drag-over-bottom');
+    });
+    listEl.addEventListener('drop', async (e) => {
+      const row = e.target.closest('.task-row[draggable="true"]');
+      if (!row || !dragId || row.dataset.dragId === dragId) return;
+      e.preventDefault();
+      const targetId = row.dataset.dragId;
+      const rect = row.getBoundingClientRect();
+      const before = (e.clientY - rect.top) < rect.height / 2;
+      listEl.querySelectorAll('.drag-over-top, .drag-over-bottom').forEach(el => el.classList.remove('drag-over-top', 'drag-over-bottom'));
+
+      const list = tasksDataCache.dailyTasks || [];
+      const fromIdx = list.findIndex(t => t.id === dragId);
+      if (fromIdx === -1) return;
+      const [moved] = list.splice(fromIdx, 1);
+      let toIdx = list.findIndex(t => t.id === targetId);
+      if (toIdx === -1) { list.push(moved); }
+      else { list.splice(before ? toIdx : toIdx + 1, 0, moved); }
+      dragId = null;
+      render();
+      setStatus('Saving...', '');
+      const ok = await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
+      if (ok) setStatus('Saved ✓', 'success');
+    });
 
     function startEditTask(id) {
       editingTaskId = id;

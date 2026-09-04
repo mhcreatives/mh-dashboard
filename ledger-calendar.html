@@ -542,7 +542,7 @@
   }
   .exp-row{
     display:grid;
-    grid-template-columns:1fr 90px 26px;
+    grid-template-columns:18px 1fr 90px 26px;
     gap:6px;
     align-items:center;
     margin-bottom:6px;
@@ -565,6 +565,17 @@
     color:var(--negative);
     text-align:right;
     width:100%;
+  }
+  .exp-row input.exp-paid{
+    width:16px;
+    height:16px;
+    accent-color:var(--accent, #4a9);
+    cursor:pointer;
+  }
+  .exp-row.paid input[type="text"],
+  .exp-row.paid input.amount{
+    text-decoration:line-through;
+    opacity:0.55;
   }
   .exp-row .remove-btn{ font-size:16px; padding:2px; }
   .add-exp-btn{
@@ -1615,7 +1626,18 @@
 
         m.expenses.forEach(function(exp){
           var row = document.createElement("div");
-          row.className = "exp-row";
+          row.className = "exp-row" + (exp.paid ? " paid" : "");
+
+          var paidCheckbox = document.createElement("input");
+          paidCheckbox.type = "checkbox";
+          paidCheckbox.className = "exp-paid";
+          paidCheckbox.checked = !!exp.paid;
+          paidCheckbox.title = "Paid";
+          paidCheckbox.addEventListener("change", function(){
+            exp.paid = paidCheckbox.checked;
+            row.classList.toggle("paid", exp.paid);
+            scheduleSave();
+          });
 
           var nameInput = document.createElement("input");
           nameInput.type = "text";
@@ -1649,6 +1671,7 @@
             scheduleSave();
           });
 
+          row.appendChild(paidCheckbox);
           row.appendChild(nameInput);
           row.appendChild(amtInput);
           row.appendChild(rm);
@@ -1659,7 +1682,7 @@
         addExpBtn.className = "add-exp-btn";
         addExpBtn.textContent = "+ Add expense";
         addExpBtn.addEventListener("click", function(){
-          m.expenses.push({ id: uid(), name: "", amount: 0 });
+          m.expenses.push({ id: uid(), name: "", amount: 0, paid: false });
           renderMonths();
           scheduleSave();
         });

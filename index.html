@@ -3902,6 +3902,22 @@ Then extract:
       }
     });
 
+    // unlike Order Tracker etc., this card never auto-scanned on open and
+    // never auto-refreshed — it only ever updated when "Scan" was clicked,
+    // so it looked "not synced" after the API key was already set elsewhere.
+    if (localStorage.getItem(OT_KEY_STORAGE)) scan();
+    else setStatus('Set Airtable API key in Order Tracker first ↓', 'error');
+
+    const INV_AUTO_REFRESH_MS = 15 * 60 * 1000;
+    let invAutoRefreshTimer = null;
+    function invStartAutoRefresh() {
+      if (invAutoRefreshTimer) return;
+      invAutoRefreshTimer = setInterval(() => {
+        if (document.visibilityState === 'visible' && localStorage.getItem(OT_KEY_STORAGE)) scan();
+      }, INV_AUTO_REFRESH_MS);
+    }
+    invStartAutoRefresh();
+
     return card;
   }
 

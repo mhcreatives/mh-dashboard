@@ -166,7 +166,7 @@
           "id": "5qnrzbi1",
           "name": "PMS",
           "amount": 4500,
-          "paid": true
+          "paid": false
         }
       ],
       "fixed": {

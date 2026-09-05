@@ -161,6 +161,12 @@
           "name": "Maya credit",
           "amount": 21013,
           "paid": true
+        },
+        {
+          "id": "5qnrzbi1",
+          "name": "PMS",
+          "amount": 4500,
+          "paid": true
         }
       ],
       "fixed": {
@@ -171,7 +177,7 @@
       },
       "cashOverride": {
         "amount": 916820,
-        "date": "2026-09-04"
+        "date": "2026-09-05"
       }
     },
     "2026-10": {

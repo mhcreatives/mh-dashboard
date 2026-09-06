@@ -135,12 +135,14 @@
         {
           "id": "zswfub85",
           "name": "Salaries",
-          "amount": 50700
+          "amount": 50700,
+          "paid": true
         },
         {
           "id": "yg8z3qwo",
           "name": "Atome",
-          "amount": 20405
+          "amount": 20405,
+          "paid": true
         }
       ],
       "fixed": {

@@ -1,6 +1,13 @@
 {
   "dailyTasks": [
     {
+      "id": "mtqevs8cu4x99m",
+      "text": "Printing for monday",
+      "done": false,
+      "priority": "none",
+      "dueDate": null
+    },
+    {
       "id": "mtma9nxekfukgx",
       "text": "Gatefold template",
       "done": true,

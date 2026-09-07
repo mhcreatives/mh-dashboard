@@ -1,6 +1,13 @@
 {
   "dailyTasks": [
     {
+      "id": "mtr9ztwomezmea",
+      "text": "Layout dashboard",
+      "done": false,
+      "priority": "none",
+      "dueDate": null
+    },
+    {
       "id": "mtqexdf24go727",
       "text": "Printing for monday",
       "done": true,
@@ -17,7 +24,7 @@
     {
       "id": "mtqevwtreij5y9",
       "text": "Packaging",
-      "done": true,
+      "done": false,
       "priority": "none",
       "dueDate": null
     },

@@ -1,6 +1,13 @@
 {
   "dailyTasks": [
     {
+      "id": "mtqew1f1ciii3v",
+      "text": "Printing for tuesday",
+      "done": false,
+      "priority": "none",
+      "dueDate": null
+    },
+    {
       "id": "mtr9zy2tj2hysx",
       "text": "Cutting for tuesday",
       "done": false,
@@ -31,13 +38,6 @@
     {
       "id": "mtqevwtreij5y9",
       "text": "Packaging",
-      "done": false,
-      "priority": "none",
-      "dueDate": null
-    },
-    {
-      "id": "mtqew1f1ciii3v",
-      "text": "Printing for tuesday",
       "done": false,
       "priority": "none",
       "dueDate": null

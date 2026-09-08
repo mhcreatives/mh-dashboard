@@ -3944,7 +3944,6 @@ Then extract:
     { key: 'printing', label: '🖨 Printing', sub: 'Quota checked, no assignee yet' },
     { key: 'assembly', label: '🧵 Assembly', sub: 'Assigned for assembly' },
     { key: 'packaging', label: '📦 Packaging', sub: 'For packaging / To Ship' },
-    { key: 'other', label: '❔ Other', sub: 'Active status outside the buckets above' },
   ];
 
   function buildPipelineCard() {
@@ -4042,6 +4041,10 @@ Then extract:
         PIPE_GROUP_LABELS.forEach(g => { groups[g.key] = { count: 0, total: 0, records: [] }; });
         records.forEach(r => {
           const key = classifyRecord(r);
+          // Records that don't match any displayed bucket (e.g. Photo, For
+          // posting) still count toward the overall total below, they just
+          // don't have a bucket row to land in since "Other" was removed.
+          if (!groups[key]) return;
           const total = r.fields?.[INV_TOTAL] || 0;
           groups[key].count++;
           groups[key].total += total;

@@ -387,6 +387,7 @@
 
   <div class="page-tabs">
     <button class="page-tab-btn active" data-page="operations">Operations</button>
+    <button class="page-tab-btn" data-page="pipeline">Pipeline</button>
     <button class="page-tab-btn" data-page="data">Data</button>
     <button class="page-tab-btn" data-page="assign">Assign</button>
     <button class="page-tab-btn" data-page="tasks">Tasks</button>
@@ -394,6 +395,7 @@
   </div>
 
   <div id="page-operations" class="page-panel active"><div id="cards"></div></div>
+  <div id="page-pipeline" class="page-panel"><div id="cards-pipeline"></div></div>
   <div id="page-data" class="page-panel"><div id="cards-data"></div></div>
   <div id="page-assign" class="page-panel">
     <iframe src="https://mhcreatives.github.io/mh-assign-dasboard/" class="assign-frame" title="Assign Dashboard"></iframe>
@@ -435,6 +437,7 @@
   if (savedTab) activatePageTab(savedTab);
 
   const cardsRoot = document.getElementById('cards');
+  const cardsPipelineRoot = document.getElementById('cards-pipeline');
   const cardsDataRoot = document.getElementById('cards-data');
   const cardsTasksRoot = document.getElementById('cards-tasks');
 
@@ -3921,6 +3924,171 @@ Then extract:
     return card;
   }
 
+  // ─── Pipeline (all active Invitation orders, grouped by production stage) ─
+  // A whole-pipeline overview — every order that isn't Done/Cancelled,
+  // bucketed into Pending / Layout / Printing / Assembly / Packaging so you
+  // can see where the backlog actually is. Printing vs Assembly follows the
+  // same convention as the Order Tracker card: same status list, split by
+  // whether an assignee for assembly is set (Quota checked + no assignee =
+  // Printing queue; has an assignee = Assembly queue).
+
+  const PIPE_STATUS_GROUPS = {
+    pending: ['Pending details', 'On hold production', 'On hold shipping', 'On hold layout', 'Balance to pay'],
+    layout: ['For layout', 'For enhancement', 'Layout to copy', 'Seal for layout', 'Vellum for layout', 'Liner for layout', 'Envelope for layout', 'Layout in progress', 'For revision', 'To resize', 'Map layout', 'For checking', 'For submission', 'Waiting approval (client)', 'For checkout'],
+    printAssemble: ['To print', 'Sample print', 'Printing', 'Liner to print', 'Vellum to print', 'Seal to print', 'Tag to print', 'Envelope to print', 'Wax seal to do', 'To assemble'],
+    packaging: ['Photo', 'For packaging', 'To Ship', 'For posting'],
+  };
+  const PIPE_GROUP_LABELS = [
+    { key: 'pending', label: '🕓 Pending', sub: 'Not yet in layout' },
+    { key: 'layout', label: '🎨 Layout', sub: 'Design, revisions, approval' },
+    { key: 'printing', label: '🖨 Printing', sub: 'Quota checked, no assignee yet' },
+    { key: 'assembly', label: '🧵 Assembly', sub: 'Assigned for assembly' },
+    { key: 'packaging', label: '📦 Packaging', sub: 'Photo / packaging / shipping' },
+    { key: 'other', label: '❔ Other', sub: 'Active status outside the buckets above' },
+  ];
+
+  function buildPipelineCard() {
+    const card = document.createElement('div');
+    card.className = 'tool-card';
+    card.innerHTML = `
+      <div class="tool-hd">
+        <div class="tool-name">🧭 Pipeline</div>
+        <div class="tool-actions">
+          <button class="icon-btn" data-act="refresh">↻ refresh</button>
+        </div>
+      </div>
+      <div class="tool-desc">Every active (non-Done/Cancelled) order, grouped by production stage.</div>
+      <div class="status-line" data-el="status"></div>
+      <div data-el="groups"></div>
+
+      <div class="config-toggle" data-act="toggleConfig">⚙ set airtable api key</div>
+      <div class="config-panel" data-el="configPanel">
+        <div class="config-hint">Same Airtable key as the Order Tracker card. Stored locally in this browser only.</div>
+        <div class="id-row">
+          <input type="password" data-el="keyInput" placeholder="pat..." autocomplete="off" spellcheck="false" />
+          <button class="save-btn" data-act="saveKey">Save</button>
+        </div>
+      </div>
+    `;
+
+    const el = sel => card.querySelector(`[data-el="${sel}"]`);
+    const statusEl = el('status');
+    const groupsEl = el('groups');
+    const configPanel = el('configPanel');
+    const keyInput = el('keyInput');
+
+    function setStatus(text, cls) {
+      statusEl.className = `status-line ${cls || ''}`;
+      statusEl.innerHTML = text ? `<span class="status-dot ${cls || ''}"></span>${text}` : '';
+    }
+
+    function getKey() { return localStorage.getItem(OT_KEY_STORAGE) || ''; }
+
+    let lastGroups = {};
+    let expanded = null;
+
+    function classifyRecord(r) {
+      const status = r.fields?.[INV_STATUS];
+      const quota = !!r.fields?.[INV_QUOTA];
+      const assignee = r.fields?.[INV_ASSIGNEE];
+      const hasAssignee = !!(assignee && String(assignee).trim());
+      if (PIPE_STATUS_GROUPS.pending.includes(status)) return 'pending';
+      if (PIPE_STATUS_GROUPS.layout.includes(status)) return 'layout';
+      if (PIPE_STATUS_GROUPS.packaging.includes(status)) return 'packaging';
+      if (PIPE_STATUS_GROUPS.printAssemble.includes(status)) return hasAssignee ? 'assembly' : 'printing';
+      return 'other';
+    }
+
+    function renderGroups() {
+      groupsEl.innerHTML = PIPE_GROUP_LABELS.map(g => {
+        const bucket = lastGroups[g.key] || { count: 0, total: 0, records: [] };
+        const isOpen = expanded === g.key;
+        const listHtml = isOpen ? `
+          <div class="proof-results" style="max-height:320px; margin-top:8px;">
+            ${bucket.records.length === 0 ? '<div style="padding:10px; color:#555; font-size:11px;">No orders</div>' : bucket.records.map(r => `
+              <div class="proof-item">
+                <div class="proof-name">${r.name}${r.clientNum ? ` <span>#${r.clientNum}</span>` : ''}</div>
+                <div class="proof-diff">${r.status} · ${otFormatPeso(r.total)}</div>
+                <a class="proof-link" href="https://airtable.com/${OT_BASE_ID}/${INV_TABLE}/${r.id}" target="_blank" rel="noopener">Open record ↗</a>
+              </div>
+            `).join('')}
+          </div>` : '';
+        return `
+          <div class="ot-row" data-act="toggleGroup" data-group="${g.key}" style="cursor:pointer;">
+            <div><div class="ot-label">${g.label}</div><div class="ot-sub">${g.sub}</div></div>
+            <div class="ot-values"><div class="ot-value" style="width:auto;">${bucket.count} · ${otFormatPeso(bucket.total)}</div></div>
+          </div>
+          ${listHtml}
+        `;
+      }).join('<div class="ot-divider"></div>');
+    }
+
+    async function load() {
+      const apiKey = getKey();
+      if (!apiKey) {
+        setStatus('Set Airtable API key first ↓', 'error');
+        configPanel.classList.add('open');
+        return;
+      }
+      setStatus('Loading...', '');
+      try {
+        const records = await otFetchRecords(
+          apiKey, INV_TABLE, INV_STATUS, INV_TOTAL, INV_STATUS,
+          `AND({Status}!="Done",{Status}!="Cancelled")`,
+          [INV_QUOTA, INV_ASSIGNEE, PROOF_FB_NAME, PROOF_CLIENT_NUM]
+        );
+
+        const groups = {};
+        PIPE_GROUP_LABELS.forEach(g => { groups[g.key] = { count: 0, total: 0, records: [] }; });
+        records.forEach(r => {
+          const key = classifyRecord(r);
+          const total = r.fields?.[INV_TOTAL] || 0;
+          groups[key].count++;
+          groups[key].total += total;
+          groups[key].records.push({
+            id: r.id,
+            name: r.fields?.[PROOF_FB_NAME] || 'Unnamed',
+            clientNum: r.fields?.[PROOF_CLIENT_NUM],
+            status: r.fields?.[INV_STATUS] || '—',
+            total,
+          });
+        });
+        Object.values(groups).forEach(g => g.records.sort((a, b) => b.total - a.total));
+
+        lastGroups = groups;
+        renderGroups();
+        const totalCount = records.length;
+        const totalValue = records.reduce((sum, r) => sum + (r.fields?.[INV_TOTAL] || 0), 0);
+        setStatus(`Loaded ✓ — ${totalCount} active order(s), ${otFormatPeso(totalValue)}`, 'success');
+      } catch (err) {
+        setStatus(`Error: ${err.message}`, 'error');
+      }
+    }
+
+    card.addEventListener('click', (e) => {
+      const target = e.target.closest('[data-act]');
+      const act = target?.dataset.act;
+      if (act === 'refresh') load();
+      else if (act === 'toggleConfig') configPanel.classList.toggle('open');
+      else if (act === 'saveKey') {
+        const val = keyInput.value.trim();
+        if (!val) return;
+        localStorage.setItem(OT_KEY_STORAGE, val);
+        load();
+      } else if (act === 'toggleGroup') {
+        const g = target.dataset.group;
+        expanded = expanded === g ? null : g;
+        renderGroups();
+      }
+    });
+
+    const savedKey = getKey();
+    if (savedKey) { keyInput.value = savedKey; load(); }
+    else { setStatus('Set Airtable API key first ↓', 'error'); configPanel.classList.add('open'); }
+
+    return card;
+  }
+
   cardsRoot.appendChild(buildNewOrdersCard());
   cardsRoot.appendChild(buildUpdatesCard());
   cardsRoot.appendChild(buildOrderTrackerCard());
@@ -3928,6 +4096,7 @@ Then extract:
   cardsRoot.appendChild(buildBalanceCard());
   cardsRoot.appendChild(buildShippingCard());
   cardsRoot.appendChild(buildInventoryCard());
+  cardsPipelineRoot.appendChild(buildPipelineCard());
 
   // ─── Ads (Meta Graph API — ad account insights) ─────────────────────────
   // Pulls spend/results straight from the Facebook Marketing API for a given

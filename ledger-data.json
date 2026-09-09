@@ -136,6 +136,14 @@
       "paidMonths": {
         "2026-09": true
       }
+    },
+    {
+      "id": "afe8jlqs",
+      "name": "",
+      "amount": 0,
+      "startKey": "2026-09",
+      "endKey": "2028-12",
+      "paidMonths": {}
     }
   ],
   "months": {

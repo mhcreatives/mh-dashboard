@@ -115,6 +115,13 @@
   }
 
   .config-toggle {
+    /* All credential inputs now live in the Settings tab in one place
+       (see #cards-settings) instead of scattered across every card that
+       needs a key — hide these per-card toggles/panels rather than tear
+       out each card's internal wiring (auto-open, save, keydown handlers
+       all still reference these elements; hiding is zero-risk, ripping
+       them out card-by-card in this one shared script is not). */
+    display: none !important;
     font-size: 10px;
     font-family: 'DM Mono', monospace;
     color: #444;
@@ -126,12 +133,11 @@
   .config-toggle:hover { color: #777; }
 
   .config-panel {
-    display: none;
+    display: none !important;
     margin-top: 14px;
     padding-top: 14px;
     border-top: 1px solid #1e1e1e;
   }
-  .config-panel.open { display: block; }
 
   .config-hint { font-size: 10px; color: #444; line-height: 1.6; margin-bottom: 10px; }
   .config-hint b { color: #ff6b35; }
@@ -392,6 +398,7 @@
     <button class="page-tab-btn" data-page="assign">Assign</button>
     <button class="page-tab-btn" data-page="tasks">Tasks</button>
     <button class="page-tab-btn" data-page="ledger">Ledger</button>
+    <button class="page-tab-btn" data-page="settings">Settings</button>
   </div>
 
   <div id="page-operations" class="page-panel active"><div id="cards"></div></div>
@@ -411,6 +418,7 @@
       document.getElementById('ledgerFrame').src = 'ledger-calendar.html?v=' + Date.now();
     </script>
   </div>
+  <div id="page-settings" class="page-panel"><div id="cards-settings"></div></div>
 
 </div>
 
@@ -440,6 +448,7 @@
   const cardsPipelineRoot = document.getElementById('cards-pipeline');
   const cardsDataRoot = document.getElementById('cards-data');
   const cardsTasksRoot = document.getElementById('cards-tasks');
+  const cardsSettingsRoot = document.getElementById('cards-settings');
 
   const PROOF_EXT_ID_STORAGE = 'mh_ext_id_proof';
 
@@ -780,7 +789,7 @@
     async function loadData() {
       const apiKey = getKey();
       if (!apiKey) {
-        setStatus('Set Airtable API key first ↓', 'error');
+        setStatus('Set Airtable API key in the Settings tab', 'error');
         configPanel.classList.add('open');
         bodyEl.style.display = 'none';
         return;
@@ -874,7 +883,7 @@
     async function cleanupSouvenirRecords() {
       const apiKey = getKey();
       if (!apiKey) {
-        setStatus('Set Airtable API key first ↓', 'error');
+        setStatus('Set Airtable API key in the Settings tab', 'error');
         configPanel.classList.add('open');
         return;
       }
@@ -962,7 +971,7 @@
 
     const savedKey = getKey();
     if (savedKey) { keyInput.value = savedKey; loadData(); }
-    else { setStatus('Set Airtable API key first ↓', 'error'); configPanel.classList.add('open'); }
+    else { setStatus('Set Airtable API key in the Settings tab', 'error'); configPanel.classList.add('open'); }
 
     const OT_AUTO_REFRESH_MS = 15 * 60 * 1000;
     let otAutoRefreshTimer = null;
@@ -1079,7 +1088,7 @@
     }
     const extensionId = localStorage.getItem(PROOF_EXT_ID_STORAGE) || '';
     if (!extensionId) {
-      callbacks.onError('Set the Proof Sender extension ID first (⚙ below)');
+      callbacks.onError('Set the Proof Sender extension ID in the Settings tab');
       return () => {};
     }
 
@@ -1180,8 +1189,8 @@
     function startSendProofs() {
       const apiKey = localStorage.getItem(OT_KEY_STORAGE) || '';
       const pageToken = localStorage.getItem(FB_PAGE_TOKEN_STORAGE) || '';
-      if (!apiKey) { setSendStatus('Set Airtable API key in Order Tracker first ↓', 'error'); return; }
-      if (!pageToken) { setSendStatus('Set Facebook Page token in the Balance card first', 'error'); return; }
+      if (!apiKey) { setSendStatus('Set Airtable API key in the Settings tab', 'error'); return; }
+      if (!pageToken) { setSendStatus('Set Facebook Page token in the Settings tab', 'error'); return; }
 
       sendLogEl.innerHTML = '';
       sendProgressEl.textContent = '';
@@ -1237,7 +1246,7 @@
     async function scan() {
       const apiKey = localStorage.getItem(OT_KEY_STORAGE) || '';
       if (!apiKey) {
-        setStatus('Set Airtable API key in Order Tracker first ↓', 'error');
+        setStatus('Set Airtable API key in the Settings tab', 'error');
         return;
       }
 
@@ -1349,7 +1358,7 @@
     card.addEventListener('change', async (e) => {
       if (e.target.dataset.act !== 'setArea') return;
       const apiKey = localStorage.getItem(OT_KEY_STORAGE) || '';
-      if (!apiKey) { setStatus('Set Airtable API key in Order Tracker first ↓', 'error'); return; }
+      if (!apiKey) { setStatus('Set Airtable API key in the Settings tab', 'error'); return; }
       const id = e.target.dataset.id;
       const isSolo = e.target.dataset.solo === '1';
       const val = e.target.value;
@@ -1985,7 +1994,7 @@ Then extract:
 
     function startSendTracking() {
       const apiKey = localStorage.getItem(OT_KEY_STORAGE) || '';
-      if (!apiKey) { setTrackStatus('Set Airtable API key in Order Tracker first ↓', 'error'); return; }
+      if (!apiKey) { setTrackStatus('Set Airtable API key in the Settings tab', 'error'); return; }
 
       trackLogEl.innerHTML = '';
       trackProgressEl.textContent = '';
@@ -2062,7 +2071,7 @@ Then extract:
     async function scan() {
       const apiKey = localStorage.getItem(OT_KEY_STORAGE) || '';
       if (!apiKey) {
-        setStatus('Set Airtable API key in Order Tracker first ↓', 'error');
+        setStatus('Set Airtable API key in the Settings tab', 'error');
         return;
       }
 
@@ -2139,7 +2148,7 @@ Then extract:
     async function checkConversation(item) {
       const { pageId, pageToken } = getFbCreds();
       if (!pageId || !pageToken) {
-        setStatus('Set Facebook Page credentials first ↓', 'error');
+        setStatus('Set Facebook Page credentials in the Settings tab', 'error');
         configPanel.classList.add('open');
         return;
       }
@@ -2168,7 +2177,7 @@ Then extract:
     async function sendShippingForm(item) {
       const { pageId, pageToken } = getFbCreds();
       if (!pageId || !pageToken) {
-        setStatus('Set Facebook Page credentials first ↓', 'error');
+        setStatus('Set Facebook Page credentials in the Settings tab', 'error');
         configPanel.classList.add('open');
         return;
       }
@@ -2189,7 +2198,7 @@ Then extract:
     async function fillFromReply(item) {
       const apiKey = localStorage.getItem(OT_KEY_STORAGE) || '';
       if (!apiKey) {
-        setStatus('Set Airtable API key in Order Tracker first ↓', 'error');
+        setStatus('Set Airtable API key in the Settings tab', 'error');
         return;
       }
       if (!item.userReply) return;
@@ -2339,8 +2348,8 @@ Then extract:
     async function resolvePsid() {
       const apiKey = localStorage.getItem(OT_KEY_STORAGE) || '';
       const { pageId, pageToken } = getFbCreds();
-      if (!apiKey) { setPsidStatus('Set Airtable API key in Order Tracker first', 'error'); return; }
-      if (!pageId || !pageToken) { setPsidStatus('Set Facebook Page credentials above first', 'error'); configPanel.classList.add('open'); return; }
+      if (!apiKey) { setPsidStatus('Set Airtable API key in the Settings tab', 'error'); return; }
+      if (!pageId || !pageToken) { setPsidStatus('Set Facebook Page credentials in the Settings tab', 'error'); configPanel.classList.add('open'); return; }
 
       const search = psidSearchInput.value.trim();
       if (!search) { setPsidStatus('Enter a client name or number', 'error'); return; }
@@ -2529,7 +2538,7 @@ Then extract:
     async function scan() {
       const apiKey = localStorage.getItem(OT_KEY_STORAGE) || '';
       if (!apiKey) {
-        setStatus('Set Airtable API key in Order Tracker first ↓', 'error');
+        setStatus('Set Airtable API key in the Settings tab', 'error');
         return;
       }
 
@@ -2661,7 +2670,7 @@ Then extract:
     async function markPaid(item) {
       const { pageId, pageToken } = getFbCreds();
       if (!pageId || !pageToken) {
-        setStatus('Set Facebook Page credentials first ↓', 'error');
+        setStatus('Set Facebook Page credentials in the Settings tab', 'error');
         configPanel.classList.add('open');
         return;
       }
@@ -2671,7 +2680,7 @@ Then extract:
       }
       const apiKey = localStorage.getItem(OT_KEY_STORAGE) || '';
       if (!apiKey) {
-        setStatus('Set Airtable API key in Order Tracker first ↓', 'error');
+        setStatus('Set Airtable API key in the Settings tab', 'error');
         return;
       }
       setStatus(`Sending confirmation to ${item.name}...`, '');
@@ -2950,7 +2959,7 @@ Then extract:
     async function load() {
       const apiKey = localStorage.getItem(GOOGLE_API_KEY_STORAGE) || '';
       if (!apiKey) {
-        setStatus('Set Google Sheets API key first ↓', 'error');
+        setStatus('Set Google Sheets API key in the Settings tab', 'error');
         configPanel.classList.add('open');
         return;
       }
@@ -3113,7 +3122,7 @@ Then extract:
     async function load() {
       const apiKey = localStorage.getItem(GOOGLE_API_KEY_STORAGE) || '';
       if (!apiKey) {
-        setStatus('Set Google Sheets API key first ↓', 'error');
+        setStatus('Set Google Sheets API key in the Settings tab', 'error');
         configPanel.classList.add('open');
         return;
       }
@@ -3571,7 +3580,7 @@ Then extract:
       const googleKey = localStorage.getItem(GOOGLE_API_KEY_STORAGE) || '';
       const airtableKey = localStorage.getItem(OT_KEY_STORAGE) || '';
       if (!googleKey || !airtableKey) {
-        setStatus('Set Google Sheets API key (New Orders card) and Airtable API key (Order Tracker card) first', 'error');
+        setStatus('Set Google Sheets API key and Airtable API key in the Settings tab', 'error');
         return null;
       }
       return { googleKey, airtableKey };
@@ -3763,7 +3772,7 @@ Then extract:
     async function scan() {
       const apiKey = localStorage.getItem(OT_KEY_STORAGE) || '';
       if (!apiKey) {
-        setStatus('Set Airtable API key in Order Tracker first ↓', 'error');
+        setStatus('Set Airtable API key in the Settings tab', 'error');
         return;
       }
       setStatus('Scanning...', '');
@@ -3842,7 +3851,7 @@ Then extract:
     async function markAllOrdered() {
       const apiKey = localStorage.getItem(OT_KEY_STORAGE) || '';
       if (!apiKey) {
-        setStatus('Set Airtable API key in Order Tracker first ↓', 'error');
+        setStatus('Set Airtable API key in the Settings tab', 'error');
         return;
       }
       // Only the colored/transparent-envelope subset — same records the
@@ -3868,7 +3877,7 @@ Then extract:
     async function markInStock(item) {
       const apiKey = localStorage.getItem(OT_KEY_STORAGE) || '';
       if (!apiKey) {
-        setStatus('Set Airtable API key in Order Tracker first ↓', 'error');
+        setStatus('Set Airtable API key in the Settings tab', 'error');
         return;
       }
       setStatus(`Updating ${item.name}...`, '');
@@ -3909,7 +3918,7 @@ Then extract:
     // never auto-refreshed — it only ever updated when "Scan" was clicked,
     // so it looked "not synced" after the API key was already set elsewhere.
     if (localStorage.getItem(OT_KEY_STORAGE)) scan();
-    else setStatus('Set Airtable API key in Order Tracker first ↓', 'error');
+    else setStatus('Set Airtable API key in the Settings tab', 'error');
 
     const INV_AUTO_REFRESH_MS = 15 * 60 * 1000;
     let invAutoRefreshTimer = null;
@@ -4025,7 +4034,7 @@ Then extract:
     async function load() {
       const apiKey = getKey();
       if (!apiKey) {
-        setStatus('Set Airtable API key first ↓', 'error');
+        setStatus('Set Airtable API key in the Settings tab', 'error');
         configPanel.classList.add('open');
         return;
       }
@@ -4087,7 +4096,7 @@ Then extract:
 
     const savedKey = getKey();
     if (savedKey) { keyInput.value = savedKey; load(); }
-    else { setStatus('Set Airtable API key first ↓', 'error'); configPanel.classList.add('open'); }
+    else { setStatus('Set Airtable API key in the Settings tab', 'error'); configPanel.classList.add('open'); }
 
     return card;
   }
@@ -4345,7 +4354,7 @@ Then extract:
       const token = localStorage.getItem(ADS_TOKEN_STORAGE) || '';
       const accountId = localStorage.getItem(ADS_ACCOUNT_STORAGE) || '';
       if (!token || !accountId) {
-        setStatus('Set ad account ID + access token first ↓', 'error');
+        setStatus('Set ad account ID + access token in the Settings tab', 'error');
         configPanel.classList.add('open');
         tableEl.innerHTML = '';
         return;
@@ -4530,9 +4539,9 @@ Then extract:
   async function initTasksData() {
     const token = localStorage.getItem(TASKS_GITHUB_TOKEN_STORAGE) || '';
     if (!token) {
-      setDailyTasksStatus('Set GitHub token first ↓', 'error');
-      setWeeklyTasksStatus('Set GitHub token in Daily Tasks card ↓', 'error');
-      setGoalsStatus('Set GitHub token in Daily Tasks card ↓', 'error');
+      setDailyTasksStatus('Set GitHub token in the Settings tab', 'error');
+      setWeeklyTasksStatus('Set GitHub token in the Settings tab', 'error');
+      setGoalsStatus('Set GitHub token in the Settings tab', 'error');
       return;
     }
     setDailyTasksStatus('Loading...', '');
@@ -5456,6 +5465,74 @@ Then extract:
   cardsTasksRoot.appendChild(buildWeeklyTasksCard());
   cardsTasksRoot.appendChild(buildGoalsCard());
   initTasksData();
+
+  // ─── Settings (every credential input, in one place) ───────────────────
+  // All the individual "⚙ set X" panels scattered across cards write to
+  // these same localStorage keys — consolidated here so credentials only
+  // need to be entered once instead of hunting through each card. A saved
+  // value takes effect the next time the card that uses it loads/refreshes
+  // (switching tabs away and back, or its own Refresh button, is enough).
+  const SETTINGS_FIELDS = [
+    { key: OT_KEY_STORAGE, label: 'Airtable API Key', hint: 'Used by Order Tracker, Proof, Inventory, and Pipeline.', placeholder: 'pat...', type: 'password' },
+    { key: PROOF_EXT_ID_STORAGE, label: 'Proof Sender Extension ID', hint: 'Browser extension ID used by the proof-sending cards.', placeholder: 'extension id', type: 'text' },
+    { key: FB_PAGE_ID_STORAGE, label: 'Facebook Page ID', hint: 'Used by the New Orders / Updates cards.', placeholder: 'page id', type: 'text' },
+    { key: FB_PAGE_TOKEN_STORAGE, label: 'Facebook Page Access Token', hint: '', placeholder: 'page access token', type: 'password' },
+    { key: GEMINI_KEY_STORAGE, label: 'Gemini API Key', hint: '', placeholder: 'AI...', type: 'password' },
+    { key: GOOGLE_API_KEY_STORAGE, label: 'Google Sheets API Key', hint: 'Used by the Sales and Balance cards.', placeholder: 'AIza...', type: 'password' },
+    { key: ADS_ACCOUNT_STORAGE, label: 'Meta Ads Account ID', hint: '', placeholder: 'e.g. 1234567890', type: 'text' },
+    { key: ADS_TOKEN_STORAGE, label: 'Meta Ads Access Token', hint: '', placeholder: 'ads_read token', type: 'password' },
+    { key: TASKS_GITHUB_TOKEN_STORAGE, label: 'GitHub Personal Access Token', hint: 'Used by Tasks/Goals sync and the Ledger tab (shared).', placeholder: 'ghp_... or fine-grained token', type: 'password' },
+  ];
+
+  function buildSettingsCard() {
+    const card = document.createElement('div');
+    card.className = 'tool-card';
+    card.style.gridColumn = 'span 2';
+    card.innerHTML = `
+      <div class="tool-hd">
+        <div class="tool-name">🔑 Settings</div>
+      </div>
+      <div class="tool-desc">All API keys and tokens used across this dashboard, in one place. Stored locally in this browser only.</div>
+      <div data-el="fields"></div>
+    `;
+    const fieldsEl = card.querySelector('[data-el="fields"]');
+
+    SETTINGS_FIELDS.forEach((f, i) => {
+      const row = document.createElement('div');
+      row.style.marginBottom = '14px';
+      row.innerHTML = `
+        <div class="config-hint" style="margin-bottom:4px;">${f.label}${f.hint ? ' — ' + f.hint : ''}</div>
+        <div class="id-row">
+          <input type="${f.type}" data-idx="${i}" placeholder="${f.placeholder}" autocomplete="off" spellcheck="false" value="${(localStorage.getItem(f.key) || '').replace(/"/g, '&quot;')}" />
+          <button class="save-btn" data-idx="${i}">Save</button>
+        </div>
+        <div class="status-line" data-status-idx="${i}"></div>
+      `;
+      fieldsEl.appendChild(row);
+    });
+
+    function save(idx) {
+      const f = SETTINGS_FIELDS[idx];
+      const input = card.querySelector(`input[data-idx="${idx}"]`);
+      const statusEl = card.querySelector(`[data-status-idx="${idx}"]`);
+      const val = input.value.trim();
+      if (val) localStorage.setItem(f.key, val);
+      else localStorage.removeItem(f.key);
+      statusEl.innerHTML = `<span class="status-dot success"></span>Saved ✓`;
+      setTimeout(() => { statusEl.innerHTML = ''; }, 2000);
+    }
+
+    card.addEventListener('click', (e) => {
+      if (e.target.matches('button.save-btn[data-idx]')) save(Number(e.target.dataset.idx));
+    });
+    card.addEventListener('keydown', (e) => {
+      if (e.target.matches('input[data-idx]') && e.key === 'Enter') save(Number(e.target.dataset.idx));
+    });
+
+    return card;
+  }
+
+  cardsSettingsRoot.appendChild(buildSettingsCard());
 </script>
 </body>
 </html>

@@ -2,7 +2,7 @@
   "accounts": {
     "Gcash 1": 345556,
     "Gcash 2": 42039,
-    "Maya 1": 42523,
+    "Maya 1": 16337,
     "Maya 2": 7527,
     "Maya savings": 206702,
     "UB": 197892,
@@ -126,6 +126,14 @@
       "paidMonths": {
         "2026-08": true
       }
+    },
+    {
+      "id": "0zm16tnr",
+      "name": "T",
+      "amount": 0,
+      "startKey": "2026-09",
+      "endKey": "2028-12",
+      "paidMonths": {}
     }
   ],
   "months": {
@@ -179,8 +187,8 @@
         "Electricity": 5000
       },
       "cashOverride": {
-        "amount": 917217,
-        "date": "2026-09-06"
+        "amount": 985141,
+        "date": "2026-09-09"
       }
     },
     "2026-10": {

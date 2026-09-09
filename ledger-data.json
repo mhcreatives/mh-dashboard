@@ -1,11 +1,11 @@
 {
   "accounts": {
-    "Gcash 1": 267475,
+    "Gcash 1": 285156,
     "Gcash 2": 25470,
-    "Maya 1": 8099,
-    "Maya 2": 57656,
+    "Maya 1": 42523,
+    "Maya 2": 7656,
     "Maya savings": 206702,
-    "UB": 182330,
+    "UB": 180622,
     "CBS": 84088,
     "Loans": 85000,
     "Others": 0
@@ -58,11 +58,12 @@
     {
       "id": "b9603nem",
       "name": "Internet",
-      "amount": 2649,
+      "amount": 2599,
       "startKey": "2026-08",
       "endKey": "2028-12",
       "paidMonths": {
-        "2026-08": true
+        "2026-08": true,
+        "2026-09": true
       }
     },
     {
@@ -134,12 +135,14 @@
         {
           "id": "zswfub85",
           "name": "Salaries",
-          "amount": 50700
+          "amount": 50700,
+          "paid": true
         },
         {
           "id": "yg8z3qwo",
           "name": "Atome",
-          "amount": 20405
+          "amount": 20405,
+          "paid": true
         }
       ],
       "fixed": {
@@ -176,8 +179,8 @@
         "Electricity": 5000
       },
       "cashOverride": {
-        "amount": 916820,
-        "date": "2026-09-05"
+        "amount": 917217,
+        "date": "2026-09-06"
       }
     },
     "2026-10": {

@@ -2214,8 +2214,9 @@ Then extract:
       setStatus(`Updating Shipping details for ${item.name}...`, '');
       try {
         await otPatchRecords(apiKey, INV_TABLE, [{ id: item.id, fields: { 'Shipping details': item.userReply } }]);
-        item.filled = true;
+        lastFlagged = lastFlagged.filter(f => f.id !== item.id);
         setStatus(`Shipping details updated for ${item.name} ✓`, 'success');
+        summaryEl.textContent = `${lastFlagged.length} flagged`;
         renderResults(lastFlagged);
       } catch (err) {
         setStatus(`Error: ${err.message}`, 'error');

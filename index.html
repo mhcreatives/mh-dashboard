@@ -5494,6 +5494,24 @@ Then extract:
       </div>
       <div class="tool-desc">All API keys and tokens used across this dashboard, in one place. Stored locally in this browser only.</div>
       <div data-el="fields"></div>
+
+      <div style="display:flex; gap:14px; margin-top:4px;">
+        <button class="icon-btn" data-act="showExport">📤 Export settings</button>
+        <button class="icon-btn" data-act="showImport">📥 Import settings</button>
+      </div>
+      <div data-el="exportPanel" style="display:none; margin-top:12px; padding-top:14px; border-top:1px solid #1e1e1e;">
+        <div class="config-hint" style="margin-bottom:8px;">
+          Copies every credential above as plain-text JSON — paste it into "Import settings" on another browser/device to carry credentials over. Anyone with this text has full access to these accounts, so treat it like a password: don't paste it anywhere public.
+        </div>
+        <textarea data-el="exportText" readonly style="width:100%; min-height:100px; background:#111; border:1px solid #1e1e1e; border-radius:8px; padding:10px; color:#ccc; font-family:'DM Mono',monospace; font-size:11px; box-sizing:border-box;"></textarea>
+        <button class="save-btn" data-act="copyExport" style="margin-top:8px;">Copy to clipboard</button>
+      </div>
+      <div data-el="importPanel" style="display:none; margin-top:12px; padding-top:14px; border-top:1px solid #1e1e1e;">
+        <div class="config-hint" style="margin-bottom:8px;">Paste settings JSON exported from another browser/device, then load it. This overwrites any credential also present in the pasted JSON.</div>
+        <textarea data-el="importText" placeholder="Paste exported settings JSON here" style="width:100%; min-height:100px; background:#111; border:1px solid #1e1e1e; border-radius:8px; padding:10px; color:#ccc; font-family:'DM Mono',monospace; font-size:11px; box-sizing:border-box;"></textarea>
+        <button class="save-btn" data-act="loadImport" style="margin-top:8px;">Load settings</button>
+        <div class="status-line" data-el="importStatus"></div>
+      </div>
     `;
     const fieldsEl = card.querySelector('[data-el="fields"]');
 
@@ -5522,8 +5540,69 @@ Then extract:
       setTimeout(() => { statusEl.innerHTML = ''; }, 2000);
     }
 
+    const exportPanel = card.querySelector('[data-el="exportPanel"]');
+    const importPanel = card.querySelector('[data-el="importPanel"]');
+    const exportText = card.querySelector('[data-el="exportText"]');
+    const importText = card.querySelector('[data-el="importText"]');
+    const importStatus = card.querySelector('[data-el="importStatus"]');
+
+    function refreshFieldInputs() {
+      SETTINGS_FIELDS.forEach((f, i) => {
+        const input = card.querySelector(`input[data-idx="${i}"]`);
+        if (input) input.value = localStorage.getItem(f.key) || '';
+      });
+    }
+
+    function doExport() {
+      importPanel.style.display = 'none';
+      const data = {};
+      SETTINGS_FIELDS.forEach(f => {
+        const val = localStorage.getItem(f.key);
+        if (val) data[f.key] = val;
+      });
+      exportText.value = JSON.stringify(data, null, 2);
+      exportPanel.style.display = 'block';
+    }
+
+    function doImport() {
+      const raw = importText.value.trim();
+      if (!raw) return;
+      let parsed;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        importStatus.innerHTML = `<span class="status-dot error"></span>That doesn't look like valid JSON.`;
+        return;
+      }
+      const knownKeys = new Set(SETTINGS_FIELDS.map(f => f.key));
+      let count = 0;
+      Object.entries(parsed).forEach(([key, val]) => {
+        if (!knownKeys.has(key) || typeof val !== 'string' || !val) return;
+        localStorage.setItem(key, val);
+        count++;
+      });
+      refreshFieldInputs();
+      importStatus.innerHTML = count > 0
+        ? `<span class="status-dot success"></span>Loaded ${count} credential(s) ✓ — reload other tabs/cards to pick them up.`
+        : `<span class="status-dot error"></span>No recognized credential keys found in that JSON.`;
+    }
+
     card.addEventListener('click', (e) => {
+      const act = e.target.dataset.act;
       if (e.target.matches('button.save-btn[data-idx]')) save(Number(e.target.dataset.idx));
+      else if (act === 'showExport') doExport();
+      else if (act === 'showImport') { exportPanel.style.display = 'none'; importText.value = ''; importStatus.innerHTML = ''; importPanel.style.display = 'block'; }
+      else if (act === 'copyExport') {
+        exportText.focus();
+        exportText.select();
+        navigator.clipboard?.writeText(exportText.value).then(() => {
+          const btn = e.target;
+          const original = btn.textContent;
+          btn.textContent = '✓ Copied';
+          setTimeout(() => { btn.textContent = original; }, 1500);
+        }).catch(() => { document.execCommand('copy'); });
+      }
+      else if (act === 'loadImport') doImport();
     });
     card.addEventListener('keydown', (e) => {
       if (e.target.matches('input[data-idx]') && e.key === 'Enter') save(Number(e.target.dataset.idx));

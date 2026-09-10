@@ -1,21 +1,39 @@
 {
   "dailyTasks": [
     {
+      "id": "mtuxrsd8dipkao",
+      "text": "Reading a book",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "fixedKey": "mtuxrsd8yxwb3j",
+      "fixedDate": "2026-09-10"
+    },
+    {
+      "id": "mtuxrjf6d3y1ij",
+      "text": "Quiet time",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "fixedKey": "mtuxrjf6a6t1cl",
+      "fixedDate": "2026-09-10"
+    },
+    {
+      "id": "mtuxrajc0p5gj5",
+      "text": "Cutting for Thursday",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "fixedKey": "mtuxrajb7vsuqi",
+      "fixedDate": "2026-09-10"
+    },
+    {
       "id": "mtux3wz14clil9",
       "text": "Printing for Thursday",
       "done": true,
       "priority": "none",
       "dueDate": null,
       "fixedKey": "printing",
-      "fixedDate": "2026-09-10"
-    },
-    {
-      "id": "mtux3wz1ist41w",
-      "text": "Cutting for Thursday",
-      "done": false,
-      "priority": "none",
-      "dueDate": null,
-      "fixedKey": "cutting",
       "fixedDate": "2026-09-10"
     },
     {
@@ -26,10 +44,12 @@
       "dueDate": null,
       "fixedKey": "inventory",
       "fixedDate": "2026-09-10"
-    },
+    }
+  ],
+  "weeklyTasks": [
     {
-      "id": "mtruvqbbcrbs1x",
-      "text": "Production",
+      "id": "mtuxs9i9fmowxm",
+      "text": "Philhealth",
       "done": false,
       "priority": "none",
       "dueDate": null
@@ -70,6 +90,33 @@
       "timeframe": "1 year",
       "status": "not_started",
       "notes": "Future expressway project"
+    }
+  ],
+  "fixedDailyTasks": [
+    {
+      "key": "printing",
+      "label": "Printing",
+      "includeWeekday": true
+    },
+    {
+      "key": "inventory",
+      "label": "Inventory",
+      "includeWeekday": false
+    },
+    {
+      "key": "mtuxrajb7vsuqi",
+      "label": "Cutting",
+      "includeWeekday": true
+    },
+    {
+      "key": "mtuxrjf6a6t1cl",
+      "label": "Quiet time",
+      "includeWeekday": false
+    },
+    {
+      "key": "mtuxrsd8yxwb3j",
+      "label": "Reading a book",
+      "includeWeekday": false
     }
   ]
 }

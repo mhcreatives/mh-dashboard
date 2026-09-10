@@ -1,6 +1,15 @@
 {
   "dailyTasks": [
     {
+      "id": "mtuxrjf6d3y1ij",
+      "text": "Quiet time",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "fixedKey": "mtuxrjf6a6t1cl",
+      "fixedDate": "2026-09-10"
+    },
+    {
       "id": "mtuxrajc0p5gj5",
       "text": "Cutting for Thursday",
       "done": false,
@@ -88,6 +97,11 @@
       "key": "mtuxrajb7vsuqi",
       "label": "Cutting",
       "includeWeekday": true
+    },
+    {
+      "key": "mtuxrjf6a6t1cl",
+      "label": "Quiet time",
+      "includeWeekday": false
     }
   ]
 }

@@ -142,6 +142,17 @@
   .config-hint { font-size: 10px; color: #444; line-height: 1.6; margin-bottom: 10px; }
   .config-hint b { color: #ff6b35; }
 
+  /* Same look as .config-toggle/.config-panel but NOT globally hidden —
+     used for the fixed-daily-tasks manager, which isn't a credential
+     input and should stay visible. */
+  .mini-toggle {
+    font-size: 10px; font-family: 'DM Mono', monospace; color: #444;
+    cursor: pointer; margin-top: 12px; text-align: center; letter-spacing: 0.5px;
+  }
+  .mini-toggle:hover { color: #777; }
+  .mini-panel { display: none; margin-top: 14px; padding-top: 14px; border-top: 1px solid #1e1e1e; }
+  .mini-panel.open { display: block; }
+
   .id-row { display: flex; gap: 8px; }
 
   input {
@@ -4497,21 +4508,43 @@ Then extract:
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   }
 
-  let tasksDataCache = { dailyTasks: [], goals: [] };
+  // Default set of fixed daily tasks — recreated fresh each day by
+  // ensureFixedTasksForToday(). User-editable via the Daily Tasks card;
+  // this is only the seed used the first time (or if the field is ever
+  // missing from older saved data).
+  const DEFAULT_FIXED_DAILY_TASKS = [
+    { key: 'printing', label: 'Printing', includeWeekday: true },
+    { key: 'cutting', label: 'Cutting', includeWeekday: true },
+    { key: 'inventory', label: 'Inventory', includeWeekday: false },
+  ];
+  function tasksDataDefaults() {
+    return { dailyTasks: [], weeklyTasks: [], goals: [], fixedDailyTasks: [...DEFAULT_FIXED_DAILY_TASKS] };
+  }
+
+  let tasksDataCache = tasksDataDefaults();
   let tasksDataSha = null; // null = file doesn't exist in the repo yet
 
   async function ghFetchTasksData(token) {
     const url = `https://api.github.com/repos/${TASKS_REPO_OWNER}/${TASKS_REPO_NAME}/contents/${TASKS_DATA_PATH}`;
     const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' } });
-    if (resp.status === 404) { tasksDataSha = null; return { dailyTasks: [], goals: [] }; }
+    if (resp.status === 404) { tasksDataSha = null; return tasksDataDefaults(); }
     const json = await resp.json();
     if (!resp.ok) throw new Error(json.message || `GitHub API error ${resp.status}`);
     tasksDataSha = json.sha;
     try {
       const parsed = JSON.parse(base64ToUtf8(json.content));
-      return { dailyTasks: parsed.dailyTasks || [], goals: parsed.goals || [] };
+      // Preserve every known field instead of allowlisting just two — this
+      // used to silently drop weeklyTasks (and would've dropped a new
+      // fixedDailyTasks field too) on every single load, since only
+      // dailyTasks/goals were ever copied out of the parsed JSON.
+      return {
+        dailyTasks: parsed.dailyTasks || [],
+        weeklyTasks: parsed.weeklyTasks || [],
+        goals: parsed.goals || [],
+        fixedDailyTasks: Array.isArray(parsed.fixedDailyTasks) ? parsed.fixedDailyTasks : [...DEFAULT_FIXED_DAILY_TASKS],
+      };
     } catch {
-      return { dailyTasks: [], goals: [] };
+      return tasksDataDefaults();
     }
   }
 
@@ -4602,7 +4635,7 @@ Then extract:
           <button class="icon-btn" data-act="refresh">↻ Refresh</button>
         </div>
       </div>
-      <div class="tool-desc">Printing, Cutting, and Inventory (📌 daily) are added fresh, unchecked, every day. Everything else is a running checklist — nothing auto-clears, check things off as you go.</div>
+      <div class="tool-desc">Printing, Cutting, and Inventory (📌 daily) are added fresh, unchecked, every day — manage the list below. Everything else is a running checklist — nothing auto-clears, check things off as you go.</div>
       <div class="status-line" data-el="status"></div>
       <div class="qa-bar" style="margin-bottom:2px;">
         <button class="qa-plus" data-act="add" title="Add task">+</button>
@@ -4623,6 +4656,19 @@ Then extract:
       <input type="date" data-el="dueDateInput" style="display:none;" />
       <div class="proof-summary" data-el="summary" style="display:flex; align-items:center; justify-content:space-between; margin-top:8px;"></div>
       <div data-el="list"></div>
+
+      <div class="mini-toggle" data-act="toggleFixedManager">📌 manage fixed daily tasks</div>
+      <div class="mini-panel" data-el="fixedManagerPanel">
+        <div class="config-hint">Recreated fresh, unchecked, every day — same as Printing/Cutting/Inventory. Removing one here doesn't delete past instances already in the list above.</div>
+        <div data-el="fixedList"></div>
+        <div class="id-row" style="margin-top:8px;">
+          <input type="text" data-el="fixedLabelInput" placeholder="Task name (e.g. Packaging)" autocomplete="off" spellcheck="false" />
+          <label style="display:flex; align-items:center; gap:6px; font-size:11px; color:#888; white-space:nowrap;">
+            <input type="checkbox" data-el="fixedWeekdayInput" /> include weekday
+          </label>
+          <button class="save-btn" data-act="addFixedTask">Add</button>
+        </div>
+      </div>
 
       <div class="config-toggle" data-act="toggleConfig">⚙ set GitHub token</div>
       <div class="config-panel" data-el="configPanel">
@@ -4649,6 +4695,10 @@ Then extract:
     const listEl = el('list');
     const configPanel = el('configPanel');
     const tokenInput = el('tokenInput');
+    const fixedManagerPanel = el('fixedManagerPanel');
+    const fixedListEl = el('fixedList');
+    const fixedLabelInput = el('fixedLabelInput');
+    const fixedWeekdayInput = el('fixedWeekdayInput');
 
     const PRIORITY_LABELS = { none: '', low: 'Low', med: 'Medium', high: 'High' };
     const PRIORITY_COLORS = { none: '#444', low: '#5b9bd5', med: '#f5a524', high: '#f87171' };
@@ -4671,27 +4721,26 @@ Then extract:
       return d.toLocaleDateString('en-US', { weekday: 'long' });
     }
 
-    // ── Fixed daily tasks (Printing/Cutting/Inventory) ──────────────────
-    // Recreated fresh, unchecked, every day — identified by fixedKey +
-    // fixedDate rather than removed/replaced, so a previous day's fixed
-    // task just becomes ordinary history once a new one is added (still
-    // subject to "Clear completed" like any other task).
-    const FIXED_TASK_DEFS = [
-      { key: 'printing', label: () => `Printing for ${weekdayFull(new Date())}` },
-      { key: 'cutting', label: () => `Cutting for ${weekdayFull(new Date())}` },
-      { key: 'inventory', label: () => 'Inventory' },
-    ];
+    // ── Fixed daily tasks (Printing/Cutting/Inventory, user-editable) ───
+    // Recreated fresh, unchecked, every day from tasksDataCache.fixedDailyTasks
+    // — identified by fixedKey + fixedDate rather than removed/replaced, so
+    // a previous day's fixed task just becomes ordinary history once a new
+    // one is added (still subject to "Clear completed" like any other task).
+    function fixedTaskLabel(def) {
+      return def.includeWeekday ? `${def.label} for ${weekdayFull(new Date())}` : def.label;
+    }
     function ensureFixedTasksForToday() {
       const today = todayKeyLocal();
       tasksDataCache.dailyTasks = tasksDataCache.dailyTasks || [];
+      tasksDataCache.fixedDailyTasks = tasksDataCache.fixedDailyTasks || [];
       const list = tasksDataCache.dailyTasks;
-      const missing = FIXED_TASK_DEFS.filter(def =>
+      const missing = tasksDataCache.fixedDailyTasks.filter(def =>
         !list.some(t => t.fixedKey === def.key && t.fixedDate === today)
       );
       if (missing.length === 0) return false;
       list.unshift(...missing.map(def => ({
         id: tasksNewId(),
-        text: def.label(),
+        text: fixedTaskLabel(def),
         done: false,
         priority: 'none',
         dueDate: null,
@@ -4713,6 +4762,43 @@ Then extract:
         if (ok) setStatus('Saved ✓', 'success');
       }
     }, 5 * 60 * 1000);
+
+    function renderFixedManager() {
+      const defs = tasksDataCache.fixedDailyTasks || [];
+      fixedListEl.innerHTML = defs.length === 0 ? `<div class="config-hint">No fixed daily tasks.</div>` : defs.map(def => `
+        <div class="task-row">
+          <div class="task-text" style="flex:1;">${def.label.replace(/</g, '&lt;')}${def.includeWeekday ? ' <span style="color:#888; font-size:10px;">(+ weekday)</span>' : ''}</div>
+          <button class="task-del" data-act="removeFixedTask" data-key="${def.key}">✕</button>
+        </div>
+      `).join('');
+    }
+
+    async function addFixedTask() {
+      const label = fixedLabelInput.value.trim();
+      if (!label) return;
+      tasksDataCache.fixedDailyTasks = tasksDataCache.fixedDailyTasks || [];
+      tasksDataCache.fixedDailyTasks.push({
+        key: tasksNewId(),
+        label,
+        includeWeekday: fixedWeekdayInput.checked,
+      });
+      fixedLabelInput.value = '';
+      fixedWeekdayInput.checked = false;
+      renderFixedManager();
+      // adds today's instance immediately, so it doesn't wait for the next reload
+      if (ensureFixedTasksForToday()) render();
+      setStatus('Saving...', '');
+      const ok = await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
+      if (ok) setStatus('Saved ✓', 'success');
+    }
+
+    async function removeFixedTask(key) {
+      tasksDataCache.fixedDailyTasks = (tasksDataCache.fixedDailyTasks || []).filter(d => d.key !== key);
+      renderFixedManager();
+      setStatus('Saving...', '');
+      const ok = await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
+      if (ok) setStatus('Saved ✓', 'success');
+    }
 
     // Pending due date/priority for the task about to be added — set via
     // the quick-add bar's icon menus (Microsoft To Do style), cleared once
@@ -4765,6 +4851,7 @@ Then extract:
     let editingTaskId = null;
 
     function render() {
+      renderFixedManager();
       const allTasks = tasksDataCache.dailyTasks || [];
       const openCount = allTasks.filter(t => !t.done).length;
       const doneCount = allTasks.length - openCount;
@@ -4950,6 +5037,9 @@ Then extract:
       else if (act === 'saveEdit') saveEditTask(target.dataset.id);
       else if (act === 'cancelEdit') cancelEditTask();
       else if (act === 'clearCompleted') clearCompletedTasks();
+      else if (act === 'toggleFixedManager') fixedManagerPanel.classList.toggle('open');
+      else if (act === 'addFixedTask') addFixedTask();
+      else if (act === 'removeFixedTask') removeFixedTask(target.dataset.key);
       else if (act === 'toggleDueMenu') {
         const willOpen = dueMenu.hidden;
         closeMenus();
@@ -5004,6 +5094,7 @@ Then extract:
       else if (e.key === 'Escape') cancelEditTask();
     });
     taskInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addTask(); });
+    fixedLabelInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addFixedTask(); });
 
     const savedToken = localStorage.getItem(TASKS_GITHUB_TOKEN_STORAGE) || '';
     if (savedToken) tokenInput.value = savedToken;

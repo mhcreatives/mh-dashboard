@@ -4580,6 +4580,25 @@ Then extract:
   let setGoalsStatus = () => {};
   let ensureDailyFixedTasks = () => false; // set by buildDailyTasksCard; adds today's fixed tasks if missing
 
+  // ── Cross-list drag (Daily ⇄ Weekly) ──────────────────────────────────
+  // Both cards' own drag-to-reorder code stays scoped to its own list
+  // (local `dragId`); this shared bit of state is what lets a drag started
+  // in one card be recognized and accepted by the other.
+  let crossListDrag = null; // { id, from: 'dailyTasks' | 'weeklyTasks' }
+  function moveTaskBetweenLists(fromKey, toKey, id) {
+    const fromList = tasksDataCache[fromKey] || [];
+    const idx = fromList.findIndex(t => t.id === id);
+    if (idx === -1) return false;
+    const [task] = fromList.splice(idx, 1);
+    // a fixed daily task moved out of Daily becomes a normal task — the
+    // fixed/regenerate-each-day system only makes sense for that list.
+    delete task.fixedKey;
+    delete task.fixedDate;
+    tasksDataCache[toKey] = tasksDataCache[toKey] || [];
+    tasksDataCache[toKey].unshift(task);
+    return true;
+  }
+
   async function initTasksData() {
     const token = localStorage.getItem(TASKS_GITHUB_TOKEN_STORAGE) || '';
     if (!token) {
@@ -4635,7 +4654,7 @@ Then extract:
           <button class="icon-btn" data-act="refresh">↻ Refresh</button>
         </div>
       </div>
-      <div class="tool-desc">Printing, Cutting, and Inventory (📌 daily) are added fresh, unchecked, every day — manage the list below. Everything else is a running checklist — nothing auto-clears, check things off as you go.</div>
+      <div class="tool-desc">Printing, Cutting, and Inventory (📌 daily) are added fresh, unchecked, every day — manage the list below. Everything else is a running checklist — nothing auto-clears, check things off as you go. Drag a task onto the Weekly Tasks card to move it there.</div>
       <div class="status-line" data-el="status"></div>
       <div class="qa-bar" style="margin-bottom:2px;">
         <button class="qa-plus" data-act="add" title="Add task">+</button>
@@ -4902,12 +4921,13 @@ Then extract:
     }
     renderDailyTasksList = render;
 
-    // ── Drag-to-reorder ───────────────────────────────────────────────────
+    // ── Drag-to-reorder (within Daily) + drag-to-move (Daily ⇄ Weekly) ──
     let dragId = null;
     listEl.addEventListener('dragstart', (e) => {
       const row = e.target.closest('.task-row[draggable="true"]');
       if (!row) return;
       dragId = row.dataset.dragId;
+      crossListDrag = { id: dragId, from: 'dailyTasks' };
       row.classList.add('dragging');
       e.dataTransfer.effectAllowed = 'move';
     });
@@ -4915,6 +4935,8 @@ Then extract:
       const row = e.target.closest('.task-row');
       if (row) row.classList.remove('dragging');
       listEl.querySelectorAll('.drag-over-top, .drag-over-bottom').forEach(el => el.classList.remove('drag-over-top', 'drag-over-bottom'));
+      dragId = null;
+      crossListDrag = null;
     });
     listEl.addEventListener('dragover', (e) => {
       const row = e.target.closest('.task-row[draggable="true"]');
@@ -4944,6 +4966,23 @@ Then extract:
       else { list.splice(before ? toIdx : toIdx + 1, 0, moved); }
       dragId = null;
       render();
+      setStatus('Saving...', '');
+      const ok = await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
+      if (ok) setStatus('Saved ✓', 'success');
+    });
+    // Accepts a task dragged in from the Weekly Tasks card — dropping
+    // anywhere on this card (not just a precise row) moves it here.
+    card.addEventListener('dragover', (e) => {
+      if (crossListDrag && crossListDrag.from !== 'dailyTasks') e.preventDefault();
+    });
+    card.addEventListener('drop', async (e) => {
+      if (!crossListDrag || crossListDrag.from === 'dailyTasks') return;
+      e.preventDefault();
+      const moved = moveTaskBetweenLists(crossListDrag.from, 'dailyTasks', crossListDrag.id);
+      crossListDrag = null;
+      if (!moved) return;
+      render();
+      renderWeeklyTasksList();
       setStatus('Saving...', '');
       const ok = await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
       if (ok) setStatus('Saved ✓', 'success');
@@ -5114,7 +5153,7 @@ Then extract:
           <button class="icon-btn" data-act="refresh">↻ Refresh</button>
         </div>
       </div>
-      <div class="tool-desc">A running checklist — nothing auto-clears, check things off as you go.</div>
+      <div class="tool-desc">A running checklist — nothing auto-clears, check things off as you go. Drag a task onto the Daily Tasks card to move it there.</div>
       <div class="status-line" data-el="status"></div>
       <div class="qa-bar" style="margin-bottom:2px;">
         <button class="qa-plus" data-act="add" title="Add task">+</button>
@@ -5259,7 +5298,8 @@ Then extract:
           ? `<span style="font-size:10px; margin-left:6px; padding:1px 6px; border-radius:8px; ${t.dueDate < today ? 'color:#f87171; background:#3a1e1e;' : 'color:#888; background:#1e1e1e;'}">${formatDueDate(t.dueDate)}</span>`
           : '';
         return `
-        <div class="task-row">
+        <div class="task-row" draggable="true" data-drag-id="${t.id}">
+          <span class="task-drag-handle">⠿</span>
           <input type="checkbox" data-id="${t.id}" ${t.done ? 'checked' : ''} style="${checkboxColorVar}" />
           <div class="task-text${t.done ? ' done' : ''}" data-act="startEdit" data-id="${t.id}">${t.text.replace(/</g, '&lt;')}${dueBadge}</div>
           <button class="task-del" data-act="startEdit" data-id="${t.id}">✎</button>
@@ -5273,6 +5313,72 @@ Then extract:
       }
     }
     renderWeeklyTasksList = render;
+
+    // ── Drag-to-reorder (within Weekly) + drag-to-move (Weekly ⇄ Daily) ──
+    let dragId = null;
+    listEl.addEventListener('dragstart', (e) => {
+      const row = e.target.closest('.task-row[draggable="true"]');
+      if (!row) return;
+      dragId = row.dataset.dragId;
+      crossListDrag = { id: dragId, from: 'weeklyTasks' };
+      row.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    listEl.addEventListener('dragend', (e) => {
+      const row = e.target.closest('.task-row');
+      if (row) row.classList.remove('dragging');
+      listEl.querySelectorAll('.drag-over-top, .drag-over-bottom').forEach(el => el.classList.remove('drag-over-top', 'drag-over-bottom'));
+      dragId = null;
+      crossListDrag = null;
+    });
+    listEl.addEventListener('dragover', (e) => {
+      const row = e.target.closest('.task-row[draggable="true"]');
+      if (!row || !dragId || row.dataset.dragId === dragId) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      listEl.querySelectorAll('.drag-over-top, .drag-over-bottom').forEach(el => el.classList.remove('drag-over-top', 'drag-over-bottom'));
+      const rect = row.getBoundingClientRect();
+      const before = (e.clientY - rect.top) < rect.height / 2;
+      row.classList.add(before ? 'drag-over-top' : 'drag-over-bottom');
+    });
+    listEl.addEventListener('drop', async (e) => {
+      const row = e.target.closest('.task-row[draggable="true"]');
+      if (!row || !dragId || row.dataset.dragId === dragId) return;
+      e.preventDefault();
+      const targetId = row.dataset.dragId;
+      const rect = row.getBoundingClientRect();
+      const before = (e.clientY - rect.top) < rect.height / 2;
+      listEl.querySelectorAll('.drag-over-top, .drag-over-bottom').forEach(el => el.classList.remove('drag-over-top', 'drag-over-bottom'));
+
+      const list = tasksDataCache.weeklyTasks || [];
+      const fromIdx = list.findIndex(t => t.id === dragId);
+      if (fromIdx === -1) return;
+      const [moved] = list.splice(fromIdx, 1);
+      let toIdx = list.findIndex(t => t.id === targetId);
+      if (toIdx === -1) { list.push(moved); }
+      else { list.splice(before ? toIdx : toIdx + 1, 0, moved); }
+      dragId = null;
+      render();
+      setStatus('Saving...', '');
+      const ok = await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
+      if (ok) setStatus('Saved ✓', 'success');
+    });
+    // Accepts a task dragged in from the Daily Tasks card.
+    card.addEventListener('dragover', (e) => {
+      if (crossListDrag && crossListDrag.from !== 'weeklyTasks') e.preventDefault();
+    });
+    card.addEventListener('drop', async (e) => {
+      if (!crossListDrag || crossListDrag.from === 'weeklyTasks') return;
+      e.preventDefault();
+      const moved = moveTaskBetweenLists(crossListDrag.from, 'weeklyTasks', crossListDrag.id);
+      crossListDrag = null;
+      if (!moved) return;
+      render();
+      renderDailyTasksList();
+      setStatus('Saving...', '');
+      const ok = await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
+      if (ok) setStatus('Saved ✓', 'success');
+    });
 
     function startEditTask(id) {
       editingTaskId = id;

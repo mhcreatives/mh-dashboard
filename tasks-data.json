@@ -46,13 +46,6 @@
       "fixedDate": "2026-09-10"
     },
     {
-      "id": "mtruvqbbcrbs1x",
-      "text": "Production",
-      "done": false,
-      "priority": "none",
-      "dueDate": null
-    },
-    {
       "id": "mtr9ztwomezmea",
       "text": "Layout dashboard",
       "done": false,

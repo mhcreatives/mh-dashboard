@@ -78,11 +78,6 @@
       "includeWeekday": true
     },
     {
-      "key": "cutting",
-      "label": "Cutting",
-      "includeWeekday": true
-    },
-    {
       "key": "inventory",
       "label": "Inventory",
       "includeWeekday": false

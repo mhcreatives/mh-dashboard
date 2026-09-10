@@ -4665,6 +4665,7 @@ Then extract:
         <div class="qa-icons">
           <button class="qa-icon-btn" data-act="toggleDueMenu" data-el="dueBtn" title="Due date">📅</button>
           <button class="qa-icon-btn" data-act="togglePriorityMenu" data-el="priorityBtn" title="Priority">🚩</button>
+          <button class="qa-icon-btn" data-act="toggleScheduleMenu" data-el="scheduleBtn" title="Schedule ahead — hide until this date">⏳</button>
         </div>
       </div>
       <div class="qa-chips" data-el="chips"></div>
@@ -4675,7 +4676,9 @@ Then extract:
         <button class="qa-menu-item" data-act="setPriority" data-value="med"><span style="color:#f5a524;">🚩</span> Medium</button>
         <button class="qa-menu-item" data-act="setPriority" data-value="high"><span style="color:#f87171;">🚩</span> High</button>
       </div>
+      <div class="qa-menu" data-el="scheduleMenu" hidden></div>
       <input type="date" data-el="dueDateInput" style="display:none;" />
+      <input type="date" data-el="scheduleDateInput" style="display:none;" />
       <div class="proof-summary" data-el="summary" style="display:flex; align-items:center; justify-content:space-between; margin-top:8px;"></div>
       <div data-el="list"></div>
 
@@ -4713,6 +4716,9 @@ Then extract:
     const priorityBtn = el('priorityBtn');
     const dueMenu = el('dueMenu');
     const priorityMenu = el('priorityMenu');
+    const scheduleBtn = el('scheduleBtn');
+    const scheduleMenu = el('scheduleMenu');
+    const scheduleDateInput = el('scheduleDateInput');
     const chipsEl = el('chips');
     const summaryEl = el('summary');
     const listEl = el('list');
@@ -4849,6 +4855,7 @@ Then extract:
     // the task is actually added.
     let pendingDueDate = null;
     let pendingPriority = 'none';
+    let pendingScheduleDate = null; // hides the task from the list until this date arrives
 
     function renderDueMenu() {
       const today = new Date();
@@ -4868,11 +4875,31 @@ Then extract:
     }
     renderDueMenu();
 
+    function renderScheduleMenu() {
+      const today = new Date();
+      const inDays = n => { const d = new Date(today); d.setDate(d.getDate() + n); return d; };
+      const options = [
+        { label: 'Tomorrow', n: 1 },
+        { label: 'In 2 days', n: 2 },
+        { label: 'In 3 days', n: 3 },
+        { label: 'Next week', n: 7 },
+      ];
+      scheduleMenu.innerHTML = options.map(o => {
+        const d = inDays(o.n);
+        return `<button class="qa-menu-item" data-act="setSchedule" data-value="${dateKeyFrom(d)}"><span>⏳ ${o.label}</span><span class="qa-menu-day">${weekdayAbbrev(d)}</span></button>`;
+      }).join('') + `
+        <button class="qa-menu-item" data-act="pickScheduleDate"><span>🗓️ Pick a date</span></button>
+      `;
+    }
+    renderScheduleMenu();
+
     function closeMenus() {
       dueMenu.hidden = true;
       priorityMenu.hidden = true;
+      scheduleMenu.hidden = true;
       dueBtn.classList.remove('active');
       priorityBtn.classList.remove('active');
+      scheduleBtn.classList.remove('active');
     }
 
     function renderChips() {
@@ -4882,6 +4909,9 @@ Then extract:
       }
       if (pendingPriority !== 'none') {
         chips.push(`<div class="qa-chip">🚩 ${PRIORITY_LABELS[pendingPriority]}<button data-act="clearPriority">✕</button></div>`);
+      }
+      if (pendingScheduleDate) {
+        chips.push(`<div class="qa-chip">⏳ Starts ${formatDueDate(pendingScheduleDate)}<button data-act="clearSchedule">✕</button></div>`);
       }
       chipsEl.innerHTML = chips.join('');
     }
@@ -4896,7 +4926,10 @@ Then extract:
 
     function render() {
       renderFixedManager();
-      const allTasks = tasksDataCache.dailyTasks || [];
+      const today = todayKeyLocal();
+      // Scheduled-ahead tasks stay completely invisible (not just visually
+      // deprioritized) until their scheduleDate actually arrives.
+      const allTasks = (tasksDataCache.dailyTasks || []).filter(t => !t.scheduleDate || t.scheduleDate <= today);
       const openCount = allTasks.filter(t => !t.done).length;
       const doneCount = allTasks.length - openCount;
       summaryEl.innerHTML = allTasks.length === 0 ? '' : `
@@ -4904,7 +4937,6 @@ Then extract:
         ${doneCount > 0 ? `<button class="icon-btn" data-act="clearCompleted">Clear completed</button>` : ''}
       `;
       if (allTasks.length === 0) { listEl.innerHTML = ''; return; }
-      const today = todayKeyLocal();
       // Done tasks sink to the bottom, but keep each group's own relative
       // order (a stable partition, not a re-sort within each group).
       const tasks = [...allTasks.filter(t => !t.done), ...allTasks.filter(t => t.done)];
@@ -5052,11 +5084,14 @@ Then extract:
         id: tasksNewId(), text, done: false,
         priority: pendingPriority,
         dueDate: pendingDueDate,
+        scheduleDate: pendingScheduleDate,
       });
       taskInput.value = '';
       pendingPriority = 'none';
       pendingDueDate = null;
+      pendingScheduleDate = null;
       dueDateInput.value = '';
+      scheduleDateInput.value = '';
       renderChips();
       render();
       setStatus('Saving...', '');
@@ -5116,6 +5151,12 @@ Then extract:
         if (willOpen) { priorityMenu.hidden = false; priorityBtn.classList.add('active'); }
         e.stopPropagation();
       }
+      else if (act === 'toggleScheduleMenu') {
+        const willOpen = scheduleMenu.hidden;
+        closeMenus();
+        if (willOpen) { scheduleMenu.hidden = false; scheduleBtn.classList.add('active'); }
+        e.stopPropagation();
+      }
       else if (act === 'setDue') {
         pendingDueDate = target.dataset.value;
         closeMenus();
@@ -5126,6 +5167,16 @@ Then extract:
         dueDateInput.style.display = '';
         if (dueDateInput.showPicker) dueDateInput.showPicker(); else dueDateInput.focus();
       }
+      else if (act === 'setSchedule') {
+        pendingScheduleDate = target.dataset.value;
+        closeMenus();
+        renderChips();
+      }
+      else if (act === 'pickScheduleDate') {
+        closeMenus();
+        scheduleDateInput.style.display = '';
+        if (scheduleDateInput.showPicker) scheduleDateInput.showPicker(); else scheduleDateInput.focus();
+      }
       else if (act === 'setPriority') {
         pendingPriority = target.dataset.value;
         closeMenus();
@@ -5133,6 +5184,7 @@ Then extract:
       }
       else if (act === 'clearDue') { pendingDueDate = null; renderChips(); }
       else if (act === 'clearPriority') { pendingPriority = 'none'; renderChips(); }
+      else if (act === 'clearSchedule') { pendingScheduleDate = null; renderChips(); }
       else if (act === 'saveToken') {
         const val = tokenInput.value.trim();
         if (!val) return;
@@ -5147,6 +5199,11 @@ Then extract:
     dueDateInput.addEventListener('change', () => {
       pendingDueDate = dueDateInput.value || null;
       dueDateInput.style.display = 'none';
+      renderChips();
+    });
+    scheduleDateInput.addEventListener('change', () => {
+      pendingScheduleDate = scheduleDateInput.value || null;
+      scheduleDateInput.style.display = 'none';
       renderChips();
     });
     card.addEventListener('change', (e) => {
@@ -5186,6 +5243,7 @@ Then extract:
         <div class="qa-icons">
           <button class="qa-icon-btn" data-act="toggleDueMenu" data-el="dueBtn" title="Due date">📅</button>
           <button class="qa-icon-btn" data-act="togglePriorityMenu" data-el="priorityBtn" title="Priority">🚩</button>
+          <button class="qa-icon-btn" data-act="toggleScheduleMenu" data-el="scheduleBtn" title="Schedule ahead — hide until this date">⏳</button>
         </div>
       </div>
       <div class="qa-chips" data-el="chips"></div>
@@ -5196,7 +5254,9 @@ Then extract:
         <button class="qa-menu-item" data-act="setPriority" data-value="med"><span style="color:#f5a524;">🚩</span> Medium</button>
         <button class="qa-menu-item" data-act="setPriority" data-value="high"><span style="color:#f87171;">🚩</span> High</button>
       </div>
+      <div class="qa-menu" data-el="scheduleMenu" hidden></div>
       <input type="date" data-el="dueDateInput" style="display:none;" />
+      <input type="date" data-el="scheduleDateInput" style="display:none;" />
       <div class="proof-summary" data-el="summary" style="display:flex; align-items:center; justify-content:space-between; margin-top:8px;"></div>
       <div data-el="list"></div>
 
@@ -5220,6 +5280,9 @@ Then extract:
     const priorityBtn = el('priorityBtn');
     const dueMenu = el('dueMenu');
     const priorityMenu = el('priorityMenu');
+    const scheduleBtn = el('scheduleBtn');
+    const scheduleMenu = el('scheduleMenu');
+    const scheduleDateInput = el('scheduleDateInput');
     const chipsEl = el('chips');
     const summaryEl = el('summary');
     const listEl = el('list');
@@ -5246,6 +5309,7 @@ Then extract:
 
     let pendingDueDate = null;
     let pendingPriority = 'none';
+    let pendingScheduleDate = null; // hides the task from the list until this date arrives
 
     function renderDueMenu() {
       const today = new Date();
@@ -5265,11 +5329,31 @@ Then extract:
     }
     renderDueMenu();
 
+    function renderScheduleMenu() {
+      const today = new Date();
+      const inDays = n => { const d = new Date(today); d.setDate(d.getDate() + n); return d; };
+      const options = [
+        { label: 'Tomorrow', n: 1 },
+        { label: 'In 2 days', n: 2 },
+        { label: 'In 3 days', n: 3 },
+        { label: 'Next week', n: 7 },
+      ];
+      scheduleMenu.innerHTML = options.map(o => {
+        const d = inDays(o.n);
+        return `<button class="qa-menu-item" data-act="setSchedule" data-value="${dateKeyFrom(d)}"><span>⏳ ${o.label}</span><span class="qa-menu-day">${weekdayAbbrev(d)}</span></button>`;
+      }).join('') + `
+        <button class="qa-menu-item" data-act="pickScheduleDate"><span>🗓️ Pick a date</span></button>
+      `;
+    }
+    renderScheduleMenu();
+
     function closeMenus() {
       dueMenu.hidden = true;
       priorityMenu.hidden = true;
+      scheduleMenu.hidden = true;
       dueBtn.classList.remove('active');
       priorityBtn.classList.remove('active');
+      scheduleBtn.classList.remove('active');
     }
 
     function renderChips() {
@@ -5279,6 +5363,9 @@ Then extract:
       }
       if (pendingPriority !== 'none') {
         chips.push(`<div class="qa-chip">🚩 ${PRIORITY_LABELS[pendingPriority]}<button data-act="clearPriority">✕</button></div>`);
+      }
+      if (pendingScheduleDate) {
+        chips.push(`<div class="qa-chip">⏳ Starts ${formatDueDate(pendingScheduleDate)}<button data-act="clearSchedule">✕</button></div>`);
       }
       chipsEl.innerHTML = chips.join('');
     }
@@ -5292,7 +5379,10 @@ Then extract:
     let editingTaskId = null;
 
     function render() {
-      const allTasks = tasksDataCache.weeklyTasks || [];
+      const today = todayKeyLocal();
+      // Scheduled-ahead tasks stay completely invisible (not just visually
+      // deprioritized) until their scheduleDate actually arrives.
+      const allTasks = (tasksDataCache.weeklyTasks || []).filter(t => !t.scheduleDate || t.scheduleDate <= today);
       const openCount = allTasks.filter(t => !t.done).length;
       const doneCount = allTasks.length - openCount;
       summaryEl.innerHTML = allTasks.length === 0 ? '' : `
@@ -5300,7 +5390,6 @@ Then extract:
         ${doneCount > 0 ? `<button class="icon-btn" data-act="clearCompleted">Clear completed</button>` : ''}
       `;
       if (allTasks.length === 0) { listEl.innerHTML = ''; return; }
-      const today = todayKeyLocal();
       const tasks = [...allTasks.filter(t => !t.done), ...allTasks.filter(t => t.done)];
       listEl.innerHTML = tasks.map(t => {
         const priority = t.priority || 'none';
@@ -5444,11 +5533,14 @@ Then extract:
         id: tasksNewId(), text, done: false,
         priority: pendingPriority,
         dueDate: pendingDueDate,
+        scheduleDate: pendingScheduleDate,
       });
       taskInput.value = '';
       pendingPriority = 'none';
       pendingDueDate = null;
+      pendingScheduleDate = null;
       dueDateInput.value = '';
+      scheduleDateInput.value = '';
       renderChips();
       render();
       setStatus('Saving...', '');
@@ -5505,6 +5597,12 @@ Then extract:
         if (willOpen) { priorityMenu.hidden = false; priorityBtn.classList.add('active'); }
         e.stopPropagation();
       }
+      else if (act === 'toggleScheduleMenu') {
+        const willOpen = scheduleMenu.hidden;
+        closeMenus();
+        if (willOpen) { scheduleMenu.hidden = false; scheduleBtn.classList.add('active'); }
+        e.stopPropagation();
+      }
       else if (act === 'setDue') {
         pendingDueDate = target.dataset.value;
         closeMenus();
@@ -5515,6 +5613,16 @@ Then extract:
         dueDateInput.style.display = '';
         if (dueDateInput.showPicker) dueDateInput.showPicker(); else dueDateInput.focus();
       }
+      else if (act === 'setSchedule') {
+        pendingScheduleDate = target.dataset.value;
+        closeMenus();
+        renderChips();
+      }
+      else if (act === 'pickScheduleDate') {
+        closeMenus();
+        scheduleDateInput.style.display = '';
+        if (scheduleDateInput.showPicker) scheduleDateInput.showPicker(); else scheduleDateInput.focus();
+      }
       else if (act === 'setPriority') {
         pendingPriority = target.dataset.value;
         closeMenus();
@@ -5522,6 +5630,7 @@ Then extract:
       }
       else if (act === 'clearDue') { pendingDueDate = null; renderChips(); }
       else if (act === 'clearPriority') { pendingPriority = 'none'; renderChips(); }
+      else if (act === 'clearSchedule') { pendingScheduleDate = null; renderChips(); }
       else if (act === 'saveToken') {
         const val = tokenInput.value.trim();
         if (!val) return;
@@ -5536,6 +5645,11 @@ Then extract:
     dueDateInput.addEventListener('change', () => {
       pendingDueDate = dueDateInput.value || null;
       dueDateInput.style.display = 'none';
+      renderChips();
+    });
+    scheduleDateInput.addEventListener('change', () => {
+      pendingScheduleDate = scheduleDateInput.value || null;
+      scheduleDateInput.style.display = 'none';
       renderChips();
     });
     card.addEventListener('change', (e) => {

@@ -44,7 +44,9 @@
       "dueDate": null,
       "fixedKey": "inventory",
       "fixedDate": "2026-09-10"
-    },
+    }
+  ],
+  "weeklyTasks": [
     {
       "id": "mtr9ztwomezmea",
       "text": "Layout dashboard",
@@ -53,7 +55,6 @@
       "dueDate": null
     }
   ],
-  "weeklyTasks": [],
   "goals": [
     {
       "id": "mtfl5jl5w6smju",

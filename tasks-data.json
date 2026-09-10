@@ -1,6 +1,15 @@
 {
   "dailyTasks": [
     {
+      "id": "mtuxrsd8dipkao",
+      "text": "Reading a book",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "fixedKey": "mtuxrsd8yxwb3j",
+      "fixedDate": "2026-09-10"
+    },
+    {
       "id": "mtuxrjf6d3y1ij",
       "text": "Quiet time",
       "done": false,
@@ -101,6 +110,11 @@
     {
       "key": "mtuxrjf6a6t1cl",
       "label": "Quiet time",
+      "includeWeekday": false
+    },
+    {
+      "key": "mtuxrsd8yxwb3j",
+      "label": "Reading a book",
       "includeWeekday": false
     }
   ]

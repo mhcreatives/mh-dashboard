@@ -225,6 +225,7 @@
   .qa-chip button { background: none; border: none; color: #666; cursor: pointer; font-size: 11px; padding: 0; }
   .qa-chip button:hover { color: #f87171; }
   .task-row { display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-bottom: 1px solid #1e1e1e; border-radius: 6px; transition: background 0.15s; }
+  .task-row-fixed { border-left: 3px solid #5b9bd5; padding-left: 5px; }
   .task-row:last-child { border-bottom: none; }
   .task-row:hover { background: #161616; }
   .task-row[draggable="true"] { cursor: grab; }
@@ -4535,6 +4536,7 @@ Then extract:
   let setDailyTasksStatus = () => {};
   let setWeeklyTasksStatus = () => {};
   let setGoalsStatus = () => {};
+  let ensureDailyFixedTasks = () => false; // set by buildDailyTasksCard; adds today's fixed tasks if missing
 
   async function initTasksData() {
     const token = localStorage.getItem(TASKS_GITHUB_TOKEN_STORAGE) || '';
@@ -4549,12 +4551,14 @@ Then extract:
     setGoalsStatus('Loading...', '');
     try {
       tasksDataCache = await ghFetchTasksData(token);
+      const addedFixedTasks = ensureDailyFixedTasks();
       setDailyTasksStatus('Loaded ✓', 'success');
       setWeeklyTasksStatus('Loaded ✓', 'success');
       setGoalsStatus('Loaded ✓', 'success');
       renderDailyTasksList();
       renderWeeklyTasksList();
       renderGoalsList();
+      if (addedFixedTasks) await saveTasksData(err => setDailyTasksStatus(`Error: ${err.message}`, 'error'));
     } catch (err) {
       setDailyTasksStatus(`Error: ${err.message}`, 'error');
       setWeeklyTasksStatus(`Error: ${err.message}`, 'error');
@@ -4589,7 +4593,7 @@ Then extract:
           <button class="icon-btn" data-act="refresh">↻ Refresh</button>
         </div>
       </div>
-      <div class="tool-desc">A running checklist — nothing auto-clears, check things off as you go.</div>
+      <div class="tool-desc">Printing, Cutting, and Inventory (📌 daily) are added fresh, unchecked, every day. Everything else is a running checklist — nothing auto-clears, check things off as you go.</div>
       <div class="status-line" data-el="status"></div>
       <div class="qa-bar" style="margin-bottom:2px;">
         <button class="qa-plus" data-act="add" title="Add task">+</button>
@@ -4654,6 +4658,52 @@ Then extract:
     function weekdayAbbrev(d) {
       return d.toLocaleDateString('en-US', { weekday: 'short' });
     }
+    function weekdayFull(d) {
+      return d.toLocaleDateString('en-US', { weekday: 'long' });
+    }
+
+    // ── Fixed daily tasks (Printing/Cutting/Inventory) ──────────────────
+    // Recreated fresh, unchecked, every day — identified by fixedKey +
+    // fixedDate rather than removed/replaced, so a previous day's fixed
+    // task just becomes ordinary history once a new one is added (still
+    // subject to "Clear completed" like any other task).
+    const FIXED_TASK_DEFS = [
+      { key: 'printing', label: () => `Printing for ${weekdayFull(new Date())}` },
+      { key: 'cutting', label: () => `Cutting for ${weekdayFull(new Date())}` },
+      { key: 'inventory', label: () => 'Inventory' },
+    ];
+    function ensureFixedTasksForToday() {
+      const today = todayKeyLocal();
+      tasksDataCache.dailyTasks = tasksDataCache.dailyTasks || [];
+      const list = tasksDataCache.dailyTasks;
+      const missing = FIXED_TASK_DEFS.filter(def =>
+        !list.some(t => t.fixedKey === def.key && t.fixedDate === today)
+      );
+      if (missing.length === 0) return false;
+      list.unshift(...missing.map(def => ({
+        id: tasksNewId(),
+        text: def.label(),
+        done: false,
+        priority: 'none',
+        dueDate: null,
+        fixedKey: def.key,
+        fixedDate: today,
+      })));
+      return true;
+    }
+    ensureDailyFixedTasks = ensureFixedTasksForToday;
+
+    // Catches the day rolling over while this tab stays open all day
+    // (initTasksData only runs once on load / manual refresh otherwise).
+    setInterval(async () => {
+      if (document.visibilityState !== 'visible') return;
+      if (ensureFixedTasksForToday()) {
+        render();
+        setStatus('Saving...', '');
+        const ok = await saveTasksData(err => setStatus(`Error: ${err.message}`, 'error'));
+        if (ok) setStatus('Saved ✓', 'success');
+      }
+    }, 5 * 60 * 1000);
 
     // Pending due date/priority for the task about to be added — set via
     // the quick-add bar's icon menus (Microsoft To Do style), cleared once
@@ -4738,11 +4788,12 @@ Then extract:
         const dueBadge = t.dueDate && !t.done
           ? `<span style="font-size:10px; margin-left:6px; padding:1px 6px; border-radius:8px; ${t.dueDate < today ? 'color:#f87171; background:#3a1e1e;' : 'color:#888; background:#1e1e1e;'}">${formatDueDate(t.dueDate)}</span>`
           : '';
+        const fixedBadge = t.fixedKey ? `<span style="font-size:9px; margin-left:6px; padding:1px 6px; border-radius:8px; color:#5b9bd5; background:#1a2a3a;">📌 daily</span>` : '';
         return `
-        <div class="task-row" draggable="true" data-drag-id="${t.id}">
+        <div class="task-row${t.fixedKey ? ' task-row-fixed' : ''}" draggable="true" data-drag-id="${t.id}">
           <span class="task-drag-handle">⠿</span>
           <input type="checkbox" data-id="${t.id}" ${t.done ? 'checked' : ''} style="${checkboxColorVar}" />
-          <div class="task-text${t.done ? ' done' : ''}" data-act="startEdit" data-id="${t.id}">${t.text.replace(/</g, '&lt;')}${dueBadge}</div>
+          <div class="task-text${t.done ? ' done' : ''}" data-act="startEdit" data-id="${t.id}">${t.text.replace(/</g, '&lt;')}${dueBadge}${fixedBadge}</div>
           <button class="task-del" data-act="startEdit" data-id="${t.id}">✎</button>
           <button class="task-del" data-act="delete" data-id="${t.id}">✕</button>
         </div>

@@ -1465,13 +1465,21 @@ Postal/zip code:`;
     if (!text || !otHasPhoneNumber(text)) return false;
     if (OTHER_FORM_LABEL_PATTERNS.some(re => re.test(text))) return false;
     const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-    if (lines.length < 4) return false;
+    // Some clients type the whole street/barangay/city/zip as ONE line
+    // instead of splitting it — e.g. "Zeanne Bello" / phone / "Block 14 lot
+    // 5 ... taytay rizal 1920" is only 3 lines total (confirmed real case
+    // that was silently going undetected). 3 lines (name, phone, address)
+    // is the minimum a genuine reply can have.
+    if (lines.length < 3) return false;
     // A bare 4-digit zip line anywhere, not just as the final line — some
     // replies add "Philippines" and/or a repeated landmark/notes line after
     // the zip (confirmed case: zip followed by "Philippines" then a
     // "Shipping notes:" section repeating the landmark, which broke the
     // old last-line-only check entirely).
-    return lines.some(l => /^\d{4}$/.test(l));
+    if (lines.some(l => /^\d{4}$/.test(l))) return true;
+    // ...or the zip is just the trailing 4 digits of a longer address line
+    // instead of standing alone (the single-line-address case above).
+    return /\b\d{4}\b\s*$/.test(text.trim());
   }
 
   function otLooksLikeShippingReply(text) {
@@ -2207,8 +2215,9 @@ Then extract:
       setStatus(`Updating Shipping details for ${item.name}...`, '');
       try {
         await otPatchRecords(apiKey, INV_TABLE, [{ id: item.id, fields: { 'Shipping details': item.userReply } }]);
-        item.filled = true;
+        lastFlagged = lastFlagged.filter(f => f.id !== item.id);
         setStatus(`Shipping details updated for ${item.name} ✓`, 'success');
+        summaryEl.textContent = `${lastFlagged.length} flagged`;
         renderResults(lastFlagged);
       } catch (err) {
         setStatus(`Error: ${err.message}`, 'error');

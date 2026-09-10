@@ -1,6 +1,13 @@
 {
   "dailyTasks": [
     {
+      "id": "mtux3wz1ist41w",
+      "text": "Cutting for Thursday",
+      "done": false,
+      "priority": "none",
+      "dueDate": null
+    },
+    {
       "id": "mtux3wz14clil9",
       "text": "Printing for Thursday",
       "done": true,
@@ -33,15 +40,7 @@
       "dueDate": null
     }
   ],
-  "weeklyTasks": [
-    {
-      "id": "mtux3wz1ist41w",
-      "text": "Cutting for Thursday",
-      "done": false,
-      "priority": "none",
-      "dueDate": null
-    }
-  ],
+  "weeklyTasks": [],
   "goals": [
     {
       "id": "mtfl5jl5w6smju",

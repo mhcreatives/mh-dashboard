@@ -10,15 +10,6 @@
       "fixedDate": "2026-09-10"
     },
     {
-      "id": "mtux3wz1ist41w",
-      "text": "Cutting for Thursday",
-      "done": false,
-      "priority": "none",
-      "dueDate": null,
-      "fixedKey": "cutting",
-      "fixedDate": "2026-09-10"
-    },
-    {
       "id": "mtux3wz1c9ac2i",
       "text": "Inventory",
       "done": false,
@@ -37,6 +28,15 @@
     {
       "id": "mtr9ztwomezmea",
       "text": "Layout dashboard",
+      "done": false,
+      "priority": "none",
+      "dueDate": null
+    }
+  ],
+  "weeklyTasks": [
+    {
+      "id": "mtux3wz1ist41w",
+      "text": "Cutting for Thursday",
       "done": false,
       "priority": "none",
       "dueDate": null
@@ -70,6 +70,23 @@
       "timeframe": "1 year",
       "status": "not_started",
       "notes": "Future expressway project"
+    }
+  ],
+  "fixedDailyTasks": [
+    {
+      "key": "printing",
+      "label": "Printing",
+      "includeWeekday": true
+    },
+    {
+      "key": "cutting",
+      "label": "Cutting",
+      "includeWeekday": true
+    },
+    {
+      "key": "inventory",
+      "label": "Inventory",
+      "includeWeekday": false
     }
   ]
 }

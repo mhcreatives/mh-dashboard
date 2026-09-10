@@ -4512,10 +4512,13 @@ Then extract:
   // ensureFixedTasksForToday(). User-editable via the Daily Tasks card;
   // this is only the seed used the first time (or if the field is ever
   // missing from older saved data).
+  // advanceDays: how many days ahead of "today" the task is scheduled for
+  // — Printing shows up a day early ("Printing for Thursday" appears on
+  // Wednesday) so there's lead time to prep for it.
   const DEFAULT_FIXED_DAILY_TASKS = [
-    { key: 'printing', label: 'Printing', includeWeekday: true },
-    { key: 'cutting', label: 'Cutting', includeWeekday: true },
-    { key: 'inventory', label: 'Inventory', includeWeekday: false },
+    { key: 'printing', label: 'Printing', includeWeekday: true, advanceDays: 1 },
+    { key: 'cutting', label: 'Cutting', includeWeekday: true, advanceDays: 0 },
+    { key: 'inventory', label: 'Inventory', includeWeekday: false, advanceDays: 0 },
   ];
   function tasksDataDefaults() {
     return { dailyTasks: [], weeklyTasks: [], goals: [], fixedDailyTasks: [...DEFAULT_FIXED_DAILY_TASKS] };
@@ -4678,13 +4681,14 @@ Then extract:
 
       <div class="mini-toggle" data-act="toggleFixedManager">📌 manage fixed daily tasks</div>
       <div class="mini-panel" data-el="fixedManagerPanel">
-        <div class="config-hint">Recreated fresh, unchecked, every day — same as Printing/Cutting/Inventory. Removing one here doesn't delete past instances already in the list above.</div>
+        <div class="config-hint">A new one is only added once the previous one is checked done — an overdue task never disappears or gets duplicated. "Days ahead" schedules it early (e.g. Printing = 1 day: "Printing for Thursday" shows up Wednesday). Removing one here doesn't delete past instances already in the list above.</div>
         <div data-el="fixedList"></div>
         <div class="id-row" style="margin-top:8px;">
           <input type="text" data-el="fixedLabelInput" placeholder="Task name (e.g. Packaging)" autocomplete="off" spellcheck="false" />
           <label style="display:flex; align-items:center; gap:6px; font-size:11px; color:#888; white-space:nowrap;">
             <input type="checkbox" data-el="fixedWeekdayInput" /> include weekday
           </label>
+          <input type="number" data-el="fixedAdvanceInput" min="0" step="1" placeholder="0" title="Days ahead" style="width:56px;" />
           <button class="save-btn" data-act="addFixedTask">Add</button>
         </div>
       </div>
@@ -4718,6 +4722,7 @@ Then extract:
     const fixedListEl = el('fixedList');
     const fixedLabelInput = el('fixedLabelInput');
     const fixedWeekdayInput = el('fixedWeekdayInput');
+    const fixedAdvanceInput = el('fixedAdvanceInput');
 
     const PRIORITY_LABELS = { none: '', low: 'Low', med: 'Medium', high: 'High' };
     const PRIORITY_COLORS = { none: '#444', low: '#5b9bd5', med: '#f5a524', high: '#f87171' };
@@ -4741,21 +4746,34 @@ Then extract:
     }
 
     // ── Fixed daily tasks (Printing/Cutting/Inventory, user-editable) ───
-    // Recreated fresh, unchecked, every day from tasksDataCache.fixedDailyTasks
-    // — identified by fixedKey + fixedDate rather than removed/replaced, so
-    // a previous day's fixed task just becomes ordinary history once a new
-    // one is added (still subject to "Clear completed" like any other task).
+    // Each has an advanceDays offset (Printing = 1: it's scheduled a day
+    // ahead, so "Printing for Thursday" appears on Wednesday) and, more
+    // importantly, a new instance is only created once the *previous* one
+    // is marked done — an overdue/incomplete fixed task never disappears
+    // or gets duplicated just because the calendar rolled over. Identified
+    // by fixedKey + fixedDate rather than removed/replaced, so once it IS
+    // done and a new one is added, the old one just becomes ordinary
+    // history (still subject to "Clear completed" like any other task).
+    function targetDateFor(def) {
+      const d = new Date();
+      d.setDate(d.getDate() + (def.advanceDays || 0));
+      return d;
+    }
     function fixedTaskLabel(def) {
-      return def.includeWeekday ? `${def.label} for ${weekdayFull(new Date())}` : def.label;
+      const target = targetDateFor(def);
+      return def.includeWeekday ? `${def.label} for ${weekdayFull(target)}` : def.label;
     }
     function ensureFixedTasksForToday() {
-      const today = todayKeyLocal();
       tasksDataCache.dailyTasks = tasksDataCache.dailyTasks || [];
       tasksDataCache.fixedDailyTasks = tasksDataCache.fixedDailyTasks || [];
       const list = tasksDataCache.dailyTasks;
-      const missing = tasksDataCache.fixedDailyTasks.filter(def =>
-        !list.some(t => t.fixedKey === def.key && t.fixedDate === today)
-      );
+      const missing = tasksDataCache.fixedDailyTasks.filter(def => {
+        const hasOpenInstance = list.some(t => t.fixedKey === def.key && !t.done);
+        if (hasOpenInstance) return false; // still overdue/incomplete — leave it alone
+        const targetKey = dateKeyFrom(targetDateFor(def));
+        const alreadyGeneratedForTarget = list.some(t => t.fixedKey === def.key && t.fixedDate === targetKey);
+        return !alreadyGeneratedForTarget;
+      });
       if (missing.length === 0) return false;
       list.unshift(...missing.map(def => ({
         id: tasksNewId(),
@@ -4764,7 +4782,7 @@ Then extract:
         priority: 'none',
         dueDate: null,
         fixedKey: def.key,
-        fixedDate: today,
+        fixedDate: dateKeyFrom(targetDateFor(def)),
       })));
       return true;
     }
@@ -4784,12 +4802,17 @@ Then extract:
 
     function renderFixedManager() {
       const defs = tasksDataCache.fixedDailyTasks || [];
-      fixedListEl.innerHTML = defs.length === 0 ? `<div class="config-hint">No fixed daily tasks.</div>` : defs.map(def => `
+      fixedListEl.innerHTML = defs.length === 0 ? `<div class="config-hint">No fixed daily tasks.</div>` : defs.map(def => {
+        const bits = [];
+        if (def.includeWeekday) bits.push('+ weekday');
+        if (def.advanceDays) bits.push(`${def.advanceDays}d ahead`);
+        return `
         <div class="task-row">
-          <div class="task-text" style="flex:1;">${def.label.replace(/</g, '&lt;')}${def.includeWeekday ? ' <span style="color:#888; font-size:10px;">(+ weekday)</span>' : ''}</div>
+          <div class="task-text" style="flex:1;">${def.label.replace(/</g, '&lt;')}${bits.length ? ` <span style="color:#888; font-size:10px;">(${bits.join(', ')})</span>` : ''}</div>
           <button class="task-del" data-act="removeFixedTask" data-key="${def.key}">✕</button>
         </div>
-      `).join('');
+      `;
+      }).join('');
     }
 
     async function addFixedTask() {
@@ -4800,9 +4823,11 @@ Then extract:
         key: tasksNewId(),
         label,
         includeWeekday: fixedWeekdayInput.checked,
+        advanceDays: Math.max(0, parseInt(fixedAdvanceInput.value, 10) || 0),
       });
       fixedLabelInput.value = '';
       fixedWeekdayInput.checked = false;
+      fixedAdvanceInput.value = '';
       renderFixedManager();
       // adds today's instance immediately, so it doesn't wait for the next reload
       if (ensureFixedTasksForToday()) render();

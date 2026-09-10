@@ -1,53 +1,31 @@
 {
   "dailyTasks": [
     {
-      "id": "mttn7lm226cpfh",
-      "text": "Cutting for thursday",
-      "done": false,
-      "priority": "none",
-      "dueDate": null
-    },
-    {
-      "id": "mttn7hq3j7cm79",
-      "text": "Printing for thursday",
-      "done": false,
-      "priority": "none",
-      "dueDate": null
-    },
-    {
-      "id": "mtrwhwsjfi6i9u",
-      "text": "Cutting for wednesday",
+      "id": "mtux3wz14clil9",
+      "text": "Printing for Thursday",
       "done": true,
       "priority": "none",
-      "dueDate": null
+      "dueDate": null,
+      "fixedKey": "printing",
+      "fixedDate": "2026-09-10"
     },
     {
-      "id": "mtrwht3qnxx3e3",
-      "text": "Printing for wednesday",
-      "done": true,
+      "id": "mtux3wz1ist41w",
+      "text": "Cutting for Thursday",
+      "done": false,
       "priority": "none",
-      "dueDate": null
+      "dueDate": null,
+      "fixedKey": "cutting",
+      "fixedDate": "2026-09-10"
     },
     {
-      "id": "mtrwhgzhp7eivu",
+      "id": "mtux3wz1c9ac2i",
       "text": "Inventory",
-      "done": true,
+      "done": false,
       "priority": "none",
-      "dueDate": null
-    },
-    {
-      "id": "mtqew1f1ciii3v",
-      "text": "Printing for tuesday",
-      "done": true,
-      "priority": "none",
-      "dueDate": null
-    },
-    {
-      "id": "mtr9zy2tj2hysx",
-      "text": "Cutting for tuesday",
-      "done": true,
-      "priority": "none",
-      "dueDate": null
+      "dueDate": null,
+      "fixedKey": "inventory",
+      "fixedDate": "2026-09-10"
     },
     {
       "id": "mtruvqbbcrbs1x",
@@ -60,27 +38,6 @@
       "id": "mtr9ztwomezmea",
       "text": "Layout dashboard",
       "done": false,
-      "priority": "none",
-      "dueDate": null
-    },
-    {
-      "id": "mtqexdf24go727",
-      "text": "Printing for monday",
-      "done": true,
-      "priority": "none",
-      "dueDate": null
-    },
-    {
-      "id": "mtqevv0199uez5",
-      "text": "Cutting for monday",
-      "done": true,
-      "priority": "none",
-      "dueDate": null
-    },
-    {
-      "id": "mtqevwtreij5y9",
-      "text": "Packaging",
-      "done": true,
       "priority": "none",
       "dueDate": null
     }

@@ -96,7 +96,8 @@
     {
       "key": "printing",
       "label": "Printing",
-      "includeWeekday": true
+      "includeWeekday": true,
+      "advanceDays": 1
     },
     {
       "key": "inventory",

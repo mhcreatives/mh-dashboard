@@ -1,6 +1,15 @@
 {
   "dailyTasks": [
     {
+      "id": "mtuzodjq16iv38",
+      "text": "Cutting for Friday",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "fixedKey": "mtuzodjqc3npv6",
+      "fixedDate": "2026-09-11"
+    },
+    {
       "id": "mtuyoj5gydui52",
       "text": "Printing for Friday",
       "done": false,
@@ -127,6 +136,12 @@
       "key": "mtuxrsd8yxwb3j",
       "label": "Reading a book",
       "includeWeekday": false
+    },
+    {
+      "key": "mtuzodjqc3npv6",
+      "label": "Cutting",
+      "includeWeekday": true,
+      "advanceDays": 1
     }
   ]
 }

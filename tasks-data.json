@@ -66,6 +66,14 @@
   ],
   "weeklyTasks": [
     {
+      "id": "mtwe02u7f0tzll",
+      "text": "Research laser cutting",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "scheduleDate": null
+    },
+    {
       "id": "mtwdztxxy39uzw",
       "text": "Optimize layout workflow",
       "done": false,

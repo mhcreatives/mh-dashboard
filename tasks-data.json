@@ -66,6 +66,14 @@
   ],
   "weeklyTasks": [
     {
+      "id": "mtwdzfp2f53mm9",
+      "text": "Increase production capacity",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "scheduleDate": null
+    },
+    {
       "id": "mtuxs9i9fmowxm",
       "text": "Philhealth",
       "done": false,

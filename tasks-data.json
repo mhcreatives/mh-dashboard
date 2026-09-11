@@ -66,6 +66,14 @@
   ],
   "weeklyTasks": [
     {
+      "id": "mtwdztxxy39uzw",
+      "text": "Optimize layout workflow",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "scheduleDate": null
+    },
+    {
       "id": "mtwdzfp2f53mm9",
       "text": "Increase production capacity by optimization",
       "done": false,

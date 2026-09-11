@@ -1,6 +1,24 @@
 {
   "dailyTasks": [
     {
+      "id": "mtwfknjp6n93u6",
+      "text": "Printing for Saturday",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "fixedKey": "printing",
+      "fixedDate": "2026-09-12"
+    },
+    {
+      "id": "mtwfknjr0d377s",
+      "text": "Cutting for Saturday",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "fixedKey": "mtuzodjqc3npv6",
+      "fixedDate": "2026-09-12"
+    },
+    {
       "id": "mtw3j3f55y7fx0",
       "text": "Inventory",
       "done": true,

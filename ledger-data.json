@@ -197,6 +197,12 @@
           "name": "Maya credit card",
           "amount": 11373,
           "paid": true
+        },
+        {
+          "id": "gy3ezvcb",
+          "name": "",
+          "amount": 0,
+          "paid": false
         }
       ],
       "fixed": {

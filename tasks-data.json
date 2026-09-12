@@ -1,6 +1,24 @@
 {
   "dailyTasks": [
     {
+      "id": "mtxsla85wyf4oj",
+      "text": "Quiet time",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "fixedKey": "mtuxrjf6a6t1cl",
+      "fixedDate": "2026-09-12"
+    },
+    {
+      "id": "mtxsla85v7fdnv",
+      "text": "h",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "fixedKey": "mtxropau61ahpm",
+      "fixedDate": "2026-09-12"
+    },
+    {
       "id": "mtxs95ace5if1b",
       "text": "Packaging",
       "done": false,

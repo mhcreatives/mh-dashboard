@@ -1,11 +1,11 @@
 {
   "accounts": {
-    "Gcash 1": 345556,
-    "Gcash 2": 42039,
-    "Maya 1": 16337,
+    "Gcash 1": 358473,
+    "Gcash 2": 46633,
+    "Maya 1": 21301,
     "Maya 2": 7527,
-    "Maya savings": 206702,
-    "UB": 197892,
+    "Maya savings": 207095,
+    "UB": 206704,
     "CBS": 84088,
     "Loans": 85000,
     "Others": 0
@@ -104,7 +104,8 @@
       "startKey": "2026-08",
       "endKey": "2027-07",
       "paidMonths": {
-        "2026-08": true
+        "2026-08": true,
+        "2026-09": true
       }
     },
     {
@@ -143,7 +144,9 @@
       "amount": 1600,
       "startKey": "2026-09",
       "endKey": "2028-12",
-      "paidMonths": {}
+      "paidMonths": {
+        "2026-09": true
+      }
     }
   ],
   "months": {
@@ -188,6 +191,24 @@
           "name": "PMS",
           "amount": 4500,
           "paid": true
+        },
+        {
+          "id": "l2d617sd",
+          "name": "Maya credit card",
+          "amount": 11373,
+          "paid": true
+        },
+        {
+          "id": "gy3ezvcb",
+          "name": "SI electric bill",
+          "amount": 0,
+          "paid": false
+        },
+        {
+          "id": "5xcdp0fo",
+          "name": "Tagulod electric bill",
+          "amount": 1904,
+          "paid": true
         }
       ],
       "fixed": {
@@ -197,8 +218,8 @@
         "Electricity": 5000
       },
       "cashOverride": {
-        "amount": 985141,
-        "date": "2026-09-09"
+        "amount": 1016821,
+        "date": "2026-09-12"
       }
     },
     "2026-10": {

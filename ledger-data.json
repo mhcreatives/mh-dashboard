@@ -208,7 +208,7 @@
           "id": "5xcdp0fo",
           "name": "Tagulod electric bill",
           "amount": 1904,
-          "paid": false
+          "paid": true
         }
       ],
       "fixed": {

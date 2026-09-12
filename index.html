@@ -4516,9 +4516,9 @@ Then extract:
   // — Printing shows up a day early ("Printing for Thursday" appears on
   // Wednesday) so there's lead time to prep for it.
   const DEFAULT_FIXED_DAILY_TASKS = [
-    { key: 'printing', label: 'Printing', includeWeekday: true, advanceDays: 1 },
-    { key: 'cutting', label: 'Cutting', includeWeekday: true, advanceDays: 0 },
-    { key: 'inventory', label: 'Inventory', includeWeekday: false, advanceDays: 0 },
+    { key: 'printing', label: 'Printing', includeWeekday: true, advanceDays: 1, weekdaysOnly: true },
+    { key: 'cutting', label: 'Cutting', includeWeekday: true, advanceDays: 0, weekdaysOnly: true },
+    { key: 'inventory', label: 'Inventory', includeWeekday: false, advanceDays: 0, weekdaysOnly: false },
   ];
   function tasksDataDefaults() {
     return { dailyTasks: [], weeklyTasks: [], goals: [], fixedDailyTasks: [...DEFAULT_FIXED_DAILY_TASKS] };
@@ -4684,7 +4684,7 @@ Then extract:
 
       <div class="mini-toggle" data-act="toggleFixedManager">📌 manage fixed daily tasks</div>
       <div class="mini-panel" data-el="fixedManagerPanel">
-        <div class="config-hint">A new one is only added once the previous one is checked done — an overdue task never disappears or gets duplicated. "Days ahead" schedules it early (e.g. Printing = 1 day: "Printing for Thursday" shows up Wednesday). Removing one here doesn't delete past instances already in the list above.</div>
+        <div class="config-hint">A new one is only added once the previous one is checked done — an overdue task never disappears or gets duplicated. "Days ahead" schedules it early (e.g. Printing = 1 day: "Printing for Thursday" shows up Wednesday). "Weekdays only" skips Saturday/Sunday entirely, rolling over to Monday instead. Removing one here doesn't delete past instances already in the list above.</div>
         <div data-el="fixedList"></div>
         <div class="id-row" style="margin-top:8px;">
           <input type="text" data-el="fixedLabelInput" placeholder="Task name (e.g. Packaging)" autocomplete="off" spellcheck="false" />
@@ -4692,6 +4692,9 @@ Then extract:
             <input type="checkbox" data-el="fixedWeekdayInput" /> include weekday
           </label>
           <input type="number" data-el="fixedAdvanceInput" min="0" step="1" placeholder="0" title="Days ahead" style="width:56px;" />
+          <label style="display:flex; align-items:center; gap:6px; font-size:11px; color:#888; white-space:nowrap;">
+            <input type="checkbox" data-el="fixedWeekdaysOnlyInput" /> weekdays only
+          </label>
           <button class="save-btn" data-act="addFixedTask">Add</button>
         </div>
       </div>
@@ -4729,6 +4732,7 @@ Then extract:
     const fixedLabelInput = el('fixedLabelInput');
     const fixedWeekdayInput = el('fixedWeekdayInput');
     const fixedAdvanceInput = el('fixedAdvanceInput');
+    const fixedWeekdaysOnlyInput = el('fixedWeekdaysOnlyInput');
 
     const PRIORITY_LABELS = { none: '', low: 'Low', med: 'Medium', high: 'High' };
     const PRIORITY_COLORS = { none: '#444', low: '#5b9bd5', med: '#f5a524', high: '#f87171' };
@@ -4763,6 +4767,12 @@ Then extract:
     function targetDateFor(def) {
       const d = new Date();
       d.setDate(d.getDate() + (def.advanceDays || 0));
+      if (def.weekdaysOnly) {
+        // Sat (6) -> +2 to Mon, Sun (0) -> +1 to Mon — never names/creates
+        // a weekend instance at all.
+        if (d.getDay() === 6) d.setDate(d.getDate() + 2);
+        else if (d.getDay() === 0) d.setDate(d.getDate() + 1);
+      }
       return d;
     }
     function fixedTaskLabel(def) {
@@ -4812,6 +4822,7 @@ Then extract:
         const bits = [];
         if (def.includeWeekday) bits.push('+ weekday');
         if (def.advanceDays) bits.push(`${def.advanceDays}d ahead`);
+        if (def.weekdaysOnly) bits.push('weekdays only');
         return `
         <div class="task-row">
           <div class="task-text" style="flex:1;">${def.label.replace(/</g, '&lt;')}${bits.length ? ` <span style="color:#888; font-size:10px;">(${bits.join(', ')})</span>` : ''}</div>
@@ -4830,10 +4841,12 @@ Then extract:
         label,
         includeWeekday: fixedWeekdayInput.checked,
         advanceDays: Math.max(0, parseInt(fixedAdvanceInput.value, 10) || 0),
+        weekdaysOnly: fixedWeekdaysOnlyInput.checked,
       });
       fixedLabelInput.value = '';
       fixedWeekdayInput.checked = false;
       fixedAdvanceInput.value = '';
+      fixedWeekdaysOnlyInput.checked = false;
       renderFixedManager();
       // adds today's instance immediately, so it doesn't wait for the next reload
       if (ensureFixedTasksForToday()) render();

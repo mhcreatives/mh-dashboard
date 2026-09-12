@@ -1,9 +1,36 @@
 {
   "dailyTasks": [
     {
+      "id": "mtxn1o3vszfn8j",
+      "text": "Inventory",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "fixedKey": "inventory",
+      "fixedDate": "2026-09-12"
+    },
+    {
+      "id": "mtw3j3f55y7fx0",
+      "text": "Inventory",
+      "done": true,
+      "priority": "none",
+      "dueDate": null,
+      "fixedKey": "inventory",
+      "fixedDate": "2026-09-11"
+    },
+    {
+      "id": "mtuzodjq16iv38",
+      "text": "Cutting for Friday",
+      "done": true,
+      "priority": "none",
+      "dueDate": null,
+      "fixedKey": "mtuzodjqc3npv6",
+      "fixedDate": "2026-09-11"
+    },
+    {
       "id": "mtuyoj5gydui52",
       "text": "Printing for Friday",
-      "done": false,
+      "done": true,
       "priority": "none",
       "dueDate": null,
       "fixedKey": "printing",
@@ -28,15 +55,6 @@
       "fixedDate": "2026-09-10"
     },
     {
-      "id": "mtuxrajc0p5gj5",
-      "text": "Cutting for Thursday",
-      "done": false,
-      "priority": "none",
-      "dueDate": null,
-      "fixedKey": "mtuxrajb7vsuqi",
-      "fixedDate": "2026-09-10"
-    },
-    {
       "id": "mtux3wz14clil9",
       "text": "Printing for Thursday",
       "done": true,
@@ -56,6 +74,30 @@
     }
   ],
   "weeklyTasks": [
+    {
+      "id": "mtwe02u7f0tzll",
+      "text": "Research laser cutting",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "scheduleDate": null
+    },
+    {
+      "id": "mtwdztxxy39uzw",
+      "text": "Optimize layout workflow",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "scheduleDate": null
+    },
+    {
+      "id": "mtwdzfp2f53mm9",
+      "text": "Increase production capacity by optimization",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "scheduleDate": null
+    },
     {
       "id": "mtuxs9i9fmowxm",
       "text": "Philhealth",
@@ -106,17 +148,13 @@
       "key": "printing",
       "label": "Printing",
       "includeWeekday": true,
-      "advanceDays": 1
+      "advanceDays": 1,
+      "weekdaysOnly": true
     },
     {
       "key": "inventory",
       "label": "Inventory",
       "includeWeekday": false
-    },
-    {
-      "key": "mtuxrajb7vsuqi",
-      "label": "Cutting",
-      "includeWeekday": true
     },
     {
       "key": "mtuxrjf6a6t1cl",
@@ -127,6 +165,19 @@
       "key": "mtuxrsd8yxwb3j",
       "label": "Reading a book",
       "includeWeekday": false
+    },
+    {
+      "key": "mtuzodjqc3npv6",
+      "label": "Cutting",
+      "includeWeekday": true,
+      "advanceDays": 1,
+      "weekdaysOnly": true
+    },
+    {
+      "key": "mtxropau61ahpm",
+      "label": "h",
+      "includeWeekday": false,
+      "advanceDays": 0
     }
   ]
 }

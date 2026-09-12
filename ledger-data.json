@@ -188,6 +188,12 @@
           "name": "PMS",
           "amount": 4500,
           "paid": true
+        },
+        {
+          "id": "l2d617sd",
+          "name": "",
+          "amount": 0,
+          "paid": false
         }
       ],
       "fixed": {

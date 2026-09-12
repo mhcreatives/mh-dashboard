@@ -144,7 +144,9 @@
       "amount": 1600,
       "startKey": "2026-09",
       "endKey": "2028-12",
-      "paidMonths": {}
+      "paidMonths": {
+        "2026-09": true
+      }
     }
   ],
   "months": {

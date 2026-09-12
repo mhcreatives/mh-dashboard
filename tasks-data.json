@@ -1,6 +1,24 @@
 {
   "dailyTasks": [
     {
+      "id": "mtz0j8bef8zxqx",
+      "text": "Inventory",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "fixedKey": "inventory",
+      "fixedDate": "2026-09-13"
+    },
+    {
+      "id": "mtz0j8be5ymg4z",
+      "text": "Quiet time",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "fixedKey": "mtuxrjf6a6t1cl",
+      "fixedDate": "2026-09-13"
+    },
+    {
       "id": "mtxvuc9szvfqyn",
       "text": "Arrange office",
       "done": false,

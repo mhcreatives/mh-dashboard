@@ -216,12 +216,6 @@
       "includeWeekday": true,
       "advanceDays": 1,
       "weekdaysOnly": true
-    },
-    {
-      "key": "mtxropau61ahpm",
-      "label": "h",
-      "includeWeekday": false,
-      "advanceDays": 0
     }
   ]
 }

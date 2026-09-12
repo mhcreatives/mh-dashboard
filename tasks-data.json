@@ -1,6 +1,14 @@
 {
   "dailyTasks": [
     {
+      "id": "mtxvuc9szvfqyn",
+      "text": "Arrange office",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "scheduleDate": null
+    },
+    {
       "id": "mtxsla85wyf4oj",
       "text": "Quiet time",
       "done": false,

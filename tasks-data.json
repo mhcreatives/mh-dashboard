@@ -1,6 +1,33 @@
 {
   "dailyTasks": [
     {
+      "id": "mtxs8fnipsda2y",
+      "text": "Printing for Monday",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "fixedKey": "printing",
+      "fixedDate": "2026-09-14"
+    },
+    {
+      "id": "mtxs8fnjc213yx",
+      "text": "Cutting for Monday",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "fixedKey": "mtuzodjqc3npv6",
+      "fixedDate": "2026-09-14"
+    },
+    {
+      "id": "mtxs8fnjj1ex2p",
+      "text": "h",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "fixedKey": "mtxropau61ahpm",
+      "fixedDate": "2026-09-12"
+    },
+    {
       "id": "mtxn1o3vszfn8j",
       "text": "Inventory",
       "done": false,

@@ -1,6 +1,15 @@
 {
   "dailyTasks": [
     {
+      "id": "mu1uqlskxjbuph",
+      "text": "Inventory",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "fixedKey": "inventory",
+      "fixedDate": "2026-09-15"
+    },
+    {
       "id": "mu1sd9fi8066rz",
       "text": "Fix motorcycle battery",
       "done": false,

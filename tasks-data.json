@@ -37,118 +37,12 @@
       "fixedDate": "2026-09-13"
     },
     {
-      "id": "mtxvuc9szvfqyn",
-      "text": "Arrange office",
-      "done": true,
-      "priority": "none",
-      "dueDate": null,
-      "scheduleDate": null
-    },
-    {
-      "id": "mtxsla85wyf4oj",
-      "text": "Quiet time",
-      "done": true,
-      "priority": "none",
-      "dueDate": null,
-      "fixedKey": "mtuxrjf6a6t1cl",
-      "fixedDate": "2026-09-12"
-    },
-    {
-      "id": "mtxs95ace5if1b",
-      "text": "Packaging",
-      "done": true,
-      "priority": "none",
-      "dueDate": null,
-      "scheduleDate": null
-    },
-    {
-      "id": "mtxs8fnipsda2y",
-      "text": "Printing for Monday",
-      "done": true,
-      "priority": "none",
-      "dueDate": null,
-      "fixedKey": "printing",
-      "fixedDate": "2026-09-14"
-    },
-    {
-      "id": "mtxs8fnjc213yx",
-      "text": "Cutting for Monday",
-      "done": true,
-      "priority": "none",
-      "dueDate": null,
-      "fixedKey": "mtuzodjqc3npv6",
-      "fixedDate": "2026-09-14"
-    },
-    {
-      "id": "mtxn1o3vszfn8j",
-      "text": "Inventory",
-      "done": true,
-      "priority": "none",
-      "dueDate": null,
-      "fixedKey": "inventory",
-      "fixedDate": "2026-09-12"
-    },
-    {
-      "id": "mtw3j3f55y7fx0",
-      "text": "Inventory",
-      "done": true,
-      "priority": "none",
-      "dueDate": null,
-      "fixedKey": "inventory",
-      "fixedDate": "2026-09-11"
-    },
-    {
-      "id": "mtuzodjq16iv38",
-      "text": "Cutting for Friday",
-      "done": true,
-      "priority": "none",
-      "dueDate": null,
-      "fixedKey": "mtuzodjqc3npv6",
-      "fixedDate": "2026-09-11"
-    },
-    {
-      "id": "mtuyoj5gydui52",
-      "text": "Printing for Friday",
-      "done": true,
-      "priority": "none",
-      "dueDate": null,
-      "fixedKey": "printing",
-      "fixedDate": "2026-09-11"
-    },
-    {
       "id": "mtuxrsd8dipkao",
       "text": "Reading a book",
       "done": false,
       "priority": "none",
       "dueDate": null,
       "fixedKey": "mtuxrsd8yxwb3j",
-      "fixedDate": "2026-09-10"
-    },
-    {
-      "id": "mtuxrjf6d3y1ij",
-      "text": "Quiet time",
-      "done": true,
-      "priority": "none",
-      "dueDate": null,
-      "fixedKey": "mtuxrjf6a6t1cl",
-      "fixedDate": "2026-09-10"
-    },
-    {
-      "id": "mtux3wz14clil9",
-      "text": "Printing for Thursday",
-      "done": true,
-      "priority": "none",
-      "dueDate": null,
-      "fixedKey": "printing",
-      "fixedDate": "2026-09-10"
-    },
-    {
-      "id": "mtux3wz1c9ac2i",
-      "text": "Inventory",
-      "done": true,
-      "priority": "none",
-      "dueDate": null,
-      "fixedKey": "inventory",
       "fixedDate": "2026-09-10"
     }
   ],

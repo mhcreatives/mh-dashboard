@@ -45,7 +45,7 @@
     {
       "id": "mtz0j8bef8zxqx",
       "text": "Inventory",
-      "done": false,
+      "done": true,
       "priority": "none",
       "dueDate": null,
       "fixedKey": "inventory",

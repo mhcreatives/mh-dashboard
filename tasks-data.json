@@ -20,7 +20,7 @@
     {
       "id": "mu1scxchphevy4",
       "text": "Refill water",
-      "done": false,
+      "done": true,
       "priority": "none",
       "dueDate": null,
       "scheduleDate": null

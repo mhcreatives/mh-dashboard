@@ -405,25 +405,25 @@
 
   <div class="page-tabs">
     <button class="page-tab-btn active" data-page="operations">Operations</button>
-    <button class="page-tab-btn" data-page="pipeline">Pipeline</button>
     <button class="page-tab-btn" data-page="data">Data</button>
     <button class="page-tab-btn" data-page="assign">Assign</button>
-    <button class="page-tab-btn" data-page="layout">Layout</button>
     <button class="page-tab-btn" data-page="tasks">Tasks</button>
+    <button class="page-tab-btn" data-page="layout">Layout</button>
+    <button class="page-tab-btn" data-page="pipeline">Pipeline</button>
     <button class="page-tab-btn" data-page="ledger">Ledger</button>
     <button class="page-tab-btn" data-page="settings">Settings</button>
   </div>
 
   <div id="page-operations" class="page-panel active"><div id="cards"></div></div>
-  <div id="page-pipeline" class="page-panel"><div id="cards-pipeline"></div></div>
   <div id="page-data" class="page-panel"><div id="cards-data"></div></div>
   <div id="page-assign" class="page-panel">
     <iframe src="https://assign.mhcreatives.net/" class="assign-frame" title="Assign Dashboard"></iframe>
   </div>
+  <div id="page-tasks" class="page-panel"><div id="cards-tasks"></div></div>
   <div id="page-layout" class="page-panel">
     <iframe src="https://layout.mhcreatives.net/" class="assign-frame" title="Layout Dashboard"></iframe>
   </div>
-  <div id="page-tasks" class="page-panel"><div id="cards-tasks"></div></div>
+  <div id="page-pipeline" class="page-panel"><div id="cards-pipeline"></div></div>
   <div id="page-ledger" class="page-panel">
     <iframe class="assign-frame" title="Ledger Calendar" id="ledgerFrame"></iframe>
     <script>
@@ -3959,7 +3959,8 @@ Then extract:
   }
 
   // ─── Pipeline (all active Invitation orders, grouped by production stage) ─
-  // A whole-pipeline overview — every order that isn't Done/Cancelled,
+  // A whole-pipeline overview — every order that isn't Done/Cancelled/For
+  // posting (all three read as "already shipped or off the board"),
   // bucketed into Pending / Layout / Printing / Assembly / Packaging so you
   // can see where the backlog actually is. Printing vs Assembly follows the
   // same convention as the Order Tracker card: same status list, split by
@@ -3990,7 +3991,7 @@ Then extract:
           <button class="icon-btn" data-act="refresh">↻ refresh</button>
         </div>
       </div>
-      <div class="tool-desc">Every active (non-Done/Cancelled) order, grouped by production stage.</div>
+      <div class="tool-desc">Every active order (excludes For posting/Done/Cancelled), grouped by production stage.</div>
       <div class="status-line" data-el="status"></div>
       <div data-el="groups"></div>
 
@@ -4067,7 +4068,7 @@ Then extract:
       try {
         const records = await otFetchRecords(
           apiKey, INV_TABLE, INV_STATUS, INV_TOTAL, INV_STATUS,
-          `AND({Status}!="Done",{Status}!="Cancelled")`,
+          `AND({Status}!="Done",{Status}!="Cancelled",{Status}!="For posting")`,
           [INV_QUOTA, INV_ASSIGNEE, PROOF_FB_NAME, PROOF_CLIENT_NUM]
         );
 

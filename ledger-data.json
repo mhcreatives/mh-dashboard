@@ -125,7 +125,8 @@
       "startKey": "2026-08",
       "endKey": "2028-12",
       "paidMonths": {
-        "2026-08": true
+        "2026-08": true,
+        "2026-09": true
       }
     },
     {
@@ -201,8 +202,8 @@
         {
           "id": "gy3ezvcb",
           "name": "SI electric bill",
-          "amount": 0,
-          "paid": false
+          "amount": 4945,
+          "paid": true
         },
         {
           "id": "5xcdp0fo",

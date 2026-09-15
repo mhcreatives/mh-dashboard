@@ -28,7 +28,7 @@
     {
       "id": "mu1scqu99iq8y2",
       "text": "Buy gas tank",
-      "done": false,
+      "done": true,
       "priority": "none",
       "dueDate": null,
       "scheduleDate": null

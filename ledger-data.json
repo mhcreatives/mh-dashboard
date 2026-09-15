@@ -202,7 +202,7 @@
           "id": "gy3ezvcb",
           "name": "SI electric bill",
           "amount": 4945,
-          "paid": false
+          "paid": true
         },
         {
           "id": "5xcdp0fo",

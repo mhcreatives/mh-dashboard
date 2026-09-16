@@ -1,6 +1,15 @@
 {
   "dailyTasks": [
     {
+      "id": "mu3pp6v8xt4qi2",
+      "text": "Cutting for Thursday",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "fixedKey": "mtuzodjqc3npv6",
+      "fixedDate": "2026-09-17"
+    },
+    {
       "id": "mu3fanujw2qyoc",
       "text": "check die cutter",
       "done": false,

@@ -1,6 +1,15 @@
 {
   "dailyTasks": [
     {
+      "id": "mu3pphxaunteya",
+      "text": "Reading a book",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "fixedKey": "mtuxrsd8yxwb3j",
+      "fixedDate": "2026-09-16"
+    },
+    {
       "id": "mu3pp9z38mmqcq",
       "text": "Quiet time",
       "done": true,

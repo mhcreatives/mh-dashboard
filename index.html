@@ -2884,7 +2884,7 @@ Then extract:
               <td class="no-name">${r.name || ''}</td>
               <td>${r.metaLink ? `<a class="proof-link" href="${r.metaLink}" target="_blank" rel="noopener">Open ↗</a>` : ''}</td>
               <td class="no-num">${r.downpayment || ''}</td>
-              <td>${r.payment || ''}</td>
+              <td>${r.payment ? (paymentMethodColor(r.payment) ? `<span style="display:inline-block; padding:2px 8px; border-radius:20px; background:${paymentMethodColor(r.payment)}22; color:${paymentMethodColor(r.payment)}; font-weight:600; font-size:10px;">${r.payment.replace(/</g, '&lt;')}</span>` : r.payment.replace(/</g, '&lt;')) : ''}</td>
               <td>${r.notes ? `<span style="display:inline-block; padding:2px 8px; border-radius:20px; background:${otColorForName(r.notes)}22; color:${otColorForName(r.notes)}; font-weight:600; font-size:10px;">${r.notes.replace(/</g, '&lt;')}</span>` : ''}</td>
               <td class="no-check"><input type="checkbox" data-row="${r.sheetRow}" ${r.dpReceived ? 'checked' : ''} /></td>
             </tr>
@@ -2954,6 +2954,18 @@ Then extract:
     // (not raw hash-to-hue) keeps colors visually distinct from each other
     // at a glance, which a naive hash-mod-360 doesn't reliably guarantee for
     // a small handful of names.
+    // Payment method: blue for Gcash, green for Maya, orange for UB —
+    // matched by keyword since the sheet's Payment column is free text
+    // (e.g. "Gcash", "Gcash 2", "Maya - Juan", "UB transfer").
+    function paymentMethodColor(text) {
+      const t = (text || '').trim().toLowerCase();
+      if (!t) return null;
+      if (t.includes('gcash')) return '#3b82f6';
+      if (t.includes('maya')) return '#22c55e';
+      if (/\bub\b/.test(t) || t.includes('unionbank') || t.includes('union bank')) return '#f97316';
+      return null;
+    }
+
     const NAME_COLOR_PALETTE = ['#ff6b35', '#4ade80', '#60a5fa', '#f472b6', '#facc15', '#a78bfa', '#2dd4bf', '#fb923c', '#e879f9', '#38bdf8'];
     function otColorForName(name) {
       let hash = 0;

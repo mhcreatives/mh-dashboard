@@ -1,6 +1,75 @@
 {
   "dailyTasks": [
     {
+      "id": "mu3pphxaunteya",
+      "text": "Reading a book",
+      "done": true,
+      "priority": "none",
+      "dueDate": null,
+      "fixedKey": "mtuxrsd8yxwb3j",
+      "fixedDate": "2026-09-16"
+    },
+    {
+      "id": "mu3pp9z38mmqcq",
+      "text": "Quiet time",
+      "done": true,
+      "priority": "none",
+      "dueDate": null,
+      "fixedKey": "mtuxrjf6a6t1cl",
+      "fixedDate": "2026-09-16"
+    },
+    {
+      "id": "mu3pp6v8xt4qi2",
+      "text": "Cutting for Thursday",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "fixedKey": "mtuzodjqc3npv6",
+      "fixedDate": "2026-09-17"
+    },
+    {
+      "id": "mu3fanujw2qyoc",
+      "text": "check die cutter",
+      "done": true,
+      "priority": "none",
+      "dueDate": null,
+      "scheduleDate": null
+    },
+    {
+      "id": "mu3ejd9a3d4al3",
+      "text": "Drop off",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "scheduleDate": null
+    },
+    {
+      "id": "mu3ejatsh19gq9",
+      "text": "Packaging",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "scheduleDate": null
+    },
+    {
+      "id": "mu3e7eoya8b9kx",
+      "text": "Printing for Thursday",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "fixedKey": "printing",
+      "fixedDate": "2026-09-17"
+    },
+    {
+      "id": "mu3dx03dax6rbd",
+      "text": "Inventory",
+      "done": true,
+      "priority": "none",
+      "dueDate": null,
+      "fixedKey": "inventory",
+      "fixedDate": "2026-09-16"
+    },
+    {
       "id": "mu1uqlskxjbuph",
       "text": "Inventory",
       "done": true,
@@ -36,7 +105,7 @@
     {
       "id": "mu1sbsrpn2mscl",
       "text": "Cutting for Wednesday",
-      "done": false,
+      "done": true,
       "priority": "none",
       "dueDate": null,
       "fixedKey": "mtuzodjqc3npv6",
@@ -45,7 +114,7 @@
     {
       "id": "mu1sbnvqvgiedp",
       "text": "Printing for Wednesday",
-      "done": false,
+      "done": true,
       "priority": "none",
       "dueDate": null,
       "fixedKey": "printing",
@@ -63,7 +132,7 @@
     {
       "id": "mtz0j8be5ymg4z",
       "text": "Quiet time",
-      "done": false,
+      "done": true,
       "priority": "none",
       "dueDate": null,
       "fixedKey": "mtuxrjf6a6t1cl",
@@ -72,7 +141,7 @@
     {
       "id": "mtuxrsd8dipkao",
       "text": "Reading a book",
-      "done": false,
+      "done": true,
       "priority": "none",
       "dueDate": null,
       "fixedKey": "mtuxrsd8yxwb3j",

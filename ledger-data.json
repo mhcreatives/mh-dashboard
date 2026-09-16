@@ -1,13 +1,13 @@
 {
   "accounts": {
-    "Gcash 1": 358473,
-    "Gcash 2": 46633,
-    "Maya 1": 21301,
+    "Gcash 1": 383885,
+    "Gcash 2": 0,
+    "Maya 1": 43446,
     "Maya 2": 7527,
     "Maya savings": 207095,
-    "UB": 206704,
+    "UB": 212148,
     "CBS": 84088,
-    "Loans": 85000,
+    "Loans": 75000,
     "Others": 0
   },
   "liabilities": [
@@ -184,7 +184,7 @@
         {
           "id": "whcorsat",
           "name": "Maya credit",
-          "amount": 21013,
+          "amount": 21015,
           "paid": true
         },
         {
@@ -219,8 +219,8 @@
         "Electricity": 5000
       },
       "cashOverride": {
-        "amount": 1016821,
-        "date": "2026-09-12"
+        "amount": 1013189,
+        "date": "2026-09-16"
       }
     },
     "2026-10": {

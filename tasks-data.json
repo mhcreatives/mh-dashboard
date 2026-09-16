@@ -12,7 +12,7 @@
     {
       "id": "mu3dx03dax6rbd",
       "text": "Inventory",
-      "done": false,
+      "done": true,
       "priority": "none",
       "dueDate": null,
       "fixedKey": "inventory",

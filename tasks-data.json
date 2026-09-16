@@ -114,7 +114,7 @@
     {
       "id": "mtz0j8be5ymg4z",
       "text": "Quiet time",
-      "done": false,
+      "done": true,
       "priority": "none",
       "dueDate": null,
       "fixedKey": "mtuxrjf6a6t1cl",

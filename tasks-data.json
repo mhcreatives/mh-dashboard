@@ -21,7 +21,7 @@
     {
       "id": "mu4vang6hw0wf3",
       "text": "Inventory",
-      "done": false,
+      "done": true,
       "priority": "none",
       "dueDate": null,
       "fixedKey": "inventory",

@@ -2883,13 +2883,28 @@ Then extract:
         : text;
     }
 
+    const PAYMENT_METHOD_OPTIONS = ['Gcash', 'Maya', 'UB'];
+
     function editableCellHtml(r, field, displayHtml) {
       const editing = editingCell && editingCell.row === r.sheetRow && editingCell.field === field;
-      if (editing) {
-        const val = (r[field] || '').toString().replace(/"/g, '&quot;');
-        return `<input type="text" class="no-edit-input" data-row="${r.sheetRow}" data-field="${field}" value="${val}" autocomplete="off" spellcheck="false" style="width:100%; box-sizing:border-box; background:#111; border:1px solid #333; border-radius:4px; color:#eee; padding:2px 6px; font-size:11px;" />`;
+      if (!editing) {
+        return `<span data-act="startEditCell" data-row="${r.sheetRow}" data-field="${field}" style="cursor:text;" title="Click to edit">${displayHtml}</span>`;
       }
-      return `<span data-act="startEditCell" data-row="${r.sheetRow}" data-field="${field}" style="cursor:text;" title="Click to edit">${displayHtml}</span>`;
+      const val = (r[field] || '').toString();
+      if (field === 'payment') {
+        // Free text is still preserved: if the current value isn't exactly
+        // one of the standard three (e.g. "Gcash 2", a typo, blank), it's
+        // added as its own selected option instead of silently discarded.
+        const options = PAYMENT_METHOD_OPTIONS.includes(val) ? PAYMENT_METHOD_OPTIONS : [val, ...PAYMENT_METHOD_OPTIONS].filter((v, i, a) => a.indexOf(v) === i);
+        const optionsHtml = ['', ...options].map(o => {
+          const label = o || '— none —';
+          const esc = o.replace(/"/g, '&quot;');
+          return `<option value="${esc}" ${o === val ? 'selected' : ''}>${label.replace(/</g, '&lt;')}</option>`;
+        }).join('');
+        return `<select class="no-edit-input" data-row="${r.sheetRow}" data-field="${field}" style="width:100%; box-sizing:border-box; background:#111; border:1px solid #333; border-radius:4px; color:#eee; padding:2px 6px; font-size:11px;">${optionsHtml}</select>`;
+      }
+      const escVal = val.replace(/"/g, '&quot;');
+      return `<input type="text" class="no-edit-input" data-row="${r.sheetRow}" data-field="${field}" value="${escVal}" autocomplete="off" spellcheck="false" style="width:100%; box-sizing:border-box; background:#111; border:1px solid #333; border-radius:4px; color:#eee; padding:2px 6px; font-size:11px;" />`;
     }
 
     function renderRows(rows) {
@@ -2917,7 +2932,7 @@ Then extract:
       `;
       if (editingCell) {
         const input = tableEl.querySelector(`.no-edit-input[data-row="${editingCell.row}"][data-field="${editingCell.field}"]`);
-        if (input) { input.focus(); input.select(); }
+        if (input) { input.focus(); if (input.select) input.select(); }
       }
     }
 
@@ -2931,15 +2946,21 @@ Then extract:
       renderRows(lastRows);
     }
 
+    let savingCellKey = null; // guards against a duplicate POST — the payment
+    // <select> saves on both 'change' and the 'focusout' that quickly follows
+
     async function saveEditCell(input) {
       const row = Number(input.dataset.row);
       const field = input.dataset.field;
       const value = input.value.trim();
+      const cellKey = `${row}:${field}`;
+      if (savingCellKey === cellKey) return;
       const r = lastRows.find(x => x.sheetRow === row);
       const previous = r ? (r[field] || '') : '';
       if (value === previous) { cancelEditCell(); return; }
       const col = field === 'downpayment' ? NO_DOWNPAYMENT_COL : NO_PAYMENT_COL;
       input.disabled = true;
+      savingCellKey = cellKey;
       setStatus('Updating...', '');
       try {
         const resp = await fetch(NO_APPS_SCRIPT_URL, {
@@ -2957,6 +2978,8 @@ Then extract:
         setStatus(`Error: ${err.message}`, 'error');
         editingCell = null;
         renderRows(lastRows);
+      } finally {
+        savingCellKey = null;
       }
     }
 
@@ -3149,6 +3172,7 @@ Then extract:
 
     card.addEventListener('change', (e) => {
       if (e.target.matches('input[type="checkbox"][data-row]')) toggleDpReceived(e.target);
+      else if (e.target.matches('select.no-edit-input')) saveEditCell(e.target);
     });
 
     card.addEventListener('keydown', (e) => {
@@ -3168,6 +3192,12 @@ Then extract:
       }
     });
     card.addEventListener('focusout', (e) => {
+      // Also covers the payment <select>: it saves on 'change' above too,
+      // so picking an option can trigger saveEditCell twice (once on
+      // change, again here on blur) — harmless, since the second call
+      // just re-saves the same already-current value. Needed as the sole
+      // trigger for "opened the dropdown, changed nothing, clicked away"
+      // (no 'change' event fires then), so editing mode still exits.
       if (e.target.matches('.no-edit-input')) saveEditCell(e.target);
     });
 

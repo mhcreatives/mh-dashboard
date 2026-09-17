@@ -2823,6 +2823,8 @@ Then extract:
   const NO_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxaGjPkim8bZqOeMrQwZRtIlv6uVP68azTSAiawER_6LbSpK4LRGwsMnRLa5EwM_KU/exec';
   const GOOGLE_API_KEY_STORAGE = 'mh_google_sheets_api_key';
   const NO_DP_RECEIVED_COL = 7; // column G, 1-based
+  const NO_DOWNPAYMENT_COL = 3; // column C, 1-based
+  const NO_PAYMENT_COL = 4; // column D, 1-based
 
   function buildNewOrdersCard() {
     const card = document.createElement('div');
@@ -2834,7 +2836,7 @@ Then extract:
           <button class="icon-btn" data-act="load">↻ Refresh</button>
         </div>
       </div>
-      <div class="tool-desc">Live view of the "New orders" sheet. Toggle DP Received directly from here.</div>
+      <div class="tool-desc">Live view of the "New orders" sheet. Toggle DP Received, or click Downpayment/Payment to edit them, directly from here.</div>
       <div class="status-line" data-el="status"></div>
       <div class="proof-summary" data-el="summary"></div>
       <div class="no-wrap"><table class="no-table" data-el="table"></table></div>
@@ -2869,7 +2871,29 @@ Then extract:
       statusEl.innerHTML = text ? `<span class="status-dot ${cls || ''}"></span>${text}` : '';
     }
 
+    let lastRows = [];
+    let editingCell = null; // { row: sheetRow, field: 'downpayment' | 'payment' }
+
+    function paymentDisplay(r) {
+      if (!r.payment) return '<span style="color:#555;">— click to add</span>';
+      const color = paymentMethodColor(r.payment);
+      const text = r.payment.replace(/</g, '&lt;');
+      return color
+        ? `<span style="display:inline-block; padding:2px 8px; border-radius:20px; background:${color}22; color:${color}; font-weight:600; font-size:10px;">${text}</span>`
+        : text;
+    }
+
+    function editableCellHtml(r, field, displayHtml) {
+      const editing = editingCell && editingCell.row === r.sheetRow && editingCell.field === field;
+      if (editing) {
+        const val = (r[field] || '').toString().replace(/"/g, '&quot;');
+        return `<input type="text" class="no-edit-input" data-row="${r.sheetRow}" data-field="${field}" value="${val}" autocomplete="off" spellcheck="false" style="width:100%; box-sizing:border-box; background:#111; border:1px solid #333; border-radius:4px; color:#eee; padding:2px 6px; font-size:11px;" />`;
+      }
+      return `<span data-act="startEditCell" data-row="${r.sheetRow}" data-field="${field}" style="cursor:text;" title="Click to edit">${displayHtml}</span>`;
+    }
+
     function renderRows(rows) {
+      lastRows = rows;
       if (rows.length === 0) {
         tableEl.innerHTML = '';
         return;
@@ -2883,14 +2907,57 @@ Then extract:
             <tr>
               <td class="no-name">${r.name || ''}</td>
               <td>${r.metaLink ? `<a class="proof-link" href="${r.metaLink}" target="_blank" rel="noopener">Open ↗</a>` : ''}</td>
-              <td class="no-num">${r.downpayment || ''}</td>
-              <td>${r.payment ? (paymentMethodColor(r.payment) ? `<span style="display:inline-block; padding:2px 8px; border-radius:20px; background:${paymentMethodColor(r.payment)}22; color:${paymentMethodColor(r.payment)}; font-weight:600; font-size:10px;">${r.payment.replace(/</g, '&lt;')}</span>` : r.payment.replace(/</g, '&lt;')) : ''}</td>
+              <td class="no-num">${editableCellHtml(r, 'downpayment', r.downpayment || '<span style="color:#555;">— click to add</span>')}</td>
+              <td>${editableCellHtml(r, 'payment', paymentDisplay(r))}</td>
               <td>${r.notes ? `<span style="display:inline-block; padding:2px 8px; border-radius:20px; background:${otColorForName(r.notes)}22; color:${otColorForName(r.notes)}; font-weight:600; font-size:10px;">${r.notes.replace(/</g, '&lt;')}</span>` : ''}</td>
               <td class="no-check"><input type="checkbox" data-row="${r.sheetRow}" ${r.dpReceived ? 'checked' : ''} /></td>
             </tr>
           `).join('')}
         </tbody>
       `;
+      if (editingCell) {
+        const input = tableEl.querySelector(`.no-edit-input[data-row="${editingCell.row}"][data-field="${editingCell.field}"]`);
+        if (input) { input.focus(); input.select(); }
+      }
+    }
+
+    function startEditCell(row, field) {
+      editingCell = { row, field };
+      renderRows(lastRows);
+    }
+
+    function cancelEditCell() {
+      editingCell = null;
+      renderRows(lastRows);
+    }
+
+    async function saveEditCell(input) {
+      const row = Number(input.dataset.row);
+      const field = input.dataset.field;
+      const value = input.value.trim();
+      const r = lastRows.find(x => x.sheetRow === row);
+      const previous = r ? (r[field] || '') : '';
+      if (value === previous) { cancelEditCell(); return; }
+      const col = field === 'downpayment' ? NO_DOWNPAYMENT_COL : NO_PAYMENT_COL;
+      input.disabled = true;
+      setStatus('Updating...', '');
+      try {
+        const resp = await fetch(NO_APPS_SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ row, col, value }),
+        });
+        const data = await resp.json();
+        if (!data.ok) throw new Error(data.error || 'Update failed');
+        if (r) r[field] = value;
+        editingCell = null;
+        setStatus('Updated ✓', 'success');
+        renderRows(lastRows);
+      } catch (err) {
+        setStatus(`Error: ${err.message}`, 'error');
+        editingCell = null;
+        renderRows(lastRows);
+      }
     }
 
     // Column H is a structured running tally, not free-form notes: a section
@@ -3069,6 +3136,7 @@ Then extract:
       const act = e.target.dataset.act;
       if (act === 'load') load();
       else if (act === 'toggleConfig') configPanel.classList.toggle('open');
+      else if (act === 'startEditCell') startEditCell(Number(e.target.dataset.row), e.target.dataset.field);
       else if (act === 'saveApiKey') {
         const val = apiKeyInput.value.trim();
         if (!val) return;
@@ -3080,6 +3148,26 @@ Then extract:
 
     card.addEventListener('change', (e) => {
       if (e.target.matches('input[type="checkbox"][data-row]')) toggleDpReceived(e.target);
+    });
+
+    card.addEventListener('keydown', (e) => {
+      if (!e.target.matches('.no-edit-input')) return;
+      if (e.key === 'Enter') { e.target.blur(); }
+      else if (e.key === 'Escape') {
+        // Reset to the original value first so the focusout->saveEditCell
+        // that follows sees no change and just cancels — rather than
+        // re-rendering here directly, which would detach the still-focused
+        // input and risk focusout later firing on it with the user's
+        // half-typed (unwanted) text still in its value.
+        const row = Number(e.target.dataset.row);
+        const field = e.target.dataset.field;
+        const r = lastRows.find(x => x.sheetRow === row);
+        e.target.value = r ? (r[field] || '') : '';
+        e.target.blur();
+      }
+    });
+    card.addEventListener('focusout', (e) => {
+      if (e.target.matches('.no-edit-input')) saveEditCell(e.target);
     });
 
     const savedApiKey = localStorage.getItem(GOOGLE_API_KEY_STORAGE) || '';

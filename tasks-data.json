@@ -29,7 +29,7 @@
     {
       "id": "mu4vflbwar68s5",
       "text": "Printing for Friday",
-      "done": false,
+      "done": true,
       "priority": "none",
       "dueDate": null,
       "fixedKey": "printing",

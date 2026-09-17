@@ -3133,10 +3133,11 @@ Then extract:
     }
 
     card.addEventListener('click', (e) => {
-      const act = e.target.dataset.act;
+      const target = e.target.closest('[data-act]');
+      const act = target?.dataset.act;
       if (act === 'load') load();
       else if (act === 'toggleConfig') configPanel.classList.toggle('open');
-      else if (act === 'startEditCell') startEditCell(Number(e.target.dataset.row), e.target.dataset.field);
+      else if (act === 'startEditCell') startEditCell(Number(target.dataset.row), target.dataset.field);
       else if (act === 'saveApiKey') {
         const val = apiKeyInput.value.trim();
         if (!val) return;

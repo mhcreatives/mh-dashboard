@@ -1,6 +1,51 @@
 {
   "dailyTasks": [
     {
+      "id": "mu4wyhe8egbkiq",
+      "text": "Cutting for Friday",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "fixedKey": "mtuzodjqc3npv6",
+      "fixedDate": "2026-09-18"
+    },
+    {
+      "id": "mu4vflbwar68s5",
+      "text": "Printing for Friday",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "fixedKey": "printing",
+      "fixedDate": "2026-09-18"
+    },
+    {
+      "id": "mu4vang6hw0wf3",
+      "text": "Inventory",
+      "done": true,
+      "priority": "none",
+      "dueDate": null,
+      "fixedKey": "inventory",
+      "fixedDate": "2026-09-17"
+    },
+    {
+      "id": "mu4vang6hfw7c4",
+      "text": "Quiet time",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "fixedKey": "mtuxrjf6a6t1cl",
+      "fixedDate": "2026-09-17"
+    },
+    {
+      "id": "mu4vang65gfad9",
+      "text": "Reading a book",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "fixedKey": "mtuxrsd8yxwb3j",
+      "fixedDate": "2026-09-17"
+    },
+    {
       "id": "mu3pphxaunteya",
       "text": "Reading a book",
       "done": true,
@@ -21,7 +66,7 @@
     {
       "id": "mu3pp6v8xt4qi2",
       "text": "Cutting for Thursday",
-      "done": false,
+      "done": true,
       "priority": "none",
       "dueDate": null,
       "fixedKey": "mtuzodjqc3npv6",
@@ -38,7 +83,7 @@
     {
       "id": "mu3ejd9a3d4al3",
       "text": "Drop off",
-      "done": false,
+      "done": true,
       "priority": "none",
       "dueDate": null,
       "scheduleDate": null
@@ -46,7 +91,7 @@
     {
       "id": "mu3ejatsh19gq9",
       "text": "Packaging",
-      "done": false,
+      "done": true,
       "priority": "none",
       "dueDate": null,
       "scheduleDate": null
@@ -54,7 +99,7 @@
     {
       "id": "mu3e7eoya8b9kx",
       "text": "Printing for Thursday",
-      "done": false,
+      "done": true,
       "priority": "none",
       "dueDate": null,
       "fixedKey": "printing",

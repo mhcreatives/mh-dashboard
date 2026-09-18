@@ -1,6 +1,15 @@
 {
   "dailyTasks": [
     {
+      "id": "mu688cdwsgyjgo",
+      "text": "Quiet time",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "fixedKey": "mtuxrjf6a6t1cl",
+      "fixedDate": "2026-09-18"
+    },
+    {
       "id": "mu670cctog9n3d",
       "text": "Printing for Monday",
       "done": false,

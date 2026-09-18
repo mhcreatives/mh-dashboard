@@ -1,6 +1,15 @@
 {
   "dailyTasks": [
     {
+      "id": "mu670cctog9n3d",
+      "text": "Printing for Monday",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "fixedKey": "printing",
+      "fixedDate": "2026-09-21"
+    },
+    {
       "id": "mu66txh6kijusk",
       "text": "Inventory",
       "done": false,

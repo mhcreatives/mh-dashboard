@@ -57,7 +57,7 @@
     {
       "id": "mu5ecqqfkmu41b",
       "text": "Paper inventory",
-      "done": false,
+      "done": true,
       "priority": "none",
       "dueDate": null,
       "scheduleDate": null

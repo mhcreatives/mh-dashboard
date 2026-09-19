@@ -3979,10 +3979,15 @@ Then extract:
     // of the "colored" envelope types into "<qty> pcs <size> <color/label>"
     // lines, merging identical size+color/label combos into a single total
     // so it can go straight to the envelope supplier as one order.
-    const COLORED_ENVELOPE_TYPES = ['Colored', 'Premium Colored', 'Portrait Colored', 'Premium Portrait Colored', 'Transparent'];
+    // Matched case-insensitively: the actual Airtable Type choices are
+    // "Portrait colored" / "Premium portrait colored" (lowercase), which a
+    // case-sensitive match against 'Portrait Colored' silently never hit —
+    // portrait colored orders were being left out of the list entirely.
+    const COLORED_ENVELOPE_TYPES = ['colored', 'premium colored', 'portrait colored', 'premium portrait colored', 'transparent'];
+    const isColoredEnvelopeType = type => COLORED_ENVELOPE_TYPES.includes((type || '').trim().toLowerCase());
 
     function generateEnvelopeList() {
-      const relevant = lastFlagged.filter(it => COLORED_ENVELOPE_TYPES.includes(it.type));
+      const relevant = lastFlagged.filter(it => isColoredEnvelopeType(it.type));
       if (relevant.length === 0) {
         listTextEl.textContent = 'No colored-envelope orders in the current list.';
         listWrapEl.style.display = 'block';
@@ -4014,7 +4019,7 @@ Then extract:
       // list button generates the order for, not every flagged record
       // (confirmed bug: this was marking ALL flagged types as ordered,
       // including ones with no colored envelope on order at all).
-      const relevant = lastFlagged.filter(it => COLORED_ENVELOPE_TYPES.includes(it.type));
+      const relevant = lastFlagged.filter(it => isColoredEnvelopeType(it.type));
       if (relevant.length === 0) return;
       setStatus(`Marking ${relevant.length} order(s) as ordered...`, '');
       try {

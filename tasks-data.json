@@ -1,7 +1,7 @@
 {
   "dailyTasks": [
     {
-      "id": "muaepwidjd0b53",
+      "id": "muaxuzoehjiezb",
       "text": "Printing for Tuesday",
       "done": false,
       "priority": "none",
@@ -265,14 +265,6 @@
     }
   ],
   "weeklyTasks": [
-    {
-      "id": "muan8paunsnxt0",
-      "text": "Improve price calculator",
-      "done": false,
-      "priority": "none",
-      "dueDate": null,
-      "scheduleDate": null
-    },
     {
       "id": "mtwe02u7f0tzll",
       "text": "Research laser cutting",

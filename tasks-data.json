@@ -1,6 +1,15 @@
 {
   "dailyTasks": [
     {
+      "id": "muc1iu065ox87a",
+      "text": "Inventory",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "fixedKey": "inventory",
+      "fixedDate": "2026-09-22"
+    },
+    {
       "id": "muc1b3qhjb6fmt",
       "text": "Reading a book",
       "done": true,

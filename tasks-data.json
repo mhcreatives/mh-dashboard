@@ -37,15 +37,6 @@
       "fixedDate": "2026-09-23"
     },
     {
-      "id": "mu7ns1vy2ndc9h",
-      "text": "Inventory",
-      "done": true,
-      "priority": "none",
-      "dueDate": null,
-      "fixedKey": "inventory",
-      "fixedDate": "2026-09-19"
-    },
-    {
       "id": "mu7ns1vylszdwo",
       "text": "Quiet time",
       "done": false,

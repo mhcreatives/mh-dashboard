@@ -30,7 +30,7 @@
     {
       "id": "mu7ns1vy2ndc9h",
       "text": "Inventory",
-      "done": false,
+      "done": true,
       "priority": "none",
       "dueDate": null,
       "fixedKey": "inventory",

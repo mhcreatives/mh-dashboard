@@ -10,6 +10,15 @@
       "fixedDate": "2026-09-23"
     },
     {
+      "id": "mubwaheaqehjom",
+      "text": "Cutting for Wednesday",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "fixedKey": "mtuzodjqc3npv6",
+      "fixedDate": "2026-09-23"
+    },
+    {
       "id": "mudd2xebrhdunw",
       "text": "Printing for Thursday",
       "done": false,
@@ -77,15 +86,6 @@
       "priority": "none",
       "dueDate": null,
       "fixedKey": "printing",
-      "fixedDate": "2026-09-23"
-    },
-    {
-      "id": "mubwaheaqehjom",
-      "text": "Cutting for Wednesday",
-      "done": false,
-      "priority": "none",
-      "dueDate": null,
-      "fixedKey": "mtuzodjqc3npv6",
       "fixedDate": "2026-09-23"
     },
     {

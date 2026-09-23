@@ -1,15 +1,6 @@
 {
   "dailyTasks": [
     {
-      "id": "mudf42fa7twusp",
-      "text": "Quiet time",
-      "done": true,
-      "priority": "none",
-      "dueDate": null,
-      "fixedKey": "mtuxrjf6a6t1cl",
-      "fixedDate": "2026-09-23"
-    },
-    {
       "id": "mubwaheaqehjom",
       "text": "Cutting for Wednesday",
       "done": false,
@@ -52,50 +43,6 @@
       "priority": "none",
       "dueDate": null,
       "scheduleDate": null
-    },
-    {
-      "id": "muc2ougybqa61p",
-      "text": "souvenir on dashboard",
-      "done": true,
-      "priority": "none",
-      "dueDate": null,
-      "scheduleDate": null
-    },
-    {
-      "id": "muc1iu065ox87a",
-      "text": "Inventory",
-      "done": true,
-      "priority": "none",
-      "dueDate": null,
-      "fixedKey": "inventory",
-      "fixedDate": "2026-09-22"
-    },
-    {
-      "id": "muc1b3qhjb6fmt",
-      "text": "Reading a book",
-      "done": true,
-      "priority": "none",
-      "dueDate": null,
-      "fixedKey": "mtuxrsd8yxwb3j",
-      "fixedDate": "2026-09-22"
-    },
-    {
-      "id": "mubwan5ycrnp5a",
-      "text": "Printing for Wednesday",
-      "done": true,
-      "priority": "none",
-      "dueDate": null,
-      "fixedKey": "printing",
-      "fixedDate": "2026-09-23"
-    },
-    {
-      "id": "mu7ns1vylszdwo",
-      "text": "Quiet time",
-      "done": true,
-      "priority": "none",
-      "dueDate": null,
-      "fixedKey": "mtuxrjf6a6t1cl",
-      "fixedDate": "2026-09-19"
     }
   ],
   "weeklyTasks": [

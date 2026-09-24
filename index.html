@@ -3288,14 +3288,27 @@ Then extract:
       }
       setStatus('Loading...', '');
       try {
-        const range = encodeURIComponent(`${UPDATES_SHEET_TAB}!B1:C1000`);
+        // The tab's columns have shifted before: it used to be B = name,
+        // C = breakdown, and is now A = name, B = breakdown (a column to
+        // the left was removed), which made the breakdown text show up as
+        // the client name with an empty breakdown. Read A:C and detect
+        // which layout a row uses — a filled column C means the old
+        // layout, otherwise the new one — so either works.
+        const range = encodeURIComponent(`${UPDATES_SHEET_TAB}!A1:C1000`);
         const resp = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}/values/${range}?key=${encodeURIComponent(apiKey)}`);
         const data = await resp.json();
         if (!resp.ok) throw new Error(data.error?.message || `HTTP ${resp.status}`);
 
         const values = data.values || [];
         const rows = values
-          .map((row, i) => ({ sheetRow: i + 1, name: row[0] || '', breakdown: row[1] || '' }))
+          .map((row, i) => {
+            const oldLayout = !!(row[2] && String(row[2]).trim());
+            return {
+              sheetRow: i + 1,
+              name: (oldLayout ? row[1] : row[0]) || '',
+              breakdown: (oldLayout ? row[2] : row[1]) || '',
+            };
+          })
           .filter(r => r.name);
 
         lastRows = rows;

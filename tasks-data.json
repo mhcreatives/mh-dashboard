@@ -10,15 +10,6 @@
       "fixedDate": "2026-09-28"
     },
     {
-      "id": "mugay05xzrw584",
-      "text": "Inventory",
-      "done": true,
-      "priority": "none",
-      "dueDate": null,
-      "fixedKey": "inventory",
-      "fixedDate": "2026-09-25"
-    },
-    {
       "id": "mug5od7hdhgvfk",
       "text": "Quiet time",
       "done": false,
@@ -44,78 +35,6 @@
       "dueDate": null,
       "fixedKey": "mtuzodjqc3npv6",
       "fixedDate": "2026-09-25"
-    },
-    {
-      "id": "muf2fh1ffaajxk",
-      "text": "Printing for Friday",
-      "done": true,
-      "priority": "none",
-      "dueDate": null,
-      "fixedKey": "printing",
-      "fixedDate": "2026-09-25"
-    },
-    {
-      "id": "muf2fbjkmklrer",
-      "text": "Quiet time",
-      "done": true,
-      "priority": "none",
-      "dueDate": null,
-      "fixedKey": "mtuxrjf6a6t1cl",
-      "fixedDate": "2026-09-24"
-    },
-    {
-      "id": "muf2fbjkxwuevv",
-      "text": "Reading a book",
-      "done": true,
-      "priority": "none",
-      "dueDate": null,
-      "fixedKey": "mtuxrsd8yxwb3j",
-      "fixedDate": "2026-09-24"
-    },
-    {
-      "id": "mudfe42vjnx5lo",
-      "text": "Quiet time",
-      "done": true,
-      "priority": "none",
-      "dueDate": null,
-      "fixedKey": "mtuxrjf6a6t1cl",
-      "fixedDate": "2026-09-23"
-    },
-    {
-      "id": "mubwaheaqehjom",
-      "text": "Cutting for Wednesday",
-      "done": true,
-      "priority": "none",
-      "dueDate": null,
-      "fixedKey": "mtuzodjqc3npv6",
-      "fixedDate": "2026-09-23"
-    },
-    {
-      "id": "mudd2xebrhdunw",
-      "text": "Printing for Thursday",
-      "done": true,
-      "priority": "none",
-      "dueDate": null,
-      "fixedKey": "printing",
-      "fixedDate": "2026-09-24"
-    },
-    {
-      "id": "mudd2xeclpyqjz",
-      "text": "Inventory",
-      "done": true,
-      "priority": "none",
-      "dueDate": null,
-      "fixedKey": "inventory",
-      "fixedDate": "2026-09-23"
-    },
-    {
-      "id": "mudd2xecjel5al",
-      "text": "Reading a book",
-      "done": true,
-      "priority": "none",
-      "dueDate": null,
-      "fixedKey": "mtuxrsd8yxwb3j",
-      "fixedDate": "2026-09-23"
     },
     {
       "id": "mucns35kwnxwjd",

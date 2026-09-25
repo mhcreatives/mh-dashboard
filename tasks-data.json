@@ -1,6 +1,15 @@
 {
   "dailyTasks": [
     {
+      "id": "mugay05xzrw584",
+      "text": "Inventory",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "fixedKey": "inventory",
+      "fixedDate": "2026-09-25"
+    },
+    {
       "id": "mug5od7hdhgvfk",
       "text": "Quiet time",
       "done": false,

@@ -84,7 +84,7 @@
     {
       "id": "mudd2xeclpyqjz",
       "text": "Inventory",
-      "done": false,
+      "done": true,
       "priority": "none",
       "dueDate": null,
       "fixedKey": "inventory",

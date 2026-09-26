@@ -3,7 +3,7 @@
     {
       "id": "muhoj115az1plb",
       "text": "Inventory",
-      "done": true,
+      "done": false,
       "priority": "none",
       "dueDate": null,
       "fixedKey": "inventory",

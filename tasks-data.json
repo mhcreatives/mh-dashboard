@@ -1,6 +1,15 @@
 {
   "dailyTasks": [
     {
+      "id": "muhoj115az1plb",
+      "text": "Inventory",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "fixedKey": "inventory",
+      "fixedDate": "2026-09-26"
+    },
+    {
       "id": "muh2vqzy3t2h4p",
       "text": "Cutting for Monday",
       "done": false,

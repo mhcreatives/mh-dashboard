@@ -1,6 +1,15 @@
 {
   "dailyTasks": [
     {
+      "id": "mugay3rphhiira",
+      "text": "Printing for Monday",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "fixedKey": "printing",
+      "fixedDate": "2026-09-28"
+    },
+    {
       "id": "muicmo8qlza35n",
       "text": "Packaging",
       "done": false,
@@ -42,15 +51,6 @@
       "dueDate": null,
       "fixedKey": "inventory",
       "fixedDate": "2026-09-25"
-    },
-    {
-      "id": "mugay3rphhiira",
-      "text": "Printing for Monday",
-      "done": false,
-      "priority": "none",
-      "dueDate": null,
-      "fixedKey": "printing",
-      "fixedDate": "2026-09-28"
     },
     {
       "id": "muf2fk517gvv3x",

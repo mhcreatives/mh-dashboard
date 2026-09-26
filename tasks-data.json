@@ -35,6 +35,14 @@
       "fixedDate": "2026-09-26"
     },
     {
+      "id": "mucns35kwnxwjd",
+      "text": "Production",
+      "done": false,
+      "priority": "none",
+      "dueDate": null,
+      "scheduleDate": null
+    },
+    {
       "id": "muh2vqzy3t2h4p",
       "text": "Cutting for Monday",
       "done": false,
@@ -60,14 +68,6 @@
       "dueDate": null,
       "fixedKey": "mtuzodjqc3npv6",
       "fixedDate": "2026-09-25"
-    },
-    {
-      "id": "mucns35kwnxwjd",
-      "text": "Production",
-      "done": false,
-      "priority": "none",
-      "dueDate": null,
-      "scheduleDate": null
     }
   ],
   "weeklyTasks": [
